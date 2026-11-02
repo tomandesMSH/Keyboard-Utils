@@ -1,0 +1,82 @@
+namespace KeyboardUtils;
+
+/// <summary>
+/// AntdUI.Window is deliberately chromeless (no native caption, no minimize/maximize/close) - that's on
+/// purpose so apps can draw their own. This builds that bar: a draggable header with the window's icon/title
+/// and whichever of minimize/maximize/close buttons the window wants. Add it to a window LAST (after every
+/// other control) and call BringToFront(), since WinForms docks same-edge controls in front-to-back z-order.
+/// </summary>
+sealed class TitleBar : Panel
+{
+    static Color HoverBack => Color.FromArgb(235, 235, 235);
+    static Color PressBack => Color.FromArgb(220, 220, 220);
+    static Color CloseHoverBack => Color.FromArgb(232, 17, 35);
+    static Color ClosePressBack => Color.FromArgb(200, 15, 30);
+
+    public TitleBar(AntdUI.Window owner, bool showMinimize = false, bool showMaximize = false)
+    {
+        Dock = DockStyle.Top;
+        Height = 40;
+        BackColor = Color.White;
+
+        var title = new Label
+        {
+            Text = owner.Text,
+            Dock = DockStyle.Fill,
+            TextAlign = ContentAlignment.MiddleLeft,
+            Padding = new Padding(14, 0, 0, 0),
+            Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+            ForeColor = Color.FromArgb(31, 31, 31),
+            BackColor = Color.Transparent,
+        };
+        owner.TextChanged += (_, _) => title.Text = owner.Text;
+
+        var buttons = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false };
+
+        void ToggleMax() { if (owner.IsMax) owner.MaxRestore(); else owner.Max(); }
+
+        if (showMinimize)
+            buttons.Controls.Add(ChromeButton("-", HoverBack, PressBack, (_, _) => owner.Min()));
+        if (showMaximize)
+            buttons.Controls.Add(ChromeButton("□", HoverBack, PressBack, (_, _) => ToggleMax()));
+        buttons.Controls.Add(ChromeButton("×", CloseHoverBack, ClosePressBack, (_, _) => owner.Close(), hoverForeWhite: true));
+
+        Controls.Add(title);
+        Controls.Add(buttons);
+
+        void StartDrag(object? _, MouseEventArgs e) { if (e.Button == MouseButtons.Left) owner.DraggableMouseDown(); }
+        MouseDown += StartDrag;
+        title.MouseDown += StartDrag;
+        if (showMaximize)
+        {
+            MouseDoubleClick += (_, _) => ToggleMax();
+            title.MouseDoubleClick += (_, _) => ToggleMax();
+        }
+    }
+
+    static Button ChromeButton(string text, Color hoverBack, Color pressBack, EventHandler onClick, bool hoverForeWhite = false)
+    {
+        var fore = Color.FromArgb(70, 70, 70);
+        var button = new Button
+        {
+            Text = text,
+            FlatStyle = FlatStyle.Flat,
+            Size = new Size(44, 40),
+            Font = new Font("Segoe UI", 10f),
+            ForeColor = fore,
+            BackColor = Color.White,
+            TabStop = false,
+            Margin = new Padding(0),
+        };
+        button.FlatAppearance.BorderSize = 0;
+        button.FlatAppearance.MouseOverBackColor = hoverBack;
+        button.FlatAppearance.MouseDownBackColor = pressBack;
+        if (hoverForeWhite)
+        {
+            button.MouseEnter += (_, _) => button.ForeColor = Color.White;
+            button.MouseLeave += (_, _) => button.ForeColor = fore;
+        }
+        button.Click += onClick;
+        return button;
+    }
+}
