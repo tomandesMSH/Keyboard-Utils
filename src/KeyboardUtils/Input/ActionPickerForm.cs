@@ -39,9 +39,7 @@ sealed class ActionPickerForm : AntdUI.Window
         Controls.Add(buttons);
         AcceptButton = ok;
         CancelButton = cancel;
-        var titleBar = new TitleBar(this);
-        Controls.Add(titleBar);
-        titleBar.BringToFront();
+        Controls.Add(new TitleBar(this));
 
         foreach (var choice in FixedChoices)
             list.Items.Add(choice);

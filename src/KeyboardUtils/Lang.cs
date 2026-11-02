@@ -64,8 +64,6 @@ sealed class LanguagePickerForm : AntdUI.Window
         var layout = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, FlowDirection = FlowDirection.TopDown, Padding = new Padding(8) };
         layout.Controls.AddRange([prompt, buttons]);
         Controls.Add(layout);
-        var titleBar = new TitleBar(this);
-        Controls.Add(titleBar);
-        titleBar.BringToFront();
+        Controls.Add(new TitleBar(this));
     }
 }

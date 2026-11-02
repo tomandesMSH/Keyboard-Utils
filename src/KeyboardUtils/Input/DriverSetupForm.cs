@@ -38,9 +38,7 @@ sealed class DriverSetupForm : AntdUI.Window
         Controls.Add(message);
         Controls.Add(buttons);
         CancelButton = closeButton;
-        var titleBar = new TitleBar(this);
-        Controls.Add(titleBar);
-        titleBar.BringToFront();
+        Controls.Add(new TitleBar(this));
 
         installButton.Click += (_, _) => Install();
         restartButton.Click += (_, _) => Restart();

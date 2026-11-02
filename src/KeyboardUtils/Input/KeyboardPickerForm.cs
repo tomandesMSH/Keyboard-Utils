@@ -50,9 +50,7 @@ sealed partial class KeyboardPickerForm : AntdUI.Window
         Controls.Add(detail);
         Controls.Add(prompt);
         Controls.Add(buttons);
-        var titleBar = new TitleBar(this);
-        Controls.Add(titleBar);
-        titleBar.BringToFront();
+        Controls.Add(new TitleBar(this));
 
         useButton.Click += (_, _) => { DialogResult = DialogResult.OK; Close(); };
         retryButton.Click += (_, _) => Listen();

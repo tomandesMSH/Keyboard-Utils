@@ -1,16 +1,14 @@
 using System.Threading.Channels;
-using Microsoft.Win32;
 
 namespace KeyboardUtils;
 
 sealed class MainForm : AntdUI.Window
 {
-    const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    const string RunValue = "KeyboardUtils";
 
     readonly AppConfig config;
     readonly KeyboardInterceptor? interceptor;
     readonly PlaybackEngine playbackEngine = new();
+    readonly StemPlaybackEngine stemPlaybackEngine = new();
     readonly Channel<Binding> actionQueue = Channel.CreateUnbounded<Binding>(new UnboundedChannelOptions { SingleReader = true });
     readonly List<string> outputDeviceNames = PlaybackEngine.GetOutputDeviceNames().ToList();
 
@@ -18,14 +16,18 @@ sealed class MainForm : AntdUI.Window
     volatile IReadOnlyDictionary<int, Binding> bindingsByKey = new Dictionary<int, Binding>();
     volatile bool capturingKey;
 
+    // A song is either a note-based Score (MIDI/MusicXML - has a piano roll, supports a playlist) or a
+    // StemSet (a folder of synced .wav tracks - audio only, no piano roll, no playlist). Mutually exclusive.
     List<string> playlist = [];
     int playlistIndex = -1;
     Score? currentScore;
+    StemSet? currentStems;
 
     readonly AntdUI.Label macroInfoLabel = new() { AutoSize = false, Dock = DockStyle.Top, Height = 54, Padding = new Padding(6), ForeColor = SystemColors.GrayText };
     readonly AntdUI.Label keyboardLabel = new() { AutoSize = true };
     readonly AntdUI.Button forgetButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Label songLabel = new() { AutoSize = true, Text = "" };
+    readonly AntdUI.Label stemsInfoLabel = new() { AutoSize = false, Dock = DockStyle.Top, Height = 36, Padding = new Padding(6, 0, 6, 0), ForeColor = SystemColors.GrayText };
     readonly AntdUI.Label statusLabel = new() { Dock = DockStyle.Bottom, Height = 28, Padding = new Padding(6) };
     readonly AntdUI.Button learnButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly AntdUI.Button addButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
@@ -34,21 +36,18 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button exportButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Button importButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Button openSongButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
+    readonly AntdUI.Button importStemsButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Button playPauseButton = new() { AutoSize = true, Enabled = false, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly AntdUI.Button stopButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Button previousButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Button nextButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Select outputDeviceBox = new() { Width = 200, Margin = new Padding(12, 4, 3, 3) };
     readonly AntdUI.Checkbox enabledBox = new() { AutoSize = true, Margin = new Padding(12, 6, 3, 3) };
-    readonly AntdUI.Checkbox autostartBox = new() { AutoSize = true, Margin = new Padding(12, 6, 3, 3) };
     readonly AntdUI.Label languageLabel = new() { AutoSize = true, Margin = new Padding(12, 8, 3, 3) };
     readonly AntdUI.Select languageBox = new() { Width = 90, Margin = new Padding(3, 4, 3, 3) };
     readonly FlowLayoutPanel partsPanel = new() { Dock = DockStyle.Right, Width = 180, AutoScroll = true, Padding = new Padding(6), FlowDirection = FlowDirection.TopDown, WrapContents = false };
     readonly PianoRollControl pianoRoll = new() { Dock = DockStyle.Fill };
     readonly System.Windows.Forms.Timer playbackTimer = new() { Interval = 33 };
-    readonly ToolStripMenuItem trayOpenItem = new();
-    readonly ToolStripMenuItem trayToggleItem = new() { CheckOnClick = true };
-    readonly ToolStripMenuItem trayExitItem = new();
     readonly AntdUI.Tabs tabs = new() { Dock = DockStyle.Fill };
     readonly AntdUI.TabPage songTab = new();
     readonly AntdUI.TabPage bindingsTab = new();
@@ -60,12 +59,13 @@ sealed class MainForm : AntdUI.Window
         MultiSelect = false,
         HideSelection = false,
     };
-    readonly NotifyIcon tray = new() { Text = "Keyboard Utils", Icon = SystemIcons.Application, Visible = true };
+    readonly FlowLayoutPanel menuBar = new() { Dock = DockStyle.Top, Height = 28, BackColor = Color.FromArgb(248, 248, 248), Padding = new Padding(4, 3, 4, 3), WrapContents = false };
+    readonly MenuBarButton fileMenuButton = new();
+    readonly MenuBarButton editMenuButton = new();
+    readonly MenuBarButton settingsMenuButton = new();
+    readonly MenuBarButton macroSetupMenuButton = new();
 
-    bool exiting;
-    bool trayHintShown;
-
-    public MainForm(AppConfig config, KeyboardInterceptor? interceptor, bool startHidden)
+    public MainForm(AppConfig config, KeyboardInterceptor? interceptor)
     {
         this.config = config;
         this.interceptor = interceptor;
@@ -77,7 +77,6 @@ sealed class MainForm : AntdUI.Window
         StartPosition = FormStartPosition.CenterScreen;
 
         BuildLayout();
-        BuildTray();
         ApplyTexts();
 
         // The macro keyboard is entirely optional - no second keyboard, no Interception driver, no nagging.
@@ -91,23 +90,17 @@ sealed class MainForm : AntdUI.Window
         }
 
         enabledBox.Checked = config.MacroEnabled;
-        autostartBox.Checked = IsAutostartEnabled();
         playbackEngine.SetOutputDevice(config.MidiOutputDevice);
         playbackEngine.Finished += () => Post(() => SetStatus(T("Konec skladby.", "End of song.")));
+        stemPlaybackEngine.Finished += () => Post(() => SetStatus(T("Konec skladby.", "End of song.")));
         playbackTimer.Tick += (_, _) =>
         {
-            pianoRoll.SetCurrentTime(playbackEngine.CurrentSeconds);
+            if (currentScore != null)
+                pianoRoll.SetCurrentTime(playbackEngine.CurrentSeconds);
             UpdatePlayPauseButton();
         };
         playbackTimer.Start();
         _ = Task.Run(ActionLoop);
-
-        if (startHidden)
-        {
-            WindowState = FormWindowState.Minimized;
-            ShowInTaskbar = false;
-            Load += (_, _) => { Hide(); WindowState = FormWindowState.Normal; ShowInTaskbar = true; };
-        }
     }
 
     void BuildLayout()
@@ -122,16 +115,18 @@ sealed class MainForm : AntdUI.Window
 
         // --- Song tab: open/transport controls + piano roll + per-part mute panel ---
         var songControlsRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6), WrapContents = false };
-        songControlsRow.Controls.AddRange([openSongButton, previousButton, playPauseButton, stopButton, nextButton, outputDeviceBox]);
+        songControlsRow.Controls.AddRange([openSongButton, importStemsButton, previousButton, playPauseButton, stopButton, nextButton, outputDeviceBox]);
         var songLabelRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6, 0, 6, 0), WrapContents = false };
         songLabelRow.Controls.Add(songLabel);
 
         songTab.Controls.Add(pianoRoll);
         songTab.Controls.Add(partsPanel);
         songTab.Controls.Add(songLabelRow);
+        songTab.Controls.Add(stemsInfoLabel);
         songTab.Controls.Add(songControlsRow);
 
         openSongButton.Click += (_, _) => OpenSong();
+        importStemsButton.Click += (_, _) => ImportStems();
         playPauseButton.Click += (_, _) => TogglePlayPause();
         stopButton.Click += (_, _) => DoStop();
         previousButton.Click += (_, _) => DoPreviousTrack();
@@ -152,7 +147,7 @@ sealed class MainForm : AntdUI.Window
         keyboardLabel.Margin = new Padding(6, 8, 3, 3);
 
         var bindingRow = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(6) };
-        bindingRow.Controls.AddRange([addButton, editButton, removeButton, exportButton, importButton, enabledBox, autostartBox, languageLabel, languageBox]);
+        bindingRow.Controls.AddRange([addButton, editButton, removeButton, exportButton, importButton, enabledBox, languageLabel, languageBox]);
 
         bindingsTab.Controls.Add(list);
         bindingsTab.Controls.Add(bindingRow);
@@ -164,10 +159,31 @@ sealed class MainForm : AntdUI.Window
         Controls.Add(tabs);
         Controls.Add(statusLabel);
 
-        // Must be added last (and brought to front) - WinForms stacks same-edge Dock controls back-to-front.
+        menuBar.Controls.AddRange([fileMenuButton, editMenuButton, settingsMenuButton, macroSetupMenuButton]);
+        Controls.Add(menuBar);
+
+        // Title bar must be added LAST (and never BringToFront - that resets its z-index to 0, which for
+        // Dock layout means innermost, not outermost). Last-added Dock=Top control sits closest to the edge.
         var titleBar = new TitleBar(this, showMinimize: true, showMaximize: true);
         Controls.Add(titleBar);
-        titleBar.BringToFront();
+
+        fileMenuButton.Click += (_, _) => ShowMenu(fileMenuButton,
+            MenuItem(T("Otevřít skladbu...", "Open song..."), OpenSong),
+            MenuItem(T("Importovat stopy (WAV)...", "Import stems (WAV)..."), ImportStems),
+            new AntdUI.ContextMenuStripItemDivider(),
+            MenuItem(T("Exportovat klávesy...", "Export keys..."), ExportBindings),
+            MenuItem(T("Importovat klávesy...", "Import keys..."), ImportBindings),
+            new AntdUI.ContextMenuStripItemDivider(),
+            MenuItem(T("Ukončit", "Exit"), Close));
+
+        editMenuButton.Click += (_, _) => ShowMenu(editMenuButton,
+            MenuItem(T("Přidat klávesu...", "Add key..."), ToggleCapture),
+            MenuItem(T("Změnit akci...", "Change action..."), EditSelected),
+            MenuItem(T("Odebrat", "Remove"), RemoveSelected));
+
+        settingsMenuButton.Click += (_, _) => ShowMenu(settingsMenuButton, BuildSettingsMenuItems());
+
+        macroSetupMenuButton.Click += (_, _) => StartLearning();
 
         learnButton.Click += (_, _) => StartLearning();
         forgetButton.Click += (_, _) => ForgetKeyboard();
@@ -188,7 +204,6 @@ sealed class MainForm : AntdUI.Window
                 ? T("Ovládání zapnuté.", "Controls on.")
                 : T("Ovládání vypnuté - makro klávesnice píše normálně.", "Controls off - the macro keyboard types normally."));
         };
-        autostartBox.CheckedChanged += (_, _) => SetAutostart(autostartBox.Checked);
         languageBox.SelectedIndexChanged += (_, _) =>
         {
             var language = (AppLanguage)languageBox.SelectedIndex;
@@ -202,6 +217,57 @@ sealed class MainForm : AntdUI.Window
         };
     }
 
+    static AntdUI.ContextMenuStripItem MenuItem(string text, Action action) => new(text) { Tag = action };
+
+    static void ShowMenu(Control anchor, params AntdUI.IContextMenuStripItem[] items)
+    {
+        var config = new AntdUI.ContextMenuStrip.Config(anchor, item => { if (item.Tag is Action action) action(); }, items, 0)
+        {
+            Font = new Font("Segoe UI", 9.5f),
+            Gap = 0.15f,
+            PaddRatio = [0.5f, 0.25f],
+        };
+        AntdUI.ContextMenuStrip.open(config);
+    }
+
+    /// <summary>Built fresh every time the menu opens, so it always reflects current language/state - nothing to keep in sync.</summary>
+    AntdUI.IContextMenuStripItem[] BuildSettingsMenuItems()
+    {
+        var languageItems = Enum.GetValues<AppLanguage>()
+            .Select(language => (AntdUI.IContextMenuStripItem)new AntdUI.ContextMenuStripItem(DisplayName(language))
+            {
+                Checked = language == Lang.Current,
+                Tag = (Action)(() => languageBox.SelectedIndex = (int)language),
+            })
+            .ToArray();
+
+        var deviceItems = new List<AntdUI.IContextMenuStripItem>
+        {
+            new AntdUI.ContextMenuStripItem(T("(systémové výchozí)", "(system default)"))
+            {
+                Checked = outputDeviceBox.SelectedIndex == 0,
+                Tag = (Action)(() => outputDeviceBox.SelectedIndex = 0),
+            },
+        };
+        for (int i = 0; i < outputDeviceNames.Count; i++)
+        {
+            int selectIndex = i + 1;
+            deviceItems.Add(new AntdUI.ContextMenuStripItem(outputDeviceNames[i])
+            {
+                Checked = outputDeviceBox.SelectedIndex == selectIndex,
+                Tag = (Action)(() => outputDeviceBox.SelectedIndex = selectIndex),
+            });
+        }
+
+        return
+        [
+            new AntdUI.ContextMenuStripItem(T("Ovládání zapnuté", "Controls on")) { Checked = enabledBox.Checked, Tag = (Action)(() => enabledBox.Checked = !enabledBox.Checked) },
+            new AntdUI.ContextMenuStripItemDivider(),
+            new AntdUI.ContextMenuStripItem(T("Jazyk", "Language")) { Sub = languageItems },
+            new AntdUI.ContextMenuStripItem(T("MIDI výstup", "MIDI output")) { Sub = deviceItems.ToArray() },
+        ];
+    }
+
     void RefreshOutputDeviceItems()
     {
         int selected = config.MidiOutputDevice != null ? outputDeviceNames.IndexOf(config.MidiOutputDevice) + 1 : 0;
@@ -212,24 +278,22 @@ sealed class MainForm : AntdUI.Window
         outputDeviceBox.SelectedIndex = selected >= 0 ? selected : 0;
     }
 
-    void BuildTray()
-    {
-        var menu = new ContextMenuStrip();
-        trayOpenItem.Click += (_, _) => ShowFromTray();
-        trayToggleItem.Click += (_, _) => enabledBox.Checked = trayToggleItem.Checked;
-        trayExitItem.Click += (_, _) => { exiting = true; Close(); };
-        menu.Items.AddRange([trayOpenItem, trayToggleItem, new ToolStripSeparator(), trayExitItem]);
-        menu.Opening += (_, _) => trayToggleItem.Checked = enabledBox.Checked;
-        tray.ContextMenuStrip = menu;
-        tray.DoubleClick += (_, _) => ShowFromTray();
-    }
-
-    /// <summary>Sets every text in the window and tray to the current language.</summary>
+    /// <summary>Sets every text in the window to the current language.</summary>
     void ApplyTexts()
     {
+        fileMenuButton.Text = T("Soubor", "File");
+        editMenuButton.Text = T("Úpravy", "Edit");
+        settingsMenuButton.Text = T("Nastavení", "Settings");
+        macroSetupMenuButton.Text = T("Makro klávesnice", "Macro keyboard");
         songTab.Text = T("Skladba", "Song");
         bindingsTab.Text = T("Makro klávesnice", "Macro keyboard");
         openSongButton.Text = T("Otevřít skladbu...", "Open song...");
+        importStemsButton.Text = T("Importovat stopy...", "Import stems...");
+        stemsInfoLabel.Text = T(
+            "Tip: FL Studio - Export > WAV File > Miscellaneous > \"Split mixer tracks\" vyexportuje každou stopu zvlášť. "
+            + "Rozpracované verze skladeb (stems) se dají občas stáhnout i hotové, např. na RemixPacks a podobných stránkách.",
+            "Tip: FL Studio - Export > WAV File > Miscellaneous > \"Split mixer tracks\" exports each track separately. "
+            + "Stems (a song split into its instruments) can also sometimes be downloaded ready-made, e.g. from RemixPacks and similar sites.");
         playPauseButton.Text = T("Přehrát", "Play");
         stopButton.Text = T("Stop", "Stop");
         previousButton.Text = T("<< Předchozí", "<< Previous");
@@ -248,13 +312,10 @@ sealed class MainForm : AntdUI.Window
         removeButton.Text = T("Odebrat", "Remove");
         exportButton.Text = T("Exportovat...", "Export...");
         importButton.Text = T("Importovat...", "Import...");
-        enabledBox.Text = trayToggleItem.Text = T("Ovládání zapnuté", "Controls on");
-        autostartBox.Text = T("Spouštět s Windows", "Start with Windows");
+        enabledBox.Text = T("Ovládání zapnuté", "Controls on");
         languageLabel.Text = T("Jazyk:", "Language:");
         list.Columns[0].Text = T("Klávesa", "Key");
         list.Columns[1].Text = T("Akce", "Action");
-        trayOpenItem.Text = T("Otevřít", "Open");
-        trayExitItem.Text = T("Ukončit", "Exit");
         RefreshOutputDeviceItems();
         RebuildBindings();
         UpdateKeyboardLabel();
@@ -262,29 +323,18 @@ sealed class MainForm : AntdUI.Window
         UpdatePlayPauseButton();
     }
 
-    void ShowFromTray()
+    /// <summary>Brings the main window to front, restoring it first if it's minimized.</summary>
+    void RestoreWindow()
     {
+        if (WindowState == FormWindowState.Minimized)
+            WindowState = FormWindowState.Normal;
         Show();
-        WindowState = FormWindowState.Normal;
         Activate();
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
-        if (!exiting && e.CloseReason == CloseReason.UserClosing)
-        {
-            e.Cancel = true;
-            Hide();
-            if (!trayHintShown)
-            {
-                trayHintShown = true;
-                tray.ShowBalloonTip(3000, "Keyboard Utils", T("Běží dál v oznamovací oblasti. Ukončíš ho přes pravý klik na ikonu.",
-                    "Still running in the notification area. Right-click the icon to exit."), ToolTipIcon.Info);
-            }
-            return;
-        }
         actionQueue.Writer.TryComplete();
-        tray.Visible = false;
         base.OnFormClosing(e);
     }
 
@@ -350,15 +400,20 @@ sealed class MainForm : AntdUI.Window
         if (playlistIndex < 0 || playlistIndex >= playlist.Count)
             return;
         string path = playlist[playlistIndex];
+        Score score;
         try
         {
-            currentScore = ScoreImporter.Import(path);
+            score = ScoreImporter.Import(path);
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or NotSupportedException or UnauthorizedAccessException or System.Xml.XmlException)
         {
             AntdUI.Modal.open(this, Text, T("Skladbu nejde načíst: ", "Could not load the song: ") + ex.Message, AntdUI.TType.Error);
             return;
         }
+
+        stemPlaybackEngine.Stop();
+        currentStems = null;
+        currentScore = score;
 
         playbackEngine.Load(currentScore);
         pianoRoll.SetScore(currentScore);
@@ -369,26 +424,72 @@ sealed class MainForm : AntdUI.Window
         SetStatus(T($"Načteno: {currentScore.Title}", $"Loaded: {currentScore.Title}"));
     }
 
+    void ImportStems()
+    {
+        using var dialog = new FolderBrowserDialog { Description = T("Vyber složku se stopami (.wav)", "Choose the folder with the stems (.wav)") };
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+            return;
+
+        StemSet stems;
+        try
+        {
+            stems = StemSetImporter.ImportFolder(dialog.SelectedPath);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            AntdUI.Modal.open(this, Text, T("Stopy nejde načíst: ", "Could not load the stems: ") + ex.Message, AntdUI.TType.Error);
+            return;
+        }
+
+        try
+        {
+            stemPlaybackEngine.Load(stems);
+        }
+        catch (InvalidDataException ex)
+        {
+            AntdUI.Modal.open(this, Text, ex.Message, AntdUI.TType.Error);
+            return;
+        }
+
+        playbackEngine.Stop();
+        playlist = [];
+        playlistIndex = -1;
+        currentScore = null;
+        currentStems = stems;
+        pianoRoll.SetScore(null);
+
+        RebuildPartsPanel();
+        playPauseButton.Enabled = stopButton.Enabled = true;
+        previousButton.Enabled = nextButton.Enabled = false;
+        UpdateSongLabel();
+        SetStatus(T($"Načteny stopy: {stems.Title} ({stems.Tracks.Count})", $"Loaded stems: {stems.Title} ({stems.Tracks.Count})"));
+    }
+
     void UpdateSongLabel()
     {
-        songLabel.Text = currentScore == null
-            ? T("Žádná skladba nenačtena.", "No song loaded.")
-            : $"{currentScore.Title}  ({TimeSpan.FromSeconds(currentScore.DurationSeconds):m\\:ss})" +
-              (playlist.Count > 1 ? $"   [{playlistIndex + 1}/{playlist.Count}]" : "");
+        songLabel.Text = currentScore != null
+            ? $"{currentScore.Title}  ({TimeSpan.FromSeconds(currentScore.DurationSeconds):m\\:ss})" +
+              (playlist.Count > 1 ? $"   [{playlistIndex + 1}/{playlist.Count}]" : "")
+            : currentStems != null
+                ? $"{currentStems.Title}  ({TimeSpan.FromSeconds(stemPlaybackEngine.DurationSeconds):m\\:ss})  [{T("stopy", "stems")}]"
+                : T("Žádná skladba nenačtena.", "No song loaded.");
     }
 
     void RebuildPartsPanel()
     {
         partsPanel.Controls.Clear();
-        if (currentScore == null)
+        var parts = currentScore?.Parts.Select(p => (p.Name, p.Muted)).ToList()
+            ?? currentStems?.Tracks.Select(t => (t.Name, t.Muted)).ToList()
+            ?? [];
+        if (parts.Count == 0)
             return;
+
         var header = new AntdUI.Label { Text = T("Části / nástroje:", "Parts / instruments:"), AutoSize = true, Margin = new Padding(0, 0, 0, 6) };
         partsPanel.Controls.Add(header);
-        for (int i = 0; i < currentScore.Parts.Count; i++)
+        for (int i = 0; i < parts.Count; i++)
         {
             int index = i;
-            var part = currentScore.Parts[i];
-            var box = new AntdUI.Checkbox { Text = part.Name, Checked = !part.Muted, AutoSize = true, Margin = new Padding(0, 2, 0, 2) };
+            var box = new AntdUI.Checkbox { Text = parts[i].Name, Checked = !parts[i].Muted, AutoSize = true, Margin = new Padding(0, 2, 0, 2) };
             box.CheckedChanged += (_, _) => SetPartMuted(index, !box.Checked);
             partsPanel.Controls.Add(box);
         }
@@ -396,30 +497,52 @@ sealed class MainForm : AntdUI.Window
 
     void SetPartMuted(int partIndex, bool muted)
     {
-        if (currentScore == null || partIndex < 0 || partIndex >= currentScore.Parts.Count)
-            return;
-        currentScore.Parts[partIndex].Muted = muted;
-        playbackEngine.SetPartMuted(partIndex, muted);
+        if (currentScore != null)
+        {
+            if (partIndex < 0 || partIndex >= currentScore.Parts.Count)
+                return;
+            currentScore.Parts[partIndex].Muted = muted;
+            playbackEngine.SetPartMuted(partIndex, muted);
+        }
+        else if (currentStems != null)
+        {
+            if (partIndex < 0 || partIndex >= currentStems.Tracks.Count)
+                return;
+            currentStems.Tracks[partIndex].Muted = muted;
+            stemPlaybackEngine.SetTrackMuted(partIndex, muted);
+        }
         pianoRoll.Invalidate();
     }
 
     void TogglePlayPause()
     {
-        if (currentScore == null)
-            return;
-        if (playbackEngine.IsRunning)
-            playbackEngine.Pause();
+        if (currentScore != null)
+        {
+            if (playbackEngine.IsRunning) playbackEngine.Pause(); else playbackEngine.Play();
+        }
+        else if (currentStems != null)
+        {
+            if (stemPlaybackEngine.IsRunning) stemPlaybackEngine.Pause(); else stemPlaybackEngine.Play();
+        }
         else
-            playbackEngine.Play();
+        {
+            return;
+        }
         UpdatePlayPauseButton();
     }
 
-    void UpdatePlayPauseButton() =>
-        playPauseButton.Text = playbackEngine.IsRunning ? T("Pauza", "Pause") : T("Přehrát", "Play");
+    void UpdatePlayPauseButton()
+    {
+        bool running = currentScore != null ? playbackEngine.IsRunning : currentStems != null && stemPlaybackEngine.IsRunning;
+        playPauseButton.Text = running ? T("Pauza", "Pause") : T("Přehrát", "Play");
+    }
 
     void DoStop()
     {
-        playbackEngine.Stop();
+        if (currentScore != null)
+            playbackEngine.Stop();
+        else if (currentStems != null)
+            stemPlaybackEngine.Stop();
         pianoRoll.SetCurrentTime(0);
         UpdatePlayPauseButton();
         SetStatus(T("Zastaveno.", "Stopped."));
@@ -491,8 +614,9 @@ sealed class MainForm : AntdUI.Window
 
     void PickActionFor(int key)
     {
-        ShowFromTray();
-        var partNames = currentScore?.Parts.Select(p => p.Name).ToList();
+        RestoreWindow();
+        var partNames = currentScore?.Parts.Select(p => p.Name).ToList()
+            ?? currentStems?.Tracks.Select(t => t.Name).ToList();
         using var picker = new ActionPickerForm(KeyNames.Describe(key), partNames);
         if (picker.ShowDialog(this) != DialogResult.OK || picker.Result == null)
         {
@@ -633,10 +757,11 @@ sealed class MainForm : AntdUI.Window
                 DoPreviousTrack();
                 break;
             case MacroAction.ToggleMutePart:
-                if (currentScore?.ResolvePartIndex(binding) is { } partIndex)
+                int? partIndex = currentScore?.ResolvePartIndex(binding) ?? currentStems?.ResolvePartIndex(binding);
+                if (partIndex is { } index)
                 {
-                    bool nowMuted = !currentScore.Parts[partIndex].Muted;
-                    SetPartMuted(partIndex, nowMuted);
+                    bool currentlyMuted = currentScore != null ? currentScore.Parts[index].Muted : currentStems!.Tracks[index].Muted;
+                    SetPartMuted(index, !currentlyMuted);
                     RebuildPartsPanel();
                     SetStatus(binding.Describe());
                 }
@@ -656,30 +781,13 @@ sealed class MainForm : AntdUI.Window
 
     void SetStatus(string text) => statusLabel.Text = text;
 
-    // --- Autostart ------------------------------------------------------------------------------
-
-    static bool IsAutostartEnabled()
-    {
-        using var key = Registry.CurrentUser.OpenSubKey(RunKey);
-        return key?.GetValue(RunValue) is string;
-    }
-
-    static void SetAutostart(bool enabled)
-    {
-        using var key = Registry.CurrentUser.CreateSubKey(RunKey);
-        if (enabled)
-            key.SetValue(RunValue, $"\"{Environment.ProcessPath}\" --minimized");
-        else
-            key.DeleteValue(RunValue, throwOnMissingValue: false);
-    }
-
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
-            tray.Dispose();
             playbackTimer.Dispose();
             playbackEngine.Dispose();
+            stemPlaybackEngine.Dispose();
         }
         base.Dispose(disposing);
     }

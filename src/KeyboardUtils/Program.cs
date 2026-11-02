@@ -3,17 +3,17 @@ namespace KeyboardUtils;
 static class Program
 {
     [STAThread]
-    static void Main(string[] args)
+    static void Main()
     {
         using var mutex = new Mutex(initiallyOwned: true, @"Local\KeyboardUtils", out bool isFirstInstance);
         if (!isFirstInstance)
             return;
 
+        Application.SetDefaultFont(new Font("Segoe UI", 9.5f));
         ApplicationConfiguration.Initialize();
 
         // Light, clean theme (ArtCraft-ish: plenty of whitespace, no visual clutter) for every window/dialog.
         AntdUI.Config.Mode = AntdUI.TMode.Light;
-        AntdUI.Config.Font = new Font("Segoe UI", 9.5f);
 
         var config = AppConfig.Load();
         if (config.Language == null)
@@ -43,9 +43,6 @@ static class Program
         }
 
         using (interceptor)
-        {
-            bool startHidden = args.Contains("--minimized", StringComparer.OrdinalIgnoreCase);
-            Application.Run(new MainForm(config, interceptor, startHidden));
-        }
+            Application.Run(new MainForm(config, interceptor));
     }
 }

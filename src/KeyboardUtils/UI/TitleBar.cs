@@ -4,7 +4,9 @@ namespace KeyboardUtils;
 /// AntdUI.Window is deliberately chromeless (no native caption, no minimize/maximize/close) - that's on
 /// purpose so apps can draw their own. This builds that bar: a draggable header with the window's icon/title
 /// and whichever of minimize/maximize/close buttons the window wants. Add it to a window LAST (after every
-/// other control) and call BringToFront(), since WinForms docks same-edge controls in front-to-back z-order.
+/// other Dock=Top control) and nothing else - the control added last to a Dock=Top sibling group ends up
+/// closest to the edge (outermost/topmost). Do NOT call BringToFront() afterwards: that resets z-index to 0,
+/// which for Dock layout means innermost, undoing the correct order.
 /// </summary>
 sealed class TitleBar : Panel
 {
@@ -44,14 +46,20 @@ sealed class TitleBar : Panel
         Controls.Add(title);
         Controls.Add(buttons);
 
-        void StartDrag(object? _, MouseEventArgs e) { if (e.Button == MouseButtons.Left) owner.DraggableMouseDown(); }
-        MouseDown += StartDrag;
-        title.MouseDown += StartDrag;
-        if (showMaximize)
+        // DraggableMouseDown() hands the mouse to Windows' native move loop, which eats the second click of a
+        // double-click - MouseDoubleClick would never fire after it. So check e.Clicks here instead, before
+        // starting the drag.
+        void HandleMouseDown(object? _, MouseEventArgs e)
         {
-            MouseDoubleClick += (_, _) => ToggleMax();
-            title.MouseDoubleClick += (_, _) => ToggleMax();
+            if (e.Button != MouseButtons.Left)
+                return;
+            if (showMaximize && e.Clicks >= 2)
+                ToggleMax();
+            else
+                owner.DraggableMouseDown();
         }
+        MouseDown += HandleMouseDown;
+        title.MouseDown += HandleMouseDown;
     }
 
     static Button ChromeButton(string text, Color hoverBack, Color pressBack, EventHandler onClick, bool hoverForeWhite = false)
