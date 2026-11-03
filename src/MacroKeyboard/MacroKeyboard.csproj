@@ -14,7 +14,6 @@
     <Authors>tomandesMSH</Authors>
     <Description>Identifies and captures input from a second ("macro") keyboard via the Interception driver, so its keystrokes can drive app actions instead of typing into Windows. Shared between SoundpadTranslator and Keyboard Utils.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/tomandesMSH/Keyboard-Utils</RepositoryUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
