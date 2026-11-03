@@ -1,5 +1,3 @@
-using MacroKeyboard;
-
 namespace KeyboardUtils;
 
 static class Program
@@ -10,6 +8,9 @@ static class Program
         using var mutex = new Mutex(initiallyOwned: true, @"Local\KeyboardUtils", out bool isFirstInstance);
         if (!isFirstInstance)
             return;
+
+        // Must happen before anything might touch MacroKeyboard types - see Modules/MacroKeyboardModule.cs.
+        MacroKeyboardModule.RegisterAssemblyResolve();
 
         Application.SetDefaultFont(new Font("Segoe UI", 9.5f));
         ApplicationConfiguration.Initialize();
@@ -30,19 +31,10 @@ static class Program
         Lang.Current = config.Language ?? AppLanguage.Czech;
 
         // The macro keyboard (second keyboard controlling the app) is an optional extra: not everyone has a
-        // spare keyboard, or wants to use one. If the Interception driver isn't installed, the app still runs
-        // fully - it just offers to set the driver up when the user opens the "Makro klávesnice" tab.
-        KeyboardInterceptor? interceptor = null;
-        try
-        {
-            interceptor = KeyboardInterceptor.Create();
-        }
-        catch (InterceptionUnavailableException)
-        {
-        }
-        catch (DllNotFoundException)
-        {
-        }
+        // spare keyboard, or wants to use one. If the module isn't downloaded yet, or the Interception driver
+        // isn't installed, the app still runs fully - it just offers to set things up when the user opens
+        // the "Makro klávesnice" tab.
+        IMacroKeyboardInterceptor? interceptor = MacroKeyboardModule.IsInstalled ? MacroKeyboardFactory.TryCreate() : null;
 
         using (interceptor)
             Application.Run(new MainForm(config, interceptor));

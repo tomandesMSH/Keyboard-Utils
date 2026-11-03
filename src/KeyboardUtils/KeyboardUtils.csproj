@@ -14,9 +14,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- ProjectReference doesn't auto-copy a referenced project's native content (that's a NuGet-only trick via
-         runtimes/win-x64/native), so interception.dll needs copying explicitly here too. -->
-    <None Include="..\MacroKeyboard\native\interception.dll" Link="interception.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\tools\install-interception.exe" Link="install-interception.exe" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
@@ -27,7 +24,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MacroKeyboard\MacroKeyboard.csproj" />
+    <!-- Compile-time only: MacroKeyboard.dll is downloaded on demand (see Modules/), never bundled in the
+         build - Private=false keeps it (and interception.dll) out of the output directory. -->
+    <ProjectReference Include="..\MacroKeyboard\MacroKeyboard.csproj" Private="false" />
   </ItemGroup>
 
 </Project>

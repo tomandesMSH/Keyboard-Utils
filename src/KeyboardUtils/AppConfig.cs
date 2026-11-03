@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using MacroKeyboard;
 
 namespace KeyboardUtils;
 
@@ -68,9 +67,9 @@ sealed class AppConfig
     public List<Binding> Bindings { get; set; } = [];
 
     [JsonIgnore]
-    public MacroKeyboardTarget? MacroTarget => MacroKeyboardHardwareId == null
+    public MacroTarget? MacroTarget => MacroKeyboardHardwareId == null
         ? null
-        : new MacroKeyboardTarget(MacroKeyboardHardwareId, MacroKeyboardDevice);
+        : new MacroTarget(MacroKeyboardHardwareId, MacroKeyboardDevice);
 
     public static AppConfig Load()
     {

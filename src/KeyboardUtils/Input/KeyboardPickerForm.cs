@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using MacroKeyboard;
 
 namespace KeyboardUtils;
 
@@ -14,7 +13,7 @@ sealed partial class KeyboardPickerForm : AntdUI.Window
         ["1A2C"] = "China Resource Semico", ["3434"] = "Keychron", ["320F"] = "Glorious", ["0C45"] = "Microdia",
     };
 
-    readonly KeyboardInterceptor interceptor;
+    readonly IMacroKeyboardInterceptor interceptor;
     readonly AntdUI.Label prompt = new()
     {
         Dock = DockStyle.Top,
@@ -33,9 +32,9 @@ sealed partial class KeyboardPickerForm : AntdUI.Window
     readonly AntdUI.Button retryButton = new() { Text = T("Zkusit znovu", "Try again"), AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Button cancelButton = new() { Text = T("Zrušit", "Cancel"), AutoSize = true, Radius = 8 };
 
-    public MacroKeyboardTarget? Result { get; private set; }
+    public MacroTarget? Result { get; private set; }
 
-    public KeyboardPickerForm(KeyboardInterceptor interceptor, MacroKeyboardTarget? current)
+    public KeyboardPickerForm(IMacroKeyboardInterceptor interceptor, MacroTarget? current)
     {
         this.interceptor = interceptor;
         Text = T("Výběr makro klávesnice", "Choose macro keyboard");
@@ -79,7 +78,7 @@ sealed partial class KeyboardPickerForm : AntdUI.Window
     }
 
     /// <summary>Runs on the interception thread.</summary>
-    void OnLearned(MacroKeyboardTarget target) => BeginInvoke(() =>
+    void OnLearned(MacroTarget target) => BeginInvoke(() =>
     {
         Result = target;
         prompt.Text = T("Klávesnice nalezena", "Keyboard found");

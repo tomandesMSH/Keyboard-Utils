@@ -1,5 +1,4 @@
 using System.Threading.Channels;
-using MacroKeyboard;
 
 namespace KeyboardUtils;
 
@@ -7,7 +6,7 @@ sealed class MainForm : AntdUI.Window
 {
 
     readonly AppConfig config;
-    readonly KeyboardInterceptor? interceptor;
+    IMacroKeyboardInterceptor? interceptor;
     readonly PlaybackEngine playbackEngine = new();
     readonly StemPlaybackEngine stemPlaybackEngine = new();
     readonly Channel<Binding> actionQueue = Channel.CreateUnbounded<Binding>(new UnboundedChannelOptions { SingleReader = true });
@@ -66,7 +65,7 @@ sealed class MainForm : AntdUI.Window
     readonly MenuBarButton settingsMenuButton = new();
     readonly MenuBarButton macroSetupMenuButton = new();
 
-    public MainForm(AppConfig config, KeyboardInterceptor? interceptor)
+    public MainForm(AppConfig config, IMacroKeyboardInterceptor? interceptor)
     {
         this.config = config;
         this.interceptor = interceptor;
@@ -80,15 +79,10 @@ sealed class MainForm : AntdUI.Window
         BuildLayout();
         ApplyTexts();
 
-        // The macro keyboard is entirely optional - no second keyboard, no Interception driver, no nagging.
-        // It only does anything once the user deliberately sets it up from the "Makro klávesnice" tab.
+        // The macro keyboard is entirely optional - no spare keyboard needed, no module download forced, no
+        // nagging. It only does anything once the user deliberately sets it up from the "Makro klávesnice" tab.
         if (interceptor != null)
-        {
-            interceptor.Target = config.MacroTarget;
-            interceptor.Enabled = config.MacroEnabled;
-            interceptor.MacroKeyDown += OnMacroKey;
-            interceptor.DeviceMoved += t => BeginInvoke(() => { config.MacroKeyboardDevice = t.Device; config.Save(); });
-        }
+            WireInterceptor();
 
         enabledBox.Checked = config.MacroEnabled;
         playbackEngine.SetOutputDevice(config.MidiOutputDevice);
@@ -344,13 +338,42 @@ sealed class MainForm : AntdUI.Window
     void StartLearning()
     {
         CancelCapture();
+
+        if (!MacroKeyboardModule.IsInstalled)
+        {
+            var confirm = MessageBox.Show(this,
+                T("Ovládání appky makro klávesnicí potřebuje stáhnout malý doplňkový modul (pár desítek KB). Stáhnout teď?",
+                    "Controlling the app with a macro keyboard needs a small add-on module downloaded first (a few tens of KB). Download it now?"),
+                Text, MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (confirm != DialogResult.Yes)
+                return;
+
+            SetStatus(T("Stahuji modul...", "Downloading module..."));
+            Cursor = Cursors.WaitCursor;
+            bool downloaded = MacroKeyboardModule.Download();
+            Cursor = Cursors.Default;
+            if (!downloaded)
+            {
+                AntdUI.Modal.open(this, Text, T("Stažení modulu se nepovedlo. Zkontroluj připojení k internetu a zkus to znovu.",
+                    "Downloading the module failed. Check your internet connection and try again."), AntdUI.TType.Error);
+                SetStatus(T("Stažení modulu selhalo.", "Module download failed."));
+                return;
+            }
+            SetStatus(T("Modul stažen.", "Module downloaded."));
+        }
+
         if (interceptor == null)
         {
-            // No Interception driver available yet - offer to install it. Purely opt-in: the app
-            // works fine without a macro keyboard, this only runs when the user asks for it here.
-            using var setup = new DriverSetupForm();
-            setup.ShowDialog(this);
-            return;
+            interceptor = MacroKeyboardFactory.TryCreate();
+            if (interceptor == null)
+            {
+                // No Interception driver available yet - offer to install it. Purely opt-in: the app
+                // works fine without a macro keyboard, this only runs when the user asks for it here.
+                using var setup = new DriverSetupForm();
+                setup.ShowDialog(this);
+                return;
+            }
+            WireInterceptor();
         }
 
         using var picker = new KeyboardPickerForm(interceptor, config.MacroTarget);
@@ -363,6 +386,16 @@ sealed class MainForm : AntdUI.Window
         interceptor.Target = target;
         UpdateKeyboardLabel();
         SetStatus(T("Klávesnice nastavena. Teď přidej klávesy přes \"Přidat klávesu...\".", "Keyboard set. Now add keys with \"Add key...\"."));
+    }
+
+    void WireInterceptor()
+    {
+        if (interceptor == null)
+            return;
+        interceptor.Target = config.MacroTarget;
+        interceptor.Enabled = config.MacroEnabled;
+        interceptor.MacroKeyDown += OnMacroKey;
+        interceptor.DeviceMoved += t => BeginInvoke(() => { config.MacroKeyboardDevice = t.Device; config.Save(); });
     }
 
     void ForgetKeyboard()
@@ -610,7 +643,7 @@ sealed class MainForm : AntdUI.Window
         if (bindingsByKey.TryGetValue(key, out var binding))
             actionQueue.Writer.TryWrite(binding);
         else
-            BeginInvoke(() => SetStatus(T($"Klávesa {KeyNames.Describe(key)} nemá přiřazenou akci.", $"Key {KeyNames.Describe(key)} has no action assigned.")));
+            BeginInvoke(() => SetStatus(T($"Klávesa {KeyDisplay.Describe(key)} nemá přiřazenou akci.", $"Key {KeyDisplay.Describe(key)} has no action assigned.")));
     }
 
     void PickActionFor(int key)
@@ -618,7 +651,7 @@ sealed class MainForm : AntdUI.Window
         RestoreWindow();
         var partNames = currentScore?.Parts.Select(p => p.Name).ToList()
             ?? currentStems?.Tracks.Select(t => t.Name).ToList();
-        using var picker = new ActionPickerForm(KeyNames.Describe(key), partNames);
+        using var picker = new ActionPickerForm(KeyDisplay.Describe(key), partNames);
         if (picker.ShowDialog(this) != DialogResult.OK || picker.Result == null)
         {
             SetStatus(T("Zrušeno.", "Cancelled."));
@@ -630,7 +663,7 @@ sealed class MainForm : AntdUI.Window
         config.Bindings.Add(binding);
         config.Save();
         RebuildBindings(select: binding);
-        SetStatus($"{KeyNames.Describe(key)} -> {binding.Describe()}");
+        SetStatus($"{KeyDisplay.Describe(key)} -> {binding.Describe()}");
     }
 
     void EditSelected()
@@ -725,7 +758,7 @@ sealed class MainForm : AntdUI.Window
         list.Items.Clear();
         foreach (var b in config.Bindings.OrderBy(b => b.Key))
         {
-            var item = new ListViewItem([KeyNames.Describe(b.Key), b.Describe()]) { Tag = b };
+            var item = new ListViewItem([KeyDisplay.Describe(b.Key), b.Describe()]) { Tag = b };
             list.Items.Add(item);
             if (b == select)
                 item.Selected = true;
