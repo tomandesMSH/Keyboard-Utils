@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using MacroKeyboard;
 
 namespace KeyboardUtils;
 

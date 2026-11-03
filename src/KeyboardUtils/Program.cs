@@ -1,3 +1,5 @@
+using MacroKeyboard;
+
 namespace KeyboardUtils;
 
 static class Program
