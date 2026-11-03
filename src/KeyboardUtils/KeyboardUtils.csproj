@@ -14,15 +14,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- interception.dll itself now comes from the MacroKeyboard package (runtimes/win-x64/native). -->
+    <!-- ProjectReference doesn't auto-copy a referenced project's native content (that's a NuGet-only trick via
+         runtimes/win-x64/native), so interception.dll needs copying explicitly here too. -->
+    <None Include="..\MacroKeyboard\native\interception.dll" Link="interception.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\tools\install-interception.exe" Link="install-interception.exe" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="AntdUI" Version="2.4.18" />
-    <PackageReference Include="MacroKeyboard" Version="1.0.0" />
     <PackageReference Include="Melanchall.DryWetMidi" Version="7.*" />
     <PackageReference Include="NAudio" Version="3.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MacroKeyboard\MacroKeyboard.csproj" />
   </ItemGroup>
 
 </Project>

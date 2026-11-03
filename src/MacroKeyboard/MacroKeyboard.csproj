@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PlatformTarget>x64</PlatformTarget>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <Version>1.0.1</Version>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>MacroKeyboard</PackageId>
+    <Authors>tomandesMSH</Authors>
+    <Description>Identifies and captures input from a second ("macro") keyboard via the Interception driver, so its keystrokes can drive app actions instead of typing into Windows. Shared between SoundpadTranslator and Keyboard Utils.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/tomandesMSH/Keyboard-Utils</RepositoryUrl>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <!-- interception.dll is a native runtime dependency of the Interception P/Invoke calls, not managed code -
+       the runtimes/win-x64/native convention makes NuGet copy it to a consumer's output automatically. -->
+  <ItemGroup>
+    <None Include="native\interception.dll" Pack="true" PackagePath="runtimes\win-x64\native\interception.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
