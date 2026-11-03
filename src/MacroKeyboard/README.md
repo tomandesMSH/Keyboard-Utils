@@ -1,12 +1,14 @@
 # MacroKeyboard
 
-Identifikuje a zachytává vstup z druhé ("makro") klávesnice přes ovladač [Interception](https://github.com/oblitum/Interception),
-takže její klávesy jdou ovládat appku místo psaní do Windows. První klávesnice funguje normálně.
+Identifies and intercepts input from a second ("macro") keyboard via the [Interception](https://github.com/oblitum/Interception)
+driver. This way, you can use one of your keyboards as a dedicated controller for your app - triggering actions
+instead of typing - while your other keyboard keeps working normally in Windows.
 
-Vytaženo ze [SoundpadTranslatoru](https://github.com/tomandesMSH/SoundpadTranslator) a [Keyboard Utils](https://github.com/tomandesMSH/Keyboard-Utils),
-aby šlo stejný kód použít v obou (a dalších budoucích appkách).
+Extracted from [SoundpadTranslator](https://github.com/tomandesMSH/SoundpadTranslator) and
+[Keyboard Utils](https://github.com/tomandesMSH/Keyboard-Utils) so the same code can be reused by both
+(and any future app).
 
-## Použití
+## Usage
 
 ```csharp
 using MacroKeyboard;
@@ -18,22 +20,22 @@ try
 }
 catch (InterceptionUnavailableException)
 {
-    // Ovladač Interception není nainstalovaný/načtený - nabídni instalaci (viz tools/install-interception.exe
-    // ve SoundpadTranslatoru/Keyboard Utils pro referenční implementaci instalačního dialogu).
+    // The Interception driver isn't installed/loaded - offer to install it (see tools/install-interception.exe
+    // in SoundpadTranslator/Keyboard Utils for a reference install dialog).
     return;
 }
 
-interceptor.MacroKeyDown += key => Console.WriteLine($"Stisknuto: {KeyNames.Describe(key)}");
+interceptor.MacroKeyDown += key => Console.WriteLine($"Pressed: {KeyNames.Describe(key)}");
 
-// "Stiskni klávesu na klávesnici, kterou chceš použít jako makro klávesnici":
+// "Press a key on the keyboard you want to use as the macro keyboard":
 interceptor.DeviceLearned += target => interceptor.Target = target;
 interceptor.StartLearning();
 ```
 
-## Poznámky
+## Notes
 
-- Interception je ovladač na úrovni jádra. Anticheaty jako Vanguard (Valorant) nebo FACEIT ho můžou blokovat nebo hlásit.
-- Interception má 10 slotů pro klávesnice. Po mnoha odpojeních a připojeních USB přestane nové zařízení
-  zachytávat, dokud nerestartuješ počítač.
-- Interception (oblitum) je pro nekomerční použití pod LGPL 3.0, viz `Interception-LGPL-3.0.txt`. Tenhle balíček
-  (`MacroKeyboard`) je MIT, ale závisí na `interception.dll`, které tou LGPL licencí vázané je.
+- Interception is a kernel-level driver. Anti-cheats like Vanguard (Valorant) or FACEIT may block or flag it.
+- Interception has 10 keyboard slots. After enough USB unplug/replug cycles, it can stop picking up new
+  devices until you restart the computer.
+- Interception (oblitum) is LGPL 3.0, non-commercial use only - see `Interception-LGPL-3.0.txt`. This package
+  (`MacroKeyboard`) itself is MIT, but depends on `interception.dll`, which carries that LGPL license.
