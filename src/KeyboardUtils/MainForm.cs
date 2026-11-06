@@ -13,6 +13,9 @@ sealed class MainForm : AntdUI.Window
     NoteRecorder? recorder;
     string recordingTitle = "";
     bool resumeAfterSeek;
+
+    /// <summary>The recording shown as the current song until it's saved - removing it then asks first.</summary>
+    Score? unsavedRecording;
     readonly PlaybackEngine playbackEngine = new();
     readonly StemPlaybackEngine stemPlaybackEngine = new();
     readonly Channel<Binding> actionQueue = Channel.CreateUnbounded<Binding>(new UnboundedChannelOptions { SingleReader = true });
@@ -43,6 +46,7 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button importButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Button openSongButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly AntdUI.Button importStemsButton = new() { AutoSize = true, Radius = 8 };
+    readonly AntdUI.Button removeSongButton = new() { AutoSize = true, Radius = 8, Visible = false };
     readonly AntdUI.Button playPauseButton = new() { AutoSize = true, Enabled = false, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly AntdUI.Button stopButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Button previousButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
@@ -132,7 +136,7 @@ sealed class MainForm : AntdUI.Window
         var songControlsRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6) };
         songControlsRow.Controls.AddRange(
         [
-            ControlGroup(loadGroupLabel, openSongButton, importStemsButton),
+            ControlGroup(loadGroupLabel, openSongButton, importStemsButton, removeSongButton),
             ControlGroup(playbackGroupLabel, previousButton, playPauseButton, stopButton, nextButton),
             ControlGroup(outputDeviceLabel, outputDeviceBox),
             ControlGroup(playingGroupLabel, listenButton, learningButton, createButton),
@@ -173,6 +177,7 @@ sealed class MainForm : AntdUI.Window
 
         openSongButton.Click += (_, _) => OpenSong();
         importStemsButton.Click += (_, _) => ImportStems();
+        removeSongButton.Click += (_, _) => RemoveSong();
         playPauseButton.Click += (_, _) => TogglePlayPause();
         stopButton.Click += (_, _) => DoStop();
         previousButton.Click += (_, _) => DoPreviousTrack();
@@ -371,6 +376,7 @@ sealed class MainForm : AntdUI.Window
         bindingsTab.Text = T("Makro klávesnice", "Macro keyboard");
         openSongButton.Text = T("Otevřít skladbu...", "Open song...");
         importStemsButton.Text = T("Importovat stopy...", "Import stems...");
+        removeSongButton.Text = T("Odebrat skladbu", "Remove song");
         loadGroupLabel.Text = T("Načíst", "Load");
         playbackGroupLabel.Text = T("Přehrávání", "Playback");
         outputDeviceLabel.Text = T("Zvuk přehrávání (MIDI výstup)", "Playback sound (MIDI output)");
@@ -683,6 +689,7 @@ sealed class MainForm : AntdUI.Window
             playlist = [];
             playlistIndex = -1;
             ShowScore(recording);
+            unsavedRecording = recording;
         }
         else
             pianoRoll.SetScore(currentScore);
@@ -711,8 +718,11 @@ sealed class MainForm : AntdUI.Window
         }
     }
 
-    void UpdateCreateButton() =>
+    void UpdateCreateButton()
+    {
         createButton.Text = recorder != null ? T("Ukončit nahrávání", "Stop recording") : T("Zapisovat noty", "Write down notes");
+        removeSongButton.Enabled = recorder == null;
+    }
 
     void SaveCurrentSong()
     {
@@ -745,6 +755,8 @@ sealed class MainForm : AntdUI.Window
             ShowModal(this, Text, T("Uložení se nepovedlo: ", "Saving failed: ") + ex.Message, AntdUI.TType.Error);
             return false;
         }
+        if (score == unsavedRecording)
+            unsavedRecording = null;
         SetStatus(T($"Uloženo: {dialog.FileName}", $"Saved: {dialog.FileName}"));
         return true;
     }
@@ -936,6 +948,41 @@ sealed class MainForm : AntdUI.Window
             : currentStems != null
                 ? $"{currentStems.Title}  ({TimeSpan.FromSeconds(stemPlaybackEngine.DurationSeconds):m\\:ss})  [{T("stopy", "stems")}]"
                 : T("Žádná skladba nenačtena.", "No song loaded.");
+        // Called on every song change, so it's also where "Remove song" appears/disappears.
+        removeSongButton.Visible = currentScore != null || currentStems != null;
+    }
+
+    /// <summary>Takes the song out of the player (the file on disk stays). Asks first if it's an unsaved recording.</summary>
+    void RemoveSong()
+    {
+        if (recorder != null || (currentScore == null && currentStems == null))
+            return;
+        if (currentScore != null && currentScore == unsavedRecording)
+        {
+            var confirm = MessageBox.Show(this,
+                T("Nahrávka není uložená - odebráním se ztratí. Opravdu ji odebrat?", "The recording isn't saved - removing it loses it. Remove it anyway?"),
+                Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            if (confirm != DialogResult.Yes)
+                return;
+        }
+
+        StopLearningMode(showResult: false);
+        playbackEngine.Stop();
+        stemPlaybackEngine.Stop();
+        string title = currentScore?.Title ?? currentStems?.Title ?? "";
+        currentScore = null;
+        currentStems = null;
+        unsavedRecording = null;
+        playlist = [];
+        playlistIndex = -1;
+
+        pianoRoll.SetScore(null);
+        RebuildPartsPanel();
+        playPauseButton.Enabled = stopButton.Enabled = previousButton.Enabled = nextButton.Enabled = false;
+        UpdateSongLabel();
+        UpdateLearningButton();
+        UpdatePlayPauseButton();
+        SetStatus(T($"Odebráno: {title}", $"Removed: {title}"));
     }
 
     void RebuildPartsPanel()
