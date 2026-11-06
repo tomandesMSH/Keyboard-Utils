@@ -4,12 +4,13 @@ using NAudio.Wave.SampleProviders;
 namespace KeyboardUtils;
 
 /// <summary>
-/// Plays a <see cref="StemSet"/> by mixing all tracks together with NAudio. Muting a track just sets its
-/// reader's Volume to 0 - the mix keeps running, so there's no click or resync when toggling mute live.
+/// Plays a <see cref="StemSet"/> by mixing all tracks together with NAudio. Muting a track or changing its
+/// volume just sets its reader's Volume - the mix keeps running, so there's no click or resync when changed live.
 /// </summary>
 sealed class StemPlaybackEngine : IDisposable
 {
     List<AudioFileReader> readers = [];
+    IReadOnlyList<StemTrack> tracks = [];
     WaveOut? output;
 
     public event Action? Finished;
@@ -34,8 +35,9 @@ sealed class StemPlaybackEngine : IDisposable
                 "All stems must share the same sample rate and channel count."));
         }
 
+        tracks = stemSet.Tracks;
         for (int i = 0; i < readers.Count; i++)
-            readers[i].Volume = stemSet.Tracks[i].Muted ? 0f : 1f;
+            ApplyVolume(i);
 
         var mixer = new MixingSampleProvider(readers.Cast<ISampleProvider>());
         output = new WaveOut();
@@ -43,10 +45,11 @@ sealed class StemPlaybackEngine : IDisposable
         output.PlaybackStopped += (_, _) => Finished?.Invoke();
     }
 
-    public void SetTrackMuted(int index, bool muted)
+    /// <summary>Re-reads the track's <see cref="StemTrack.Muted"/> and <see cref="StemTrack.Volume"/> into the mix.</summary>
+    public void ApplyVolume(int index)
     {
-        if (index >= 0 && index < readers.Count)
-            readers[index].Volume = muted ? 0f : 1f;
+        if (index >= 0 && index < readers.Count && index < tracks.Count)
+            readers[index].Volume = tracks[index].Muted ? 0f : (float)Math.Clamp(tracks[index].Volume, 0, 1);
     }
 
     public void Play() => output?.Play();
@@ -66,6 +69,7 @@ sealed class StemPlaybackEngine : IDisposable
         foreach (var reader in readers)
             reader.Dispose();
         readers = [];
+        tracks = [];
     }
 
     public void Dispose() => DisposeReaders();

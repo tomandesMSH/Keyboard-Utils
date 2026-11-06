@@ -988,8 +988,8 @@ sealed class MainForm : AntdUI.Window
     void RebuildPartsPanel()
     {
         partsPanel.Controls.Clear();
-        var parts = currentScore?.Parts.Select(p => (p.Name, p.Muted)).ToList()
-            ?? currentStems?.Tracks.Select(t => (t.Name, t.Muted)).ToList()
+        var parts = currentScore?.Parts.Select(p => (p.Name, p.Muted, p.Volume)).ToList()
+            ?? currentStems?.Tracks.Select(t => (t.Name, t.Muted, t.Volume)).ToList()
             ?? [];
         if (parts.Count == 0)
             return;
@@ -999,9 +999,40 @@ sealed class MainForm : AntdUI.Window
         for (int i = 0; i < parts.Count; i++)
         {
             int index = i;
-            var box = new AntdUI.Checkbox { Text = parts[i].Name, Checked = !parts[i].Muted, AutoSize = true, Margin = new Padding(0, 2, 0, 2) };
-            box.CheckedChanged += (_, _) => SetPartMuted(index, !box.Checked);
+            var box = new AntdUI.Checkbox { Text = parts[i].Name, Checked = !parts[i].Muted, AutoSize = true, Margin = new Padding(0, 6, 0, 0) };
+            // Volume, 0-100 %; the value shows while dragging. Hidden while the part is switched off.
+            var volume = new AntdUI.Slider
+            {
+                MinValue = 0,
+                MaxValue = 100,
+                Value = (int)Math.Round(parts[i].Volume * 100),
+                ShowValue = true,
+                Size = new Size(partsPanel.Width - 30, 24),
+                Margin = new Padding(18, 0, 0, 2),
+                Visible = !parts[i].Muted,
+            };
+            box.CheckedChanged += (_, _) =>
+            {
+                SetPartMuted(index, !box.Checked);
+                volume.Visible = box.Checked;
+            };
+            volume.ValueChanged += (_, _) => SetPartVolume(index, volume.Value / 100.0);
             partsPanel.Controls.Add(box);
+            partsPanel.Controls.Add(volume);
+        }
+    }
+
+    void SetPartVolume(int partIndex, double volume)
+    {
+        if (currentScore != null && partIndex >= 0 && partIndex < currentScore.Parts.Count)
+        {
+            currentScore.Parts[partIndex].Volume = volume;
+            playbackEngine.SetPartVolume(partIndex, volume);
+        }
+        else if (currentStems != null && partIndex >= 0 && partIndex < currentStems.Tracks.Count)
+        {
+            currentStems.Tracks[partIndex].Volume = volume;
+            stemPlaybackEngine.ApplyVolume(partIndex);
         }
     }
 
@@ -1019,7 +1050,7 @@ sealed class MainForm : AntdUI.Window
             if (partIndex < 0 || partIndex >= currentStems.Tracks.Count)
                 return;
             currentStems.Tracks[partIndex].Muted = muted;
-            stemPlaybackEngine.SetTrackMuted(partIndex, muted);
+            stemPlaybackEngine.ApplyVolume(partIndex);
         }
         pianoRoll.Invalidate();
     }

@@ -66,6 +66,10 @@ sealed class PlaybackEngine : IDisposable
         playback.NoteCallback = (data, _, _, _) => mutedChannels.Contains(data.Channel) ? NotePlaybackData.SkipNote : data;
         // When jumping (seek), end notes left hanging and start the ones already sounding at the new spot.
         playback.TrackNotes = true;
+
+        // The synth keeps channel volumes from whatever played before - set every part's own.
+        for (int partIndex = 0; partIndex < score.Parts.Count; partIndex++)
+            SetPartVolume(partIndex, score.Parts[partIndex].Volume);
         playback.Finished += (_, _) => Finished?.Invoke();
     }
 
@@ -78,6 +82,18 @@ sealed class PlaybackEngine : IDisposable
         else
             next.Remove(channel);
         mutedChannels = next;
+    }
+
+    /// <summary>
+    /// 0-1. Sent as Channel Volume (CC 7) on the part's channel, so it applies immediately - even to notes
+    /// already sounding - unlike scaling note velocities, which would only affect notes started afterwards.
+    /// </summary>
+    public void SetPartVolume(int partIndex, double volume)
+    {
+        if (outputDevice is not { } device)
+            return;
+        var value = (SevenBitNumber)(int)Math.Round(Math.Clamp(volume, 0, 1) * 127);
+        device.SendEvent(new ControlChangeEvent((SevenBitNumber)7, value) { Channel = (FourBitNumber)(partIndex % 16) });
     }
 
     /// <summary>Fires a single note at the output device, independent of score playback. Fire-and-forget.</summary>

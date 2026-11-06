@@ -6,6 +6,9 @@ sealed class StemTrack
     public required string Name { get; set; }
     public required string FilePath { get; set; }
     public bool Muted { get; set; }
+
+    /// <summary>0-1, the track's playback volume (its slider in the parts panel).</summary>
+    public double Volume { get; set; } = 1;
 }
 
 /// <summary>

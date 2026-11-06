@@ -15,6 +15,9 @@ sealed class ScorePart
     public required string Name { get; set; }
     public List<ScoreNote> Notes { get; set; } = [];
     public bool Muted { get; set; }
+
+    /// <summary>0-1, the part's playback volume (its slider in the parts panel).</summary>
+    public double Volume { get; set; } = 1;
 }
 
 /// <summary>
