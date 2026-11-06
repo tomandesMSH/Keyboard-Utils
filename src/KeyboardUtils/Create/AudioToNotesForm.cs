@@ -17,6 +17,9 @@ sealed class AudioToNotesForm : AntdUI.Window
     /// <summary>The converted notes, once the dialog closed with OK.</summary>
     public Score? Result { get; private set; }
 
+    /// <summary>The audio file <see cref="Result"/> came from.</summary>
+    public string? FilePath { get; private set; }
+
     /// <param name="initialDirectory">Where the file picker starts, e.g. the folder of the loaded stems.</param>
     public AudioToNotesForm(string? initialDirectory)
     {
@@ -111,6 +114,7 @@ sealed class AudioToNotesForm : AntdUI.Window
                 return;
             }
             Result = score;
+            FilePath = path;
             DialogResult = DialogResult.OK;
             Close();
         }

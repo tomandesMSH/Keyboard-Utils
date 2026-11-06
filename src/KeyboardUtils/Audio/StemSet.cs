@@ -12,8 +12,9 @@ sealed class StemTrack
 }
 
 /// <summary>
-/// A song as a set of synced audio stems rather than symbolic notes - there's no piano roll for this (no note
-/// data to show), but the per-track mute works the same way as it does for MIDI/MusicXML parts.
+/// A song as a set of synced audio stems rather than symbolic notes. Single tracks can be converted to notes
+/// (shown in the piano roll alongside the stems' playback, matched to their track by name); the per-track mute
+/// works the same way as it does for MIDI/MusicXML parts.
 /// </summary>
 sealed class StemSet
 {

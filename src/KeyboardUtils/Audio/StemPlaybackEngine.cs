@@ -11,6 +11,7 @@ sealed class StemPlaybackEngine : IDisposable
 {
     List<AudioFileReader> readers = [];
     IReadOnlyList<StemTrack> tracks = [];
+    HashSet<int> silenced = [];
     WaveOut? output;
 
     public event Action? Finished;
@@ -49,7 +50,25 @@ sealed class StemPlaybackEngine : IDisposable
     public void ApplyVolume(int index)
     {
         if (index >= 0 && index < readers.Count && index < tracks.Count)
-            readers[index].Volume = tracks[index].Muted ? 0f : (float)Math.Clamp(tracks[index].Volume, 0, 1);
+            readers[index].Volume = tracks[index].Muted || silenced.Contains(index) ? 0f : (float)Math.Clamp(tracks[index].Volume, 0, 1);
+    }
+
+    /// <summary>
+    /// Mutes these tracks on top of their own mute setting, without changing it - learning mode silences the
+    /// track the player is playing. An empty set restores normal playback.
+    /// </summary>
+    public void SetSilenced(IEnumerable<int> indices)
+    {
+        silenced = indices.ToHashSet();
+        for (int i = 0; i < readers.Count; i++)
+            ApplyVolume(i);
+    }
+
+    public void SeekTo(double seconds)
+    {
+        var position = TimeSpan.FromSeconds(Math.Max(0, seconds));
+        foreach (var reader in readers)
+            reader.CurrentTime = position < reader.TotalTime ? position : reader.TotalTime;
     }
 
     public void Play() => output?.Play();
@@ -70,6 +89,7 @@ sealed class StemPlaybackEngine : IDisposable
             reader.Dispose();
         readers = [];
         tracks = [];
+        silenced = [];
     }
 
     public void Dispose() => DisposeReaders();

@@ -121,7 +121,7 @@ sealed class MainForm : AntdUI.Window
             else if (recorder != null)
                 TickCreateMode();
             else if (currentScore != null)
-                pianoRoll.SetCurrentTime(playbackEngine.CurrentSeconds);
+                pianoRoll.SetCurrentTime(PlaybackSeconds);
             UpdatePlayPauseButton();
         };
         playbackTimer.Start();
@@ -183,21 +183,21 @@ sealed class MainForm : AntdUI.Window
         pianoRoll.Seekable = true;
         pianoRoll.SeekStarted += () =>
         {
-            resumeAfterSeek = playbackEngine.IsRunning;
+            resumeAfterSeek = PlaybackRunning;
             if (resumeAfterSeek)
-                playbackEngine.Pause();
+                PlaybackPause();
         };
         pianoRoll.Seek += seconds =>
         {
             if (currentScore == null || learning != null || recorder != null)
                 return;
-            playbackEngine.SeekTo(seconds);
+            PlaybackSeek(seconds);
             pianoRoll.SetCurrentTime(seconds);
         };
         pianoRoll.SeekEnded += () =>
         {
             if (resumeAfterSeek)
-                playbackEngine.Play();
+                PlaybackPlay();
             resumeAfterSeek = false;
         };
 
@@ -572,7 +572,7 @@ sealed class MainForm : AntdUI.Window
         List<int> parts;
         if (showSetup)
         {
-            using var setup = new LearningSetupForm(score, config);
+            using var setup = new LearningSetupForm(score, config, audioAccompaniment: StemsPlay);
             if (setup.ShowDialog(this) != DialogResult.OK)
                 return;
             parts = setup.PracticedParts;
@@ -592,9 +592,20 @@ sealed class MainForm : AntdUI.Window
 
         StopLearningMode(showResult: false);
         playbackEngine.Stop();
-        double speed = config.LearningSpeedPercent / 100.0;
+        stemPlaybackEngine.Stop();
         bool tempo = config.LearningMode == LearningMode.InTempo;
-        if (tempo)
+        // The stems' audio can't be slowed down (not without changing its pitch), so with them tempo mode is 100 %.
+        double speed = tempo && StemsPlay ? 1 : config.LearningSpeedPercent / 100.0;
+        if (tempo && StemsPlay)
+        {
+            // The original recording is the accompaniment: silence the tracks the player plays (notes converted
+            // from a track carry its name), or everything if they want no accompaniment.
+            var practicedNames = parts.Select(i => score.Parts[i].Name).ToHashSet();
+            var tracks = currentStems!.Tracks;
+            stemPlaybackEngine.SetSilenced(Enumerable.Range(0, tracks.Count)
+                .Where(i => !config.LearningAccompaniment || practicedNames.Contains(tracks[i].Name)));
+        }
+        else if (tempo)
         {
             // The practiced parts are the player's; the rest plays along only if asked for.
             for (int i = 0; i < score.Parts.Count; i++)
@@ -603,8 +614,8 @@ sealed class MainForm : AntdUI.Window
         }
 
         var session = new LearningSession(score, parts, config.LearningMode, speed, source.Polyphonic, source.LatencySeconds,
-            tempo ? () => playbackEngine.CurrentSeconds : null,
-            tempo ? playbackEngine.Play : null);
+            tempo ? () => PlaybackSeconds : null,
+            tempo ? PlaybackPlay : null);
         session.WrongKey += pitch => pianoRoll.FlashKey(pitch, 300, PianoRollControl.WrongColor);
         session.Finished += () => BeginInvoke(() => { if (learning == session) StopLearningMode(showResult: true); });
         learning = session;
@@ -643,6 +654,8 @@ sealed class MainForm : AntdUI.Window
         if (currentScore != null)
             for (int i = 0; i < currentScore.Parts.Count; i++)
                 playbackEngine.SetPartMuted(i, currentScore.Parts[i].Muted);
+        stemPlaybackEngine.Stop();
+        stemPlaybackEngine.SetSilenced([]);
         pianoRoll.SetCurrentTime(0);
         UpdateLearningButton();
         UpdateCreateButton();
@@ -970,11 +983,13 @@ sealed class MainForm : AntdUI.Window
 
     void UpdateSongLabel()
     {
-        songLabel.Text = currentScore != null
-            ? $"{currentScore.Title}  ({TimeSpan.FromSeconds(currentScore.DurationSeconds):m\\:ss})" +
-              (playlist.Count > 1 ? $"   [{playlistIndex + 1}/{playlist.Count}]" : "")
-            : currentStems != null
-                ? $"{currentStems.Title}  ({TimeSpan.FromSeconds(stemPlaybackEngine.DurationSeconds):m\\:ss})  [{T("stopy", "stems")}]"
+        int stemNoteTracks = currentStems != null ? currentScore?.Parts.Count ?? 0 : 0;
+        songLabel.Text = currentStems != null
+            ? $"{currentStems.Title}  ({TimeSpan.FromSeconds(stemPlaybackEngine.DurationSeconds):m\\:ss})  [{T("stopy", "stems")}"
+              + (stemNoteTracks > 0 ? T($", noty z {stemNoteTracks}", $", notes from {stemNoteTracks}") : "") + "]"
+            : currentScore != null
+                ? $"{currentScore.Title}  ({TimeSpan.FromSeconds(currentScore.DurationSeconds):m\\:ss})" +
+                  (playlist.Count > 1 ? $"   [{playlistIndex + 1}/{playlist.Count}]" : "")
                 : T("Žádná skladba nenačtena.", "No song loaded.");
         // Called on every song change, so it's also where "Remove song" appears/disappears.
         removeSongButton.Visible = currentScore != null || currentStems != null;
@@ -989,6 +1004,12 @@ sealed class MainForm : AntdUI.Window
         using var dialog = new AudioToNotesForm(stemsFolder);
         if (dialog.ShowDialog(this) != DialogResult.OK || dialog.Result is not { } score)
             return;
+        // One of the loaded stems: add its notes to them instead of replacing the stems with a new song.
+        if (currentStems?.Tracks.FirstOrDefault(t => string.Equals(Path.GetFullPath(t.FilePath), Path.GetFullPath(dialog.FilePath ?? ""), StringComparison.OrdinalIgnoreCase)) is { } stem)
+        {
+            AttachStemNotes(stem.Name, score.Parts[0]);
+            return;
+        }
         playlist = [];
         playlistIndex = -1;
         ShowScore(score);
@@ -1005,7 +1026,7 @@ sealed class MainForm : AntdUI.Window
         if (currentScore != null && currentScore == unsavedRecording)
         {
             var confirm = MessageBox.Show(this,
-                T("Nahrávka není uložená - odebráním se ztratí. Opravdu ji odebrat?", "The recording isn't saved - removing it loses it. Remove it anyway?"),
+                T("Noty nejsou uložené - odebráním se ztratí. Opravdu odebrat?", "The notes aren't saved - removing loses them. Remove anyway?"),
                 Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
             if (confirm != DialogResult.Yes)
                 return;
@@ -1030,11 +1051,15 @@ sealed class MainForm : AntdUI.Window
         SetStatus(T($"Odebráno: {title}", $"Removed: {title}"));
     }
 
+    /// <summary>
+    /// One row per part - or per stem when stems are loaded (notes converted from a stem don't get rows of their
+    /// own; the stem's row shows whether it has them). Each row: on/off, volume, and for stems a "Notes" button.
+    /// </summary>
     void RebuildPartsPanel()
     {
         partsPanel.Controls.Clear();
-        var parts = currentScore?.Parts.Select(p => (p.Name, p.Muted, p.Volume)).ToList()
-            ?? currentStems?.Tracks.Select(t => (t.Name, t.Muted, t.Volume)).ToList()
+        var parts = currentStems?.Tracks.Select(t => (t.Name, t.Muted, t.Volume)).ToList()
+            ?? currentScore?.Parts.Select(p => (p.Name, p.Muted, p.Volume)).ToList()
             ?? [];
         // No song: give the piano roll the full width instead of leaving an empty strip.
         partsPanel.Visible = parts.Count > 0;
@@ -1066,41 +1091,126 @@ sealed class MainForm : AntdUI.Window
             volume.ValueChanged += (_, _) => SetPartVolume(index, volume.Value / 100.0);
             partsPanel.Controls.Add(box);
             partsPanel.Controls.Add(volume);
+
+            if (currentStems != null)
+            {
+                bool hasNotes = currentScore?.Parts.Any(p => p.Name == parts[i].Name) ?? false;
+                var notesButton = new AntdUI.Button
+                {
+                    Text = hasNotes ? T("✓ Noty", "✓ Notes") : T("Noty", "Notes"),
+                    Size = new Size(76, 26),
+                    Margin = new Padding(18, 0, 0, 4),
+                    Radius = 6,
+                    Enabled = !hasNotes,
+                };
+                notesButton.Click += (_, _) => ConvertStemToNotes(index, notesButton);
+                partsPanel.Controls.Add(notesButton);
+            }
         }
     }
 
+    /// <summary>
+    /// Converts one loaded stem to notes in the background and adds them to the song under the stem's name, shown
+    /// in the piano roll in sync with the stems' playback.
+    /// </summary>
+    async void ConvertStemToNotes(int trackIndex, AntdUI.Button button)
+    {
+        if (currentStems is not { } stems || trackIndex >= stems.Tracks.Count)
+            return;
+        var track = stems.Tracks[trackIndex];
+        button.Enabled = false;
+        button.Text = "...";
+        SetStatus(T($"Převádím stopu {track.Name} na noty...", $"Converting track {track.Name} to notes..."));
+        Score converted;
+        try
+        {
+            converted = await Task.Run(() => AudioTranscriber.Transcribe(track.FilePath, null, CancellationToken.None));
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or System.Runtime.InteropServices.COMException or ArgumentException)
+        {
+            ShowModal(this, Text, T("Stopu nejde převést: ", "Could not convert the track: ") + ex.Message, AntdUI.TType.Error);
+            RebuildPartsPanel();
+            return;
+        }
+        // Another song may have been opened meanwhile.
+        if (currentStems == stems)
+            AttachStemNotes(track.Name, converted.Parts[0]);
+    }
+
+    void AttachStemNotes(string trackName, ScorePart notes)
+    {
+        if (notes.Notes.Count == 0)
+        {
+            SetStatus(T($"Ve stopě {trackName} jsem nenašel žádné noty.", $"No notes found in track {trackName}."));
+            RebuildPartsPanel();
+            return;
+        }
+        // Named after the stem: that's how learning mode knows which track to silence for the player.
+        notes.Name = trackName;
+        currentScore ??= new Score { Title = currentStems!.Title };
+        currentScore.Parts.RemoveAll(p => p.Name == trackName);
+        currentScore.Parts.Add(notes);
+        unsavedRecording = currentScore;
+
+        pianoRoll.SetScore(currentScore);
+        pianoRoll.SetCurrentTime(PlaybackSeconds);
+        RebuildPartsPanel();
+        UpdateSongLabel();
+        UpdateLearningButton();
+        SetStatus(T($"Noty ze stopy {trackName}: {notes.Notes.Count}. Uložit je jde přes Soubor > Uložit skladbu jako...",
+            $"Notes from track {trackName}: {notes.Notes.Count}. Save them via File > Save song as..."));
+    }
+
+    /// <summary>Index = row in the parts panel: a stem when stems are loaded, otherwise a part.</summary>
     void SetPartVolume(int partIndex, double volume)
     {
-        if (currentScore != null && partIndex >= 0 && partIndex < currentScore.Parts.Count)
+        if (currentStems != null)
+        {
+            if (partIndex < 0 || partIndex >= currentStems.Tracks.Count)
+                return;
+            currentStems.Tracks[partIndex].Volume = volume;
+            stemPlaybackEngine.ApplyVolume(partIndex);
+        }
+        else if (currentScore != null && partIndex >= 0 && partIndex < currentScore.Parts.Count)
         {
             currentScore.Parts[partIndex].Volume = volume;
             playbackEngine.SetPartVolume(partIndex, volume);
         }
-        else if (currentStems != null && partIndex >= 0 && partIndex < currentStems.Tracks.Count)
-        {
-            currentStems.Tracks[partIndex].Volume = volume;
-            stemPlaybackEngine.ApplyVolume(partIndex);
-        }
     }
 
+    /// <summary>
+    /// Index as in <see cref="SetPartVolume"/>. Muting a stem only silences its audio - notes converted from it
+    /// stay visible, since muting your instrument to play it yourself is the point.
+    /// </summary>
     void SetPartMuted(int partIndex, bool muted)
     {
-        if (currentScore != null)
-        {
-            if (partIndex < 0 || partIndex >= currentScore.Parts.Count)
-                return;
-            currentScore.Parts[partIndex].Muted = muted;
-            playbackEngine.SetPartMuted(partIndex, muted);
-        }
-        else if (currentStems != null)
+        if (currentStems != null)
         {
             if (partIndex < 0 || partIndex >= currentStems.Tracks.Count)
                 return;
             currentStems.Tracks[partIndex].Muted = muted;
             stemPlaybackEngine.ApplyVolume(partIndex);
         }
+        else if (currentScore != null)
+        {
+            if (partIndex < 0 || partIndex >= currentScore.Parts.Count)
+                return;
+            currentScore.Parts[partIndex].Muted = muted;
+            playbackEngine.SetPartMuted(partIndex, muted);
+        }
         pianoRoll.Invalidate();
     }
+
+    // --- Playback: the stems' audio when stems are loaded (even with notes converted from them - those are
+    // only shown, the original recording is the sound and the clock), otherwise the notes through MIDI. ----------
+
+    bool StemsPlay => currentStems != null;
+    bool PlaybackRunning => StemsPlay ? stemPlaybackEngine.IsRunning : playbackEngine.IsRunning;
+    double PlaybackSeconds => StemsPlay ? stemPlaybackEngine.CurrentSeconds : playbackEngine.CurrentSeconds;
+    void PlaybackPlay() { if (StemsPlay) stemPlaybackEngine.Play(); else playbackEngine.Play(); }
+    void PlaybackPause() { if (StemsPlay) stemPlaybackEngine.Pause(); else playbackEngine.Pause(); }
+    void PlaybackStop() { if (StemsPlay) stemPlaybackEngine.Stop(); else playbackEngine.Stop(); }
+    void PlaybackSeek(double seconds) { if (StemsPlay) stemPlaybackEngine.SeekTo(seconds); else playbackEngine.SeekTo(seconds); }
 
     void TogglePlayPause()
     {
@@ -1114,16 +1224,12 @@ sealed class MainForm : AntdUI.Window
             // In tempo mode the accompaniment is the clock - but only once the lead-in has started it.
             if (learning.Mode == LearningMode.InTempo && learning.Position >= 0)
             {
-                if (pause) playbackEngine.Pause(); else playbackEngine.Play();
+                if (pause) PlaybackPause(); else PlaybackPlay();
             }
         }
-        else if (currentScore != null)
+        else if (currentScore != null || currentStems != null)
         {
-            if (playbackEngine.IsRunning) playbackEngine.Pause(); else playbackEngine.Play();
-        }
-        else if (currentStems != null)
-        {
-            if (stemPlaybackEngine.IsRunning) stemPlaybackEngine.Pause(); else stemPlaybackEngine.Play();
+            if (PlaybackRunning) PlaybackPause(); else PlaybackPlay();
         }
         else
         {
@@ -1134,9 +1240,7 @@ sealed class MainForm : AntdUI.Window
 
     void UpdatePlayPauseButton()
     {
-        bool running = learning != null ? !learning.Paused
-            : currentScore != null ? playbackEngine.IsRunning
-            : currentStems != null && stemPlaybackEngine.IsRunning;
+        bool running = learning != null ? !learning.Paused : (currentScore != null || currentStems != null) && PlaybackRunning;
         playPauseButton.Text = running ? T("Pauza", "Pause") : T("Přehrát", "Play");
     }
 
@@ -1152,10 +1256,7 @@ sealed class MainForm : AntdUI.Window
             StopLearningMode(showResult: true);
             return;
         }
-        if (currentScore != null)
-            playbackEngine.Stop();
-        else if (currentStems != null)
-            stemPlaybackEngine.Stop();
+        PlaybackStop();
         pianoRoll.SetCurrentTime(0);
         UpdatePlayPauseButton();
         SetStatus(T("Zastaveno.", "Stopped."));
@@ -1382,10 +1483,11 @@ sealed class MainForm : AntdUI.Window
                 DoPreviousTrack();
                 break;
             case MacroAction.ToggleMutePart:
-                int? partIndex = currentScore?.ResolvePartIndex(binding) ?? currentStems?.ResolvePartIndex(binding);
+                // Same rows as the parts panel: stems when loaded, otherwise parts.
+                int? partIndex = currentStems != null ? currentStems.ResolvePartIndex(binding) : currentScore?.ResolvePartIndex(binding);
                 if (partIndex is { } index)
                 {
-                    bool currentlyMuted = currentScore != null ? currentScore.Parts[index].Muted : currentStems!.Tracks[index].Muted;
+                    bool currentlyMuted = currentStems != null ? currentStems.Tracks[index].Muted : currentScore!.Parts[index].Muted;
                     SetPartMuted(index, !currentlyMuted);
                     RebuildPartsPanel();
                     SetStatus(binding.Describe());

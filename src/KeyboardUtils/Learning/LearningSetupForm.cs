@@ -12,14 +12,20 @@ sealed class LearningSetupForm : AntdUI.Window
     readonly AntdUI.Label micHint = new() { AutoSize = false, Size = new Size(470, 40), ForeColor = SystemColors.GrayText };
     readonly AntdUI.Button start = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly bool microphone;
+    readonly bool audioAccompaniment;
 
     public List<int> PracticedParts { get; } = [];
     public LearningMode SelectedMode => modeBox.SelectedIndex == 1 ? LearningMode.InTempo : LearningMode.WaitForNote;
     public int SpeedPercent => Speeds[Math.Max(0, speedBox.SelectedIndex)];
     public bool Accompaniment => accompanimentBox.Checked;
 
-    public LearningSetupForm(Score score, AppConfig config)
+    /// <param name="audioAccompaniment">
+    /// The song is loaded stems with notes converted from them: in tempo mode the accompaniment is the original
+    /// recording, which can only play at 100 %.
+    /// </param>
+    public LearningSetupForm(Score score, AppConfig config, bool audioAccompaniment = false)
     {
+        this.audioAccompaniment = audioAccompaniment;
         Text = T("Režim učení", "Learning mode");
         Icon = AppIcon.Icon;
         StartPosition = FormStartPosition.CenterParent;
@@ -64,7 +70,9 @@ sealed class LearningSetupForm : AntdUI.Window
         speedBox.SelectedIndex = speedIndex >= 0 ? speedIndex : Speeds.Length - 1;
         layout.Controls.Add(speedBox);
 
-        accompanimentBox.Text = T("Přehrávat ostatní části jako doprovod", "Play the other parts as accompaniment");
+        accompanimentBox.Text = audioAccompaniment
+            ? T("Přehrávat ostatní stopy (originální nahrávku) jako doprovod", "Play the other tracks (the original recording) as accompaniment")
+            : T("Přehrávat ostatní části jako doprovod", "Play the other parts as accompaniment");
         accompanimentBox.Checked = config.LearningAccompaniment;
         accompanimentBox.CheckedChanged += (_, _) => UpdateState();
         layout.Controls.Add(accompanimentBox);
@@ -117,11 +125,15 @@ sealed class LearningSetupForm : AntdUI.Window
         bool tempo = SelectedMode == LearningMode.InTempo;
         // Waiting would stall the accompaniment on every note, so it's tempo-only.
         accompanimentBox.Enabled = tempo;
+        speedBox.Enabled = !(tempo && audioAccompaniment);
         bool anyPart = partBoxes.Any(b => b.Checked);
         start.Enabled = anyPart;
 
         micHint.Text = !anyPart
             ? T("Vyber aspoň jednu část.", "Pick at least one part.")
+            : tempo && audioAccompaniment
+                ? T("Se stopami jede režim v tempu vždy na 100 % - originální nahrávka zpomalit nejde.",
+                    "With stems, tempo mode always runs at 100 % - the original recording can't be slowed down.")
             : tempo && Accompaniment && microphone
                 ? T("Tip: s mikrofonem hraj doprovod do sluchátek - z reproduktorů by ho mikrofon slyšel jako tvoje noty.",
                     "Tip: with the microphone, play the accompaniment through headphones - from speakers the mic would hear it as your notes.")
