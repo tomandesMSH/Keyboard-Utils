@@ -11,6 +11,12 @@ interface INoteSource : IDisposable
 {
     string Name { get; }
 
+    /// <summary>Whether it reports every note of a chord. The microphone hears one note at a time.</summary>
+    bool Polyphonic { get; }
+
+    /// <summary>Typical delay between pressing a key and <see cref="NoteOn"/>, for timing in tempo mode.</summary>
+    double LatencySeconds { get; }
+
     /// <summary>MIDI note number (60 = C4).</summary>
     event Action<int>? NoteOn;
     event Action<int>? NoteOff;
@@ -38,6 +44,8 @@ sealed class MidiNoteSource : INoteSource
     public MidiNoteSource(string? deviceName) => this.deviceName = deviceName;
 
     public string Name => device?.Name ?? deviceName ?? "MIDI";
+    public bool Polyphonic => true;
+    public double LatencySeconds => 0;
 
     public event Action<int>? NoteOn;
     public event Action<int>? NoteOff;

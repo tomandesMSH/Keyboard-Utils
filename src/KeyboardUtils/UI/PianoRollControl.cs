@@ -34,9 +34,22 @@ sealed class PianoRollControl : Control
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public int? SelectedKey { get; set; }
 
+    /// <summary>
+    /// While set, practiced notes are coloured by how they were played (pending in their part colour, then green or
+    /// red), the other parts are dimmed, and the keys to press now are lit as a hint.
+    /// </summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public LearningSession? Learning { get; set; }
+
+    public static Color CorrectColor { get; } = Color.FromArgb(52, 199, 89);
+    public static Color WrongColor { get; } = Color.FromArgb(234, 67, 53);
+    static Color SelectedColor { get; } = Color.FromArgb(66, 133, 244);
+    static Color HintColor { get; } = Color.FromArgb(150, 190, 255);
+
     public event Action<int>? KeySelected;
 
     readonly System.Windows.Forms.Timer flashTimer = new() { Interval = 400 };
+    Color flashColor = SelectedColor;
 
     public PianoRollControl()
     {
@@ -52,8 +65,9 @@ sealed class PianoRollControl : Control
     }
 
     /// <summary>Briefly highlights a key, e.g. when a macro key plays it. Clears itself after <paramref name="durationMs"/>.</summary>
-    public void FlashKey(int key, int durationMs = 400)
+    public void FlashKey(int key, int durationMs = 400, Color? color = null)
     {
+        flashColor = color ?? SelectedColor;
         SelectedKey = key;
         Invalidate();
         flashTimer.Interval = durationMs;
@@ -197,13 +211,18 @@ sealed class PianoRollControl : Control
             return;
 
         float pixelsPerSecond = (float)(rollHeight / SecondsVisible);
+        using var correctBrush = new SolidBrush(CorrectColor);
+        using var wrongBrush = new SolidBrush(WrongColor);
         for (int partIndex = 0; partIndex < score.Parts.Count; partIndex++)
         {
             var part = score.Parts[partIndex];
-            if (part.Muted)
+            bool practiced = Learning?.PracticedParts.Contains(partIndex) ?? false;
+            // In learning mode the practiced parts are what matters, muted or not; the rest is just context.
+            if (part.Muted && !practiced)
                 continue;
 
-            using var brush = new SolidBrush(PartColors[partIndex % PartColors.Length]);
+            var partColor = PartColors[partIndex % PartColors.Length];
+            using var brush = new SolidBrush(Learning != null && !practiced ? Color.FromArgb(60, partColor) : partColor);
             foreach (var note in part.Notes)
             {
                 double noteEnd = note.StartSeconds + note.DurationSeconds;
@@ -215,7 +234,13 @@ sealed class PianoRollControl : Control
                 float yBottom = rollHeight - (float)((note.StartSeconds - currentSeconds) * pixelsPerSecond);
                 float yTop = rollHeight - (float)((noteEnd - currentSeconds) * pixelsPerSecond);
                 float height = Math.Max(3, yBottom - yTop);
-                g.FillRectangle(brush, layout.X + 1, yTop, Math.Max(2, layout.Width - 2), height);
+                var noteBrush = !practiced ? brush : Learning!.MarkOf(note) switch
+                {
+                    NoteMark.Correct => correctBrush,
+                    NoteMark.Wrong => wrongBrush,
+                    _ => brush,
+                };
+                g.FillRectangle(noteBrush, layout.X + 1, yTop, Math.Max(2, layout.Width - 2), height);
             }
         }
     }
@@ -224,11 +249,17 @@ sealed class PianoRollControl : Control
     {
         using var whiteBrush = new SolidBrush(Color.White);
         using var blackBrush = new SolidBrush(Color.Black);
-        using var selectedBrush = new SolidBrush(Color.FromArgb(66, 133, 244));
+        using var selectedBrush = new SolidBrush(flashColor);
         using var heldBrush = new SolidBrush(Color.FromArgb(255, 152, 0));
+        using var hintBrush = new SolidBrush(HintColor);
         using var borderPen = new Pen(Color.Gray);
+        var hintKeys = Learning?.ExpectedKeys().ToHashSet() ?? [];
 
-        Brush BrushFor(int note, Brush rest) => heldKeys.Contains(note) ? heldBrush : note == SelectedKey ? selectedBrush : rest;
+        // A flash (e.g. a red wrong key) wins over a held key, which wins over the "play this" hint.
+        Brush BrushFor(int note, Brush rest) => note == SelectedKey ? selectedBrush
+            : heldKeys.Contains(note) ? heldBrush
+            : hintKeys.Contains(note) ? hintBrush
+            : rest;
 
         foreach (var (note, layout) in keyLayout.Where(k => !k.Value.Black))
         {

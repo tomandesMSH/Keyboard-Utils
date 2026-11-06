@@ -8,6 +8,8 @@ sealed class MainForm : AntdUI.Window
     readonly AppConfig config;
     IMacroKeyboardInterceptor? interceptor;
     INoteSource? noteSource;
+    LearningSession? learning;
+    string learningStatus = "";
     readonly PlaybackEngine playbackEngine = new();
     readonly StemPlaybackEngine stemPlaybackEngine = new();
     readonly Channel<Binding> actionQueue = Channel.CreateUnbounded<Binding>(new UnboundedChannelOptions { SingleReader = true });
@@ -43,6 +45,7 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button previousButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Button nextButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Button listenButton = new() { AutoSize = true, Radius = 8 };
+    readonly AntdUI.Button learningButton = new() { AutoSize = true, Enabled = false, Type = AntdUI.TTypeMini.Success, Radius = 8 };
     // List = true: a pick-only dropdown. Without it AntdUI.Select is an editable text box with suggestions.
     readonly AntdUI.Select outputDeviceBox = new() { Size = new Size(240, 36), Margin = new Padding(0), List = true, ListAutoWidth = true };
     readonly AntdUI.Label outputDeviceLabel = new() { AutoSize = true, Margin = new Padding(2, 0, 0, 2), ForeColor = SystemColors.GrayText };
@@ -94,7 +97,9 @@ sealed class MainForm : AntdUI.Window
         stemPlaybackEngine.Finished += () => Post(() => SetStatus(T("Konec skladby.", "End of song.")));
         playbackTimer.Tick += (_, _) =>
         {
-            if (currentScore != null)
+            if (learning != null)
+                TickLearning();
+            else if (currentScore != null)
                 pianoRoll.SetCurrentTime(playbackEngine.CurrentSeconds);
             UpdatePlayPauseButton();
         };
@@ -117,7 +122,7 @@ sealed class MainForm : AntdUI.Window
         var songControlsRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6) };
         var outputDeviceGroup = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(12, 0, 3, 3) };
         outputDeviceGroup.Controls.AddRange([outputDeviceLabel, outputDeviceBox]);
-        songControlsRow.Controls.AddRange([openSongButton, importStemsButton, previousButton, playPauseButton, stopButton, nextButton, outputDeviceGroup, listenButton]);
+        songControlsRow.Controls.AddRange([openSongButton, importStemsButton, previousButton, playPauseButton, stopButton, nextButton, outputDeviceGroup, listenButton, learningButton]);
         var songLabelRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6, 0, 6, 0), WrapContents = false };
         songLabelRow.Controls.Add(songLabel);
 
@@ -137,6 +142,7 @@ sealed class MainForm : AntdUI.Window
         previousButton.Click += (_, _) => DoPreviousTrack();
         nextButton.Click += (_, _) => DoNextTrack();
         listenButton.Click += (_, _) => ToggleListening();
+        learningButton.Click += (_, _) => ToggleLearningMode(showSetup: true);
         outputDeviceBox.SelectedIndexChanged += (_, _) =>
         {
             string? name = outputDeviceBox.SelectedIndex > 0 ? outputDeviceNames[outputDeviceBox.SelectedIndex - 1] : null;
@@ -328,6 +334,7 @@ sealed class MainForm : AntdUI.Window
         previousButton.Text = T("<< Předchozí", "<< Previous");
         nextButton.Text = T("Další >>", "Next >>");
         listenButton.Text = noteSource != null ? T("Přestat poslouchat", "Stop listening") : T("Poslouchat", "Listen");
+        UpdateLearningButton();
         learnButton.Text = T("Nastavit makro klávesnici...", "Set up macro keyboard...");
         forgetButton.Text = T("Zapomenout klávesnici", "Forget keyboard");
         macroInfoLabel.Text = T(
@@ -391,7 +398,10 @@ sealed class MainForm : AntdUI.Window
             if (noteSource != source)
                 return;
             pianoRoll.SetKeyHeld(note, true);
-            SetStatus(T("Slyším: ", "Hearing: ") + NoteNames.Describe(note));
+            if (learning != null)
+                learning.OnNoteOn(note);
+            else
+                SetStatus(T("Slyším: ", "Hearing: ") + NoteNames.Describe(note));
         });
         source.NoteOff += note => Post(() => { if (noteSource == source) pianoRoll.SetKeyHeld(note, false); });
         try
@@ -419,6 +429,8 @@ sealed class MainForm : AntdUI.Window
 
     void SetNoteInput(NoteInputKind kind, string? midiDevice)
     {
+        // A running session was set up for the old input (chords, latency).
+        StopLearningMode(showResult: false);
         config.NoteInput = kind;
         config.MidiInputDevice = midiDevice;
         config.Save();
@@ -429,6 +441,7 @@ sealed class MainForm : AntdUI.Window
     void ShowMicrophoneSetup()
     {
         // The dialog opens the microphone itself; don't hold the device twice.
+        StopLearningMode(showResult: false);
         bool wasListening = noteSource != null;
         StopListening();
         using var setup = new MicrophoneSetupForm(config.MicrophoneDevice, config.MicrophoneThresholdDb);
@@ -441,6 +454,117 @@ sealed class MainForm : AntdUI.Window
         }
         if (wasListening)
             StartListening();
+    }
+
+    // --- Learning mode: play the song yourself, notes turn green/red, score at the end ------------
+
+    void ToggleLearningMode(bool showSetup)
+    {
+        if (learning != null)
+            StopLearningMode(showResult: true);
+        else
+            StartLearningMode(showSetup);
+    }
+
+    /// <param name="showSetup">False when started from a macro key or "Try again": reuse the last settings.</param>
+    void StartLearningMode(bool showSetup)
+    {
+        if (currentScore is not { } score)
+        {
+            ShowModal(this, Text, T("Nejdřív otevři skladbu (MIDI nebo MusicXML).", "Open a song first (MIDI or MusicXML)."), AntdUI.TType.Info);
+            return;
+        }
+
+        List<int> parts;
+        if (showSetup)
+        {
+            using var setup = new LearningSetupForm(score, config);
+            if (setup.ShowDialog(this) != DialogResult.OK)
+                return;
+            parts = setup.PracticedParts;
+            config.LearningMode = setup.SelectedMode;
+            config.LearningSpeedPercent = setup.SpeedPercent;
+            config.LearningAccompaniment = setup.Accompaniment;
+            config.LearningPartNames = parts.Select(i => score.Parts[i].Name).ToList();
+            config.Save();
+        }
+        else
+            parts = LearningSetupForm.PartsToPractice(score, config.LearningPartNames).Order().ToList();
+
+        if (noteSource == null)
+            StartListening();
+        if (noteSource is not { } source)
+            return; // the error was already shown
+
+        StopLearningMode(showResult: false);
+        playbackEngine.Stop();
+        double speed = config.LearningSpeedPercent / 100.0;
+        bool tempo = config.LearningMode == LearningMode.InTempo;
+        if (tempo)
+        {
+            // The practiced parts are the player's; the rest plays along only if asked for.
+            for (int i = 0; i < score.Parts.Count; i++)
+                playbackEngine.SetPartMuted(i, parts.Contains(i) || !config.LearningAccompaniment || score.Parts[i].Muted);
+            playbackEngine.Speed = speed;
+        }
+
+        var session = new LearningSession(score, parts, config.LearningMode, speed, source.Polyphonic, source.LatencySeconds,
+            tempo ? () => playbackEngine.CurrentSeconds : null,
+            tempo ? playbackEngine.Play : null);
+        session.WrongKey += pitch => pianoRoll.FlashKey(pitch, 300, PianoRollControl.WrongColor);
+        session.Finished += () => BeginInvoke(() => { if (learning == session) StopLearningMode(showResult: true); });
+        learning = session;
+        learningStatus = "";
+        pianoRoll.Learning = session;
+        partsPanel.Enabled = false;
+        UpdateLearningButton();
+    }
+
+    void TickLearning()
+    {
+        var session = learning!;
+        session.Tick();
+        pianoRoll.SetCurrentTime(session.Position);
+        string status = session.Position < 0
+            ? T("Připrav se...", "Get ready...")
+            : T($"Učení: {session.DoneNotes}/{session.TotalNotes} not, správně {session.CorrectNotes}, špatné klávesy {session.WrongPresses}",
+                $"Learning: {session.DoneNotes}/{session.TotalNotes} notes, {session.CorrectNotes} correct, {session.WrongPresses} wrong keys");
+        if (session.Paused)
+            status = T("Pozastaveno - ", "Paused - ") + status;
+        if (status != learningStatus)
+            SetStatus(learningStatus = status);
+    }
+
+    void StopLearningMode(bool showResult)
+    {
+        if (learning is not { } session)
+            return;
+        var result = session.Stop();
+        learning = null;
+        pianoRoll.Learning = null;
+        partsPanel.Enabled = true;
+
+        playbackEngine.Stop();
+        playbackEngine.Speed = 1;
+        if (currentScore != null)
+            for (int i = 0; i < currentScore.Parts.Count; i++)
+                playbackEngine.SetPartMuted(i, currentScore.Parts[i].Muted);
+        pianoRoll.SetCurrentTime(0);
+        UpdateLearningButton();
+        SetStatus(T("Režim učení ukončen.", "Learning mode ended."));
+
+        // Nothing played yet: there's nothing to score.
+        if (!showResult || (session.DoneNotes == 0 && !result.Completed))
+            return;
+        using var dialog = new LearningResultForm(result, currentScore?.Title ?? "");
+        if (dialog.ShowDialog(this) == DialogResult.Retry)
+            StartLearningMode(showSetup: false);
+    }
+
+    void UpdateLearningButton()
+    {
+        learningButton.Enabled = currentScore != null;
+        learningButton.Text = learning != null ? T("Ukončit učení", "End learning") : T("Režim učení...", "Learning mode...");
     }
 
     // --- Keyboard selection -------------------------------------------------------------------
@@ -555,6 +679,7 @@ sealed class MainForm : AntdUI.Window
             return;
         }
 
+        StopLearningMode(showResult: false);
         stemPlaybackEngine.Stop();
         currentStems = null;
         currentScore = score;
@@ -565,6 +690,7 @@ sealed class MainForm : AntdUI.Window
         playPauseButton.Enabled = stopButton.Enabled = true;
         previousButton.Enabled = nextButton.Enabled = playlist.Count > 1;
         UpdateSongLabel();
+        UpdateLearningButton();
         SetStatus(T($"Načteno: {currentScore.Title}", $"Loaded: {currentScore.Title}"));
     }
 
@@ -595,6 +721,7 @@ sealed class MainForm : AntdUI.Window
             return;
         }
 
+        StopLearningMode(showResult: false);
         playbackEngine.Stop();
         playlist = [];
         playlistIndex = -1;
@@ -606,6 +733,7 @@ sealed class MainForm : AntdUI.Window
         playPauseButton.Enabled = stopButton.Enabled = true;
         previousButton.Enabled = nextButton.Enabled = false;
         UpdateSongLabel();
+        UpdateLearningButton();
         SetStatus(T($"Načteny stopy: {stems.Title} ({stems.Tracks.Count})", $"Loaded stems: {stems.Title} ({stems.Tracks.Count})"));
     }
 
@@ -660,7 +788,17 @@ sealed class MainForm : AntdUI.Window
 
     void TogglePlayPause()
     {
-        if (currentScore != null)
+        if (learning != null)
+        {
+            bool pause = !learning.Paused;
+            learning.SetPaused(pause);
+            // In tempo mode the accompaniment is the clock - but only once the lead-in has started it.
+            if (learning.Mode == LearningMode.InTempo && learning.Position >= 0)
+            {
+                if (pause) playbackEngine.Pause(); else playbackEngine.Play();
+            }
+        }
+        else if (currentScore != null)
         {
             if (playbackEngine.IsRunning) playbackEngine.Pause(); else playbackEngine.Play();
         }
@@ -677,12 +815,19 @@ sealed class MainForm : AntdUI.Window
 
     void UpdatePlayPauseButton()
     {
-        bool running = currentScore != null ? playbackEngine.IsRunning : currentStems != null && stemPlaybackEngine.IsRunning;
+        bool running = learning != null ? !learning.Paused
+            : currentScore != null ? playbackEngine.IsRunning
+            : currentStems != null && stemPlaybackEngine.IsRunning;
         playPauseButton.Text = running ? T("Pauza", "Pause") : T("Přehrát", "Play");
     }
 
     void DoStop()
     {
+        if (learning != null)
+        {
+            StopLearningMode(showResult: true);
+            return;
+        }
         if (currentScore != null)
             playbackEngine.Stop();
         else if (currentStems != null)
@@ -928,8 +1073,12 @@ sealed class MainForm : AntdUI.Window
                     SetStatus(binding.Describe());
                 }
                 break;
+            case MacroAction.ToggleLearningMode:
+                // From a macro key there's no one at the mouse: start straight away with the last settings.
+                ToggleLearningMode(showSetup: false);
+                break;
             default:
-                // Learning mode / create mode: wired up once those features land.
+                // Create mode: wired up once that feature lands.
                 SetStatus(T("Akce: ", "Action: ") + binding.Describe());
                 break;
         }

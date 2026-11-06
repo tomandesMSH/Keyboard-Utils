@@ -89,6 +89,14 @@ sealed class AppConfig
     /// <summary>Null = first available MIDI input.</summary>
     public string? MidiInputDevice { get; set; }
 
+    /// <summary>Last learning mode settings - reused as-is when learning is started from a macro key.</summary>
+    public LearningMode LearningMode { get; set; } = LearningMode.WaitForNote;
+    public int LearningSpeedPercent { get; set; } = 100;
+    public bool LearningAccompaniment { get; set; } = true;
+
+    /// <summary>Names of the parts last practiced; matched by name against the next song (all parts if none match).</summary>
+    public List<string> LearningPartNames { get; set; } = [];
+
     /// <summary>Null until the user picks one on first start.</summary>
     public AppLanguage? Language { get; set; }
     public List<Binding> Bindings { get; set; } = [];

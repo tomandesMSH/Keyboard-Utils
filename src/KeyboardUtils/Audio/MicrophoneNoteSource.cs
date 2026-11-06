@@ -38,6 +38,10 @@ sealed class MicrophoneNoteSource : INoteSource
     }
 
     public string Name { get; }
+    public bool Polyphonic => false;
+
+    /// <summary>Half a frame to reach the window's centre plus the stable-pitch confirmation frames, roughly.</summary>
+    public double LatencySeconds => 0.07;
 
     public event Action<int>? NoteOn;
     public event Action<int>? NoteOff;

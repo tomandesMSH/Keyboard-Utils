@@ -88,6 +88,13 @@ sealed class PlaybackEngine : IDisposable
         _ = Task.Delay(durationMs).ContinueWith(_ => device.SendEvent(new NoteOffEvent(noteNumber, (SevenBitNumber)0)));
     }
 
+    /// <summary>1 = as written, 0.5 = half speed. <see cref="CurrentSeconds"/> stays in score time either way.</summary>
+    public double Speed
+    {
+        get => playback?.Speed ?? 1;
+        set { if (playback != null) playback.Speed = value; }
+    }
+
     public void Play() => playback?.Start();
     public void Pause() => playback?.Stop();
 
