@@ -3,31 +3,36 @@ using System.Diagnostics;
 namespace KeyboardUtils;
 
 /// <summary>
-/// "Convert audio to notes": pick an audio file, transcribe it in the background with progress, and hand back the
-/// resulting <see cref="Score"/>. Also the place for tips on getting single-instrument tracks (stems) to convert.
+/// "Import stems": either load a folder of tracks as the accompaniment (the original recording, played as audio),
+/// or detect the notes in an audio file (transcribed in the background with progress). Also the place for tips on
+/// getting a song's single-instrument tracks (stems).
 /// </summary>
-sealed class AudioToNotesForm : AntdUI.Window
+sealed class ImportAudioForm : AntdUI.Window
 {
-    readonly AntdUI.Button pickButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
+    readonly AntdUI.Button accompanimentButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
+    readonly AntdUI.Button notesButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly AntdUI.Progress progress = new() { Size = new Size(560, 14), Margin = new Padding(0, 10, 0, 0), Visible = false };
     readonly Label statusLabel = new() { AutoSize = true, Margin = new Padding(0, 6, 0, 0), ForeColor = SystemColors.GrayText, Font = new Font("Segoe UI", 9f) };
     readonly string? initialDirectory;
     CancellationTokenSource? running;
 
-    /// <summary>The converted notes, once the dialog closed with OK.</summary>
+    /// <summary>"As accompaniment": the chosen folder of tracks, once the dialog closed with OK.</summary>
+    public string? StemsFolder { get; private set; }
+
+    /// <summary>"Detect notes": the converted notes, once the dialog closed with OK.</summary>
     public Score? Result { get; private set; }
 
     /// <summary>The audio file <see cref="Result"/> came from.</summary>
     public string? FilePath { get; private set; }
 
-    /// <param name="initialDirectory">Where the file picker starts, e.g. the folder of the loaded stems.</param>
-    public AudioToNotesForm(string? initialDirectory)
+    /// <param name="initialDirectory">Where the pickers start, e.g. the folder of the loaded stems.</param>
+    public ImportAudioForm(string? initialDirectory)
     {
         this.initialDirectory = initialDirectory;
-        Text = T("Převést zvuk na noty", "Convert audio to notes");
+        Text = T("Importovat stopy", "Import stems");
         Icon = AppIcon.Icon;
         StartPosition = FormStartPosition.CenterParent;
-        Size = new Size(640, 640);
+        Size = new Size(640, 790);
         Resizable = false;
         MaximizeBox = MinimizeBox = false;
         TopMost = true;
@@ -35,8 +40,20 @@ sealed class AudioToNotesForm : AntdUI.Window
         var layout = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoScroll = true,
-            Padding = new Padding(22, 14, 22, 8),
+            Padding = new Padding(22, 6, 22, 8),
         };
+
+        layout.Controls.Add(Heading(T("Jako doprovod", "As accompaniment")));
+        layout.Controls.Add(Paragraph(T(
+            "Vyber složku se stopami (.wav) - přehraje se originální nahrávka a v panelu vpravo jde každou stopu ztlumit "
+            + "nebo zeslabit. Tlačítkem \"Noty\" u stopy pak přidáš její noty do piano rollu a můžeš ji hrát sám.",
+            "Choose a folder of tracks (.wav) - the original recording plays, and each track can be muted or turned down "
+            + "in the panel on the right. The \"Notes\" button next to a track adds its notes to the piano roll, so you can play it yourself.")));
+        accompanimentButton.Text = T("Vybrat složku se stopami...", "Choose folder with tracks...");
+        accompanimentButton.Margin = new Padding(0, 6, 0, 0);
+        layout.Controls.Add(accompanimentButton);
+
+        layout.Controls.Add(Heading(T("Detekovat noty z hudby", "Detect notes from music")));
         layout.Controls.Add(Paragraph(T(
             "Vyber zvukový soubor a appka z něj rozpozná noty. Výsledek se otevře jako nová skladba - můžeš si ji přehrát, "
             + "procvičit v režimu učení nebo uložit jako MIDI / MusicXML (Soubor > Uložit skladbu jako...).",
@@ -47,10 +64,9 @@ sealed class AudioToNotesForm : AntdUI.Window
             + "Akordy jen částečně, celý mix skladby ne.",
             "It hears one note at a time: a track with a single instrument playing a melody works best (vocals, a solo, "
             + "bass). Chords only partly, a full song mix not at all."), gray: true));
-
-        pickButton.Text = T("Vybrat zvukový soubor...", "Choose audio file...");
-        pickButton.Margin = new Padding(0, 8, 0, 0);
-        layout.Controls.Add(pickButton);
+        notesButton.Text = T("Vybrat zvukový soubor...", "Choose audio file...");
+        notesButton.Margin = new Padding(0, 6, 0, 0);
+        layout.Controls.Add(notesButton);
         layout.Controls.Add(progress);
         layout.Controls.Add(statusLabel);
 
@@ -81,8 +97,23 @@ sealed class AudioToNotesForm : AntdUI.Window
         Controls.Add(buttons);
         Controls.Add(new TitleBar(this));
 
-        pickButton.Click += async (_, _) => await PickAndConvert();
+        accompanimentButton.Click += (_, _) => PickStemsFolder();
+        notesButton.Click += async (_, _) => await PickAndConvert();
         close.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
+    }
+
+    void PickStemsFolder()
+    {
+        using var dialog = new FolderBrowserDialog
+        {
+            Description = T("Vyber složku se stopami (.wav)", "Choose the folder with the stems (.wav)"),
+            InitialDirectory = initialDirectory ?? "",
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+            return;
+        StemsFolder = dialog.SelectedPath;
+        DialogResult = DialogResult.OK;
+        Close();
     }
 
     async Task PickAndConvert()
@@ -99,7 +130,7 @@ sealed class AudioToNotesForm : AntdUI.Window
         string path = dialog.FileName;
         running = new CancellationTokenSource();
         var cancel = running.Token;
-        pickButton.Enabled = false;
+        accompanimentButton.Enabled = notesButton.Enabled = false;
         progress.Value = 0;
         progress.Visible = true;
         statusLabel.Text = T($"Převádím {Path.GetFileName(path)}...", $"Converting {Path.GetFileName(path)}...");
@@ -131,7 +162,7 @@ sealed class AudioToNotesForm : AntdUI.Window
             running = null;
             if (!IsDisposed)
             {
-                pickButton.Enabled = true;
+                accompanimentButton.Enabled = notesButton.Enabled = true;
                 progress.Visible = false;
             }
         }

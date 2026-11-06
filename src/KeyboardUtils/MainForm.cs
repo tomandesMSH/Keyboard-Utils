@@ -54,7 +54,6 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button openSongButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly AntdUI.Button importStemsButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Button removeSongButton = new() { AutoSize = true, Radius = 8, Visible = false };
-    readonly AntdUI.Button convertAudioButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Button playPauseButton = new() { AutoSize = true, Enabled = false, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly AntdUI.Button stopButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Button previousButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
@@ -142,7 +141,7 @@ sealed class MainForm : AntdUI.Window
         var songControlsRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6) };
         songControlsRow.Controls.AddRange(
         [
-            ControlGroup(loadGroupLabel, openSongButton, importStemsButton, convertAudioButton, removeSongButton),
+            ControlGroup(loadGroupLabel, openSongButton, importStemsButton, removeSongButton),
             ControlGroup(playbackGroupLabel, previousButton, playPauseButton, stopButton, nextButton),
             ControlGroup(playingGroupLabel, listenButton, learningButton, createButton),
         ]);
@@ -204,7 +203,6 @@ sealed class MainForm : AntdUI.Window
         openSongButton.Click += (_, _) => OpenSong();
         importStemsButton.Click += (_, _) => ImportStems();
         removeSongButton.Click += (_, _) => RemoveSong();
-        convertAudioButton.Click += (_, _) => ConvertAudioToNotes();
         playPauseButton.Click += (_, _) => TogglePlayPause();
         stopButton.Click += (_, _) => DoStop();
         previousButton.Click += (_, _) => DoPreviousTrack();
@@ -241,7 +239,7 @@ sealed class MainForm : AntdUI.Window
 
         fileMenuButton.Click += (_, _) => ShowMenu(fileMenuButton,
             MenuItem(T("Otevřít skladbu...", "Open song..."), OpenSong),
-            MenuItem(T("Importovat stopy (WAV)...", "Import stems (WAV)..."), ImportStems),
+            MenuItem(T("Importovat stopy...", "Import stems..."), ImportStems),
             MenuItem(T("Uložit skladbu jako...", "Save song as..."), SaveCurrentSong),
             new AntdUI.ContextMenuStripItemDivider(),
             MenuItem(T("Exportovat klávesy...", "Export keys..."), ExportBindings),
@@ -410,7 +408,6 @@ sealed class MainForm : AntdUI.Window
         openSongButton.Text = T("Otevřít skladbu...", "Open song...");
         importStemsButton.Text = T("Importovat stopy...", "Import stems...");
         removeSongButton.Text = T("Odebrat skladbu", "Remove song");
-        convertAudioButton.Text = T("Převést zvuk na noty...", "Convert audio to notes...");
         loadGroupLabel.Text = T("Načíst", "Load");
         playbackGroupLabel.Text = T("Přehrávání", "Playback");
         playingGroupLabel.Text = T("Nahrávání", "Recording");
@@ -937,17 +934,30 @@ sealed class MainForm : AntdUI.Window
         UpdateLearningButton();
     }
 
+    /// <summary>
+    /// Asks how to use the audio: a folder of tracks as accompaniment (<see cref="LoadStems"/>), or notes
+    /// detected from an audio file (<see cref="ShowConvertedNotes"/>).
+    /// </summary>
     void ImportStems()
     {
         FinishCreateMode();
-        using var dialog = new FolderBrowserDialog { Description = T("Vyber složku se stopami (.wav)", "Choose the folder with the stems (.wav)") };
+        // Start the pickers in the loaded stems' folder: converting one of them is a likely next step.
+        string? stemsFolder = currentStems?.Tracks.FirstOrDefault() is { } track ? Path.GetDirectoryName(track.FilePath) : null;
+        using var dialog = new ImportAudioForm(stemsFolder);
         if (dialog.ShowDialog(this) != DialogResult.OK)
             return;
+        if (dialog.StemsFolder is { } folder)
+            LoadStems(folder);
+        else if (dialog.Result is { } score)
+            ShowConvertedNotes(score, dialog.FilePath);
+    }
 
+    void LoadStems(string folder)
+    {
         StemSet stems;
         try
         {
-            stems = StemSetImporter.ImportFolder(dialog.SelectedPath);
+            stems = StemSetImporter.ImportFolder(folder);
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
         {
@@ -996,16 +1006,10 @@ sealed class MainForm : AntdUI.Window
     }
 
     /// <summary>Notes detected from an audio file open as a new, not yet saved song.</summary>
-    void ConvertAudioToNotes()
+    void ShowConvertedNotes(Score score, string? filePath)
     {
-        FinishCreateMode();
-        // Start the file picker in the loaded stems' folder: converting one of them is the likely next step.
-        string? stemsFolder = currentStems?.Tracks.FirstOrDefault() is { } track ? Path.GetDirectoryName(track.FilePath) : null;
-        using var dialog = new AudioToNotesForm(stemsFolder);
-        if (dialog.ShowDialog(this) != DialogResult.OK || dialog.Result is not { } score)
-            return;
         // One of the loaded stems: add its notes to them instead of replacing the stems with a new song.
-        if (currentStems?.Tracks.FirstOrDefault(t => string.Equals(Path.GetFullPath(t.FilePath), Path.GetFullPath(dialog.FilePath ?? ""), StringComparison.OrdinalIgnoreCase)) is { } stem)
+        if (currentStems?.Tracks.FirstOrDefault(t => string.Equals(Path.GetFullPath(t.FilePath), Path.GetFullPath(filePath ?? ""), StringComparison.OrdinalIgnoreCase)) is { } stem)
         {
             AttachStemNotes(stem.Name, score.Parts[0]);
             return;
