@@ -1,4 +1,6 @@
 using System.Threading.Channels;
+using Melanchall.DryWetMidi.Core;
+using Melanchall.DryWetMidi.Multimedia;
 
 namespace KeyboardUtils;
 
@@ -7,6 +9,8 @@ sealed class MainForm : AntdUI.Window
 
     readonly AppConfig config;
     IMacroKeyboardInterceptor? interceptor;
+    InputDevice? midiInputDevice;
+    bool recording;
     readonly PlaybackEngine playbackEngine = new();
     readonly StemPlaybackEngine stemPlaybackEngine = new();
     readonly Channel<Binding> actionQueue = Channel.CreateUnbounded<Binding>(new UnboundedChannelOptions { SingleReader = true });
@@ -41,6 +45,7 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button stopButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Button previousButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Button nextButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
+    readonly AntdUI.Button recordButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Select outputDeviceBox = new() { Width = 200, Margin = new Padding(12, 4, 3, 3) };
     readonly AntdUI.Checkbox enabledBox = new() { AutoSize = true, Margin = new Padding(12, 6, 3, 3) };
     readonly AntdUI.Label languageLabel = new() { AutoSize = true, Margin = new Padding(12, 8, 3, 3) };
@@ -110,7 +115,7 @@ sealed class MainForm : AntdUI.Window
 
         // --- Song tab: open/transport controls + piano roll + per-part mute panel ---
         var songControlsRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6), WrapContents = false };
-        songControlsRow.Controls.AddRange([openSongButton, importStemsButton, previousButton, playPauseButton, stopButton, nextButton, outputDeviceBox]);
+        songControlsRow.Controls.AddRange([openSongButton, importStemsButton, previousButton, playPauseButton, stopButton, nextButton, outputDeviceBox, recordButton]);
         var songLabelRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6, 0, 6, 0), WrapContents = false };
         songLabelRow.Controls.Add(songLabel);
 
@@ -120,12 +125,16 @@ sealed class MainForm : AntdUI.Window
         songTab.Controls.Add(stemsInfoLabel);
         songTab.Controls.Add(songControlsRow);
 
+        pianoRoll.Clickable = true;
+        pianoRoll.KeySelected += pitch => { playbackEngine.PlayNote(pitch); pianoRoll.FlashKey(pitch); };
+
         openSongButton.Click += (_, _) => OpenSong();
         importStemsButton.Click += (_, _) => ImportStems();
         playPauseButton.Click += (_, _) => TogglePlayPause();
         stopButton.Click += (_, _) => DoStop();
         previousButton.Click += (_, _) => DoPreviousTrack();
         nextButton.Click += (_, _) => DoNextTrack();
+        recordButton.Click += (_, _) => ToggleRecording();
         outputDeviceBox.SelectedIndexChanged += (_, _) =>
         {
             string? name = outputDeviceBox.SelectedIndex > 0 ? outputDeviceNames[outputDeviceBox.SelectedIndex - 1] : null;
@@ -293,6 +302,7 @@ sealed class MainForm : AntdUI.Window
         stopButton.Text = T("Stop", "Stop");
         previousButton.Text = T("<< Předchozí", "<< Previous");
         nextButton.Text = T("Další >>", "Next >>");
+        recordButton.Text = recording ? T("Zastavit nahrávání", "Stop recording") : T("Nahrávat", "Record");
         learnButton.Text = T("Nastavit makro klávesnici...", "Set up macro keyboard...");
         forgetButton.Text = T("Zapomenout klávesnici", "Forget keyboard");
         macroInfoLabel.Text = T(
@@ -333,6 +343,52 @@ sealed class MainForm : AntdUI.Window
         base.OnFormClosing(e);
     }
 
+    // --- MIDI input monitor ("Record": live visual feedback, nothing is saved) ----------------
+
+    void ToggleRecording()
+    {
+        if (recording)
+        {
+            StopRecording();
+            return;
+        }
+        var device = InputDevice.GetAll().FirstOrDefault();
+        if (device == null)
+        {
+            ShowModal(this, Text, T("Nenašel jsem žádné MIDI vstupní zařízení.", "No MIDI input device found."), AntdUI.TType.Info);
+            return;
+        }
+        midiInputDevice = device;
+        midiInputDevice.EventReceived += OnMidiInputEvent;
+        midiInputDevice.StartEventsListening();
+        recording = true;
+        recordButton.Text = T("Zastavit nahrávání", "Stop recording");
+        SetStatus(T($"Nahrávám z {device.Name}...", $"Recording from {device.Name}..."));
+    }
+
+    void StopRecording()
+    {
+        if (midiInputDevice != null)
+        {
+            midiInputDevice.EventReceived -= OnMidiInputEvent;
+            midiInputDevice.StopEventsListening();
+            midiInputDevice.Dispose();
+            midiInputDevice = null;
+        }
+        recording = false;
+        recordButton.Text = T("Nahrávat", "Record");
+    }
+
+    /// <summary>Runs on the MIDI input thread.</summary>
+    void OnMidiInputEvent(object? sender, MidiEventReceivedEventArgs e)
+    {
+        if (e.Event is NoteOnEvent noteOn && noteOn.Velocity > 0)
+        {
+            int pitch = noteOn.NoteNumber;
+            Post(() => pianoRoll.FlashKey(pitch));
+        }
+    }
+
     // --- Keyboard selection -------------------------------------------------------------------
 
     void StartLearning()
@@ -354,7 +410,7 @@ sealed class MainForm : AntdUI.Window
             Cursor = Cursors.Default;
             if (!downloaded)
             {
-                AntdUI.Modal.open(this, Text, T("Stažení modulu se nepovedlo. Zkontroluj připojení k internetu a zkus to znovu.",
+                ShowModal(this, Text, T("Stažení modulu se nepovedlo. Zkontroluj připojení k internetu a zkus to znovu.",
                     "Downloading the module failed. Check your internet connection and try again."), AntdUI.TType.Error);
                 SetStatus(T("Stažení modulu selhalo.", "Module download failed."));
                 return;
@@ -441,7 +497,7 @@ sealed class MainForm : AntdUI.Window
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or NotSupportedException or UnauthorizedAccessException or System.Xml.XmlException)
         {
-            AntdUI.Modal.open(this, Text, T("Skladbu nejde načíst: ", "Could not load the song: ") + ex.Message, AntdUI.TType.Error);
+            ShowModal(this, Text, T("Skladbu nejde načíst: ", "Could not load the song: ") + ex.Message, AntdUI.TType.Error);
             return;
         }
 
@@ -471,7 +527,7 @@ sealed class MainForm : AntdUI.Window
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
         {
-            AntdUI.Modal.open(this, Text, T("Stopy nejde načíst: ", "Could not load the stems: ") + ex.Message, AntdUI.TType.Error);
+            ShowModal(this, Text, T("Stopy nejde načíst: ", "Could not load the stems: ") + ex.Message, AntdUI.TType.Error);
             return;
         }
 
@@ -481,7 +537,7 @@ sealed class MainForm : AntdUI.Window
         }
         catch (InvalidDataException ex)
         {
-            AntdUI.Modal.open(this, Text, ex.Message, AntdUI.TType.Error);
+            ShowModal(this, Text, ex.Message, AntdUI.TType.Error);
             return;
         }
 
@@ -614,7 +670,7 @@ sealed class MainForm : AntdUI.Window
         }
         if (interceptor == null || config.MacroKeyboardHardwareId == null)
         {
-            AntdUI.Modal.open(this, Text, T("Nejdřív nastav makro klávesnici.", "Set up the macro keyboard first."), AntdUI.TType.Info);
+            ShowModal(this, Text, T("Nejdřív nastav makro klávesnici.", "Set up the macro keyboard first."), AntdUI.TType.Info);
             return;
         }
         if (!interceptor.Enabled)
@@ -658,6 +714,16 @@ sealed class MainForm : AntdUI.Window
             return;
         }
         var binding = picker.Result;
+        if (binding.Action == MacroAction.PlayNote)
+        {
+            using var notePicker = new NotePickerForm();
+            if (notePicker.ShowDialog(this) != DialogResult.OK || notePicker.Result is not { } pitch)
+            {
+                SetStatus(T("Zrušeno.", "Cancelled."));
+                return;
+            }
+            binding.Pitch = pitch;
+        }
         binding.Key = key;
         config.Bindings.RemoveAll(b => b.Key == key);
         config.Bindings.Add(binding);
@@ -687,7 +753,7 @@ sealed class MainForm : AntdUI.Window
     {
         if (config.Bindings.Count == 0)
         {
-            AntdUI.Modal.open(this, Text, T("Nejsou žádné klávesy k exportu.", "There are no keys to export."), AntdUI.TType.Info);
+            ShowModal(this, Text, T("Nejsou žádné klávesy k exportu.", "There are no keys to export."), AntdUI.TType.Info);
             return;
         }
         using var dialog = new SaveFileDialog
@@ -705,7 +771,7 @@ sealed class MainForm : AntdUI.Window
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            AntdUI.Modal.open(this, Text, T("Export se nepovedl: ", "Export failed: ") + ex.Message, AntdUI.TType.Error);
+            ShowModal(this, Text, T("Export se nepovedl: ", "Export failed: ") + ex.Message, AntdUI.TType.Error);
         }
     }
 
@@ -726,7 +792,7 @@ sealed class MainForm : AntdUI.Window
         }
         catch (Exception ex) when (ex is System.Text.Json.JsonException or IOException or UnauthorizedAccessException or NotSupportedException)
         {
-            AntdUI.Modal.open(this, Text, T("Soubor nejde načíst: ", "Could not read the file: ") + ex.Message, AntdUI.TType.Error);
+            ShowModal(this, Text, T("Soubor nejde načíst: ", "Could not read the file: ") + ex.Message, AntdUI.TType.Error);
             return;
         }
 
@@ -800,6 +866,14 @@ sealed class MainForm : AntdUI.Window
                     SetStatus(binding.Describe());
                 }
                 break;
+            case MacroAction.PlayNote:
+                if (binding.Pitch is { } pitch)
+                {
+                    playbackEngine.PlayNote(pitch);
+                    pianoRoll.FlashKey(pitch);
+                    SetStatus(binding.Describe());
+                }
+                break;
             default:
                 // Learning mode / create mode: wired up once those features land.
                 SetStatus(T("Akce: ", "Action: ") + binding.Describe());
@@ -822,6 +896,7 @@ sealed class MainForm : AntdUI.Window
             playbackTimer.Dispose();
             playbackEngine.Dispose();
             stemPlaybackEngine.Dispose();
+            midiInputDevice?.Dispose();
         }
         base.Dispose(disposing);
     }

@@ -16,6 +16,7 @@ enum MacroAction
     ToggleMutePart,
     ToggleLearningMode,
     ToggleCreateMode,
+    PlayNote,
 }
 
 sealed class Binding
@@ -29,6 +30,9 @@ sealed class Binding
     /// <summary>Remembered part name, since part order can differ between songs/imports.</summary>
     public string? PartName { get; set; }
 
+    /// <summary>Only used by <see cref="MacroAction.PlayNote"/>: the MIDI pitch (0-127) to play.</summary>
+    public int? Pitch { get; set; }
+
     public string Describe() => Action switch
     {
         MacroAction.PlayPause => T("Přehrát / pauza", "Play / pause"),
@@ -40,8 +44,19 @@ sealed class Binding
             : T("Ztlumit/zapnout část...", "Mute/unmute part..."),
         MacroAction.ToggleLearningMode => T("Přepnout režim učení", "Toggle learning mode"),
         MacroAction.ToggleCreateMode => T("Přepnout create mode", "Toggle create mode"),
+        MacroAction.PlayNote => Pitch is { } pitch
+            ? T($"Zahrát {NoteNames.Describe(pitch)}", $"Play {NoteNames.Describe(pitch)}")
+            : T("Zahrát klávesu...", "Play note..."),
         _ => Action.ToString(),
     };
+}
+
+/// <summary>MIDI pitch (0-127) &lt;-&gt; scientific pitch notation (e.g. 60 -&gt; "C4").</summary>
+static class NoteNames
+{
+    static readonly string[] Names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+    public static string Describe(int pitch) => $"{Names[((pitch % 12) + 12) % 12]}{pitch / 12 - 1}";
 }
 
 sealed class AppConfig

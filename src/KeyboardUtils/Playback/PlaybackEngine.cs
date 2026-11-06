@@ -1,4 +1,5 @@
 using Melanchall.DryWetMidi.Common;
+using Melanchall.DryWetMidi.Core;
 using Melanchall.DryWetMidi.Interaction;
 using Melanchall.DryWetMidi.Multimedia;
 
@@ -75,6 +76,16 @@ sealed class PlaybackEngine : IDisposable
         else
             next.Remove(channel);
         mutedChannels = next;
+    }
+
+    /// <summary>Fires a single note at the output device, independent of score playback. Fire-and-forget.</summary>
+    public void PlayNote(int pitch, int durationMs = 400)
+    {
+        if (outputDevice is not { } device)
+            return;
+        var noteNumber = (SevenBitNumber)Math.Clamp(pitch, 0, 127);
+        device.SendEvent(new NoteOnEvent(noteNumber, (SevenBitNumber)100));
+        _ = Task.Delay(durationMs).ContinueWith(_ => device.SendEvent(new NoteOffEvent(noteNumber, (SevenBitNumber)0)));
     }
 
     public void Play() => playback?.Start();

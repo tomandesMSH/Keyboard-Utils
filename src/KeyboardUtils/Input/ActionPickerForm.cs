@@ -16,6 +16,7 @@ sealed class ActionPickerForm : AntdUI.Window
         new(new Binding { Action = MacroAction.PreviousTrack }.Describe(), MacroAction.PreviousTrack),
         new(new Binding { Action = MacroAction.ToggleLearningMode }.Describe(), MacroAction.ToggleLearningMode),
         new(new Binding { Action = MacroAction.ToggleCreateMode }.Describe(), MacroAction.ToggleCreateMode),
+        new(new Binding { Action = MacroAction.PlayNote }.Describe(), MacroAction.PlayNote),
     ];
 
     readonly ListBox list = new() { Dock = DockStyle.Fill, IntegralHeight = false };
