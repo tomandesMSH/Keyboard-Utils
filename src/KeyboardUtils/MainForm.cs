@@ -43,10 +43,11 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button previousButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Button nextButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Button listenButton = new() { AutoSize = true, Radius = 8 };
-    readonly AntdUI.Select outputDeviceBox = new() { Size = new Size(200, 36), Margin = new Padding(12, 0, 3, 3) };
+    // List = true: a pick-only dropdown. Without it AntdUI.Select is an editable text box with suggestions.
+    readonly AntdUI.Select outputDeviceBox = new() { Size = new Size(240, 36), Margin = new Padding(12, 0, 3, 3), List = true, ListAutoWidth = true };
     readonly AntdUI.Checkbox enabledBox = new() { AutoSize = true, Margin = new Padding(12, 6, 3, 3) };
     readonly AntdUI.Label languageLabel = new() { AutoSize = true, Margin = new Padding(12, 8, 3, 3) };
-    readonly AntdUI.Select languageBox = new() { Width = 90, Margin = new Padding(3, 4, 3, 3) };
+    readonly AntdUI.Select languageBox = new() { Size = new Size(110, 36), Margin = new Padding(3, 0, 3, 3), List = true };
     readonly FlowLayoutPanel partsPanel = new() { Dock = DockStyle.Right, Width = 180, AutoScroll = true, Padding = new Padding(6), FlowDirection = FlowDirection.TopDown, WrapContents = false };
     readonly PianoRollControl pianoRoll = new() { Dock = DockStyle.Fill };
     readonly System.Windows.Forms.Timer playbackTimer = new() { Interval = 33 };

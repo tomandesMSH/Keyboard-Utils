@@ -14,7 +14,7 @@ sealed class MicrophoneSetupForm : AntdUI.Window
     const double NoiseMarginDb = 8;
 
     readonly List<string> deviceNames = MicrophoneNoteSource.GetDeviceNames().ToList();
-    readonly AntdUI.Select deviceBox = new() { Size = new Size(340, 36) };
+    readonly AntdUI.Select deviceBox = new() { Size = new Size(340, 36), List = true, ListAutoWidth = true };
     readonly LevelMeter meter = new() { Dock = DockStyle.Top, Height = 26, Margin = new Padding(0) };
     readonly AntdUI.Slider thresholdSlider = new() { Dock = DockStyle.Top, Height = 32, MinValue = MinDb, MaxValue = MaxDb };
     readonly AntdUI.Label thresholdLabel = new() { Dock = DockStyle.Top, Height = 24 };
