@@ -15,6 +15,17 @@ static class Lang
 
     public static string T(string czech, string english) => Current == AppLanguage.English ? english : czech;
 
+    /// <summary>
+    /// AntdUI.Modal.open's OK/Cancel buttons default to AntdUI's built-in Chinese text when not told
+    /// otherwise - this wrapper always supplies localized button text.
+    /// </summary>
+    public static void ShowModal(Form target, string title, string content, AntdUI.TType type) =>
+        AntdUI.Modal.open(new AntdUI.Modal.Config(target, title, content, type)
+        {
+            OkText = T("OK", "OK"),
+            CancelText = T("Zrušit", "Cancel"),
+        });
+
     /// <summary>Display names, deliberately not translated so each is readable to its own speakers.</summary>
     public static string DisplayName(AppLanguage language) => language switch
     {

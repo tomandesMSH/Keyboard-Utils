@@ -65,7 +65,7 @@ sealed class DriverSetupForm : AntdUI.Window
     {
         if (!File.Exists(InstallerPath))
         {
-            AntdUI.Modal.open(this, Text, T("Instalátor nebyl nalezen:", "Installer not found:") + $"\n{InstallerPath}", AntdUI.TType.Error);
+            ShowModal(this, Text, T("Instalátor nebyl nalezen:", "Installer not found:") + $"\n{InstallerPath}", AntdUI.TType.Error);
             return;
         }
         try
@@ -85,7 +85,7 @@ sealed class DriverSetupForm : AntdUI.Window
         }
 
         if (!IsDriverInstalled())
-            AntdUI.Modal.open(this, Text, T("Instalace ovladače se nepovedla.", "Driver installation failed."), AntdUI.TType.Error);
+            ShowModal(this, Text, T("Instalace ovladače se nepovedla.", "Driver installation failed."), AntdUI.TType.Error);
         UpdateState();
     }
 
