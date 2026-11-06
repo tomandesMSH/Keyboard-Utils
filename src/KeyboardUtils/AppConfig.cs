@@ -86,6 +86,12 @@ sealed class AppConfig
     /// <summary>Microphone frames quieter than this (dBFS) count as silence. Set in the calibration dialog.</summary>
     public double MicrophoneThresholdDb { get; set; } = -45;
 
+    /// <summary>
+    /// Like <see cref="MicrophoneThresholdDb"/> for the computer's own sound. Digital audio has no room noise, so it
+    /// can sit lower than a microphone's; there's no calibration dialog for it yet.
+    /// </summary>
+    public double SystemAudioThresholdDb { get; set; } = -50;
+
     /// <summary>Null = first available MIDI input.</summary>
     public string? MidiInputDevice { get; set; }
 
@@ -107,9 +113,13 @@ sealed class AppConfig
     public AppLanguage? Language { get; set; }
     public List<Binding> Bindings { get; set; } = [];
 
-    public INoteSource CreateNoteSource() => NoteInput == NoteInputKind.Midi
-        ? new MidiNoteSource(MidiInputDevice)
-        : new MicrophoneNoteSource(MicrophoneDevice, MicrophoneThresholdDb);
+    public INoteSource CreateNoteSource() => NoteInput switch
+    {
+        NoteInputKind.Midi => new MidiNoteSource(MidiInputDevice),
+        NoteInputKind.ScreenKeyboard => new ScreenKeyboardNoteSource(),
+        NoteInputKind.SystemAudio => new SystemAudioNoteSource(SystemAudioThresholdDb),
+        _ => new MicrophoneNoteSource(MicrophoneDevice, MicrophoneThresholdDb),
+    };
 
     [JsonIgnore]
     public MacroTarget? MacroTarget => MacroKeyboardHardwareId == null

@@ -32,6 +32,33 @@ enum NoteInputKind
 {
     Microphone,
     Midi,
+
+    /// <summary>Clicking the keys of the on-screen keyboard (piano roll).</summary>
+    ScreenKeyboard,
+
+    /// <summary>Whatever the computer is playing (loopback of the default output).</summary>
+    SystemAudio,
+}
+
+/// <summary>
+/// Notes from clicking the piano roll's on-screen keyboard: the owner forwards key presses with
+/// <see cref="Press"/>/<see cref="Release"/>. Handy for trying learning mode or create mode without a piano.
+/// </summary>
+sealed class ScreenKeyboardNoteSource : INoteSource
+{
+    public string Name => T("Klaviatura v appce", "On-screen keyboard");
+    public bool Polyphonic => true;
+    public double LatencySeconds => 0;
+
+    public event Action<int>? NoteOn;
+    public event Action<int>? NoteOff;
+
+    public void Press(int note) => NoteOn?.Invoke(note);
+    public void Release(int note) => NoteOff?.Invoke(note);
+
+    public void Start() { }
+    public void Stop() { }
+    public void Dispose() { }
 }
 
 /// <summary>Notes from a MIDI keyboard (digital piano over USB etc.).</summary>

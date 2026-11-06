@@ -61,14 +61,12 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button listenButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Button learningButton = new() { AutoSize = true, Enabled = false, Type = AntdUI.TTypeMini.Success, Radius = 8 };
     readonly AntdUI.Button createButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Error, Radius = 8 };
-    // List = true: a pick-only dropdown. Without it AntdUI.Select is an editable text box with suggestions.
-    readonly AntdUI.Select outputDeviceBox = new() { Size = new Size(240, 36), Margin = new Padding(3), List = true, ListAutoWidth = true };
-    readonly AntdUI.Label outputDeviceLabel = new() { AutoSize = true, Margin = new Padding(2, 0, 0, 2), ForeColor = SystemColors.GrayText };
     readonly AntdUI.Label loadGroupLabel = new() { AutoSize = true, Margin = new Padding(2, 0, 0, 2), ForeColor = SystemColors.GrayText };
     readonly AntdUI.Label playbackGroupLabel = new() { AutoSize = true, Margin = new Padding(2, 0, 0, 2), ForeColor = SystemColors.GrayText };
     readonly AntdUI.Label playingGroupLabel = new() { AutoSize = true, Margin = new Padding(2, 0, 0, 2), ForeColor = SystemColors.GrayText };
     readonly AntdUI.Checkbox enabledBox = new() { AutoSize = true, Margin = new Padding(12, 6, 3, 3) };
     readonly AntdUI.Label languageLabel = new() { AutoSize = true, Margin = new Padding(12, 8, 3, 3) };
+    // List = true: a pick-only dropdown. Without it AntdUI.Select is an editable text box with suggestions.
     readonly AntdUI.Select languageBox = new() { Size = new Size(110, 36), Margin = new Padding(3, 0, 3, 3), List = true };
     readonly FlowLayoutPanel partsPanel = new() { Dock = DockStyle.Right, Width = 180, AutoScroll = true, Padding = new Padding(6), FlowDirection = FlowDirection.TopDown, WrapContents = false, Visible = false };
     readonly PianoRollControl pianoRoll = new() { Dock = DockStyle.Fill };
@@ -135,8 +133,6 @@ sealed class MainForm : AntdUI.Window
             languageBox.Items.Add(DisplayName(language));
         languageBox.SelectedIndex = (int)Lang.Current;
 
-        RefreshOutputDeviceItems();
-
         // --- Song tab: grouped controls + piano roll + per-part mute panel ---
         // Each group has a caption so it's clear what its buttons act on. The row wraps whole groups when the
         // window is too narrow.
@@ -145,7 +141,6 @@ sealed class MainForm : AntdUI.Window
         [
             ControlGroup(loadGroupLabel, openSongButton, importStemsButton, removeSongButton),
             ControlGroup(playbackGroupLabel, previousButton, playPauseButton, stopButton, nextButton),
-            ControlGroup(outputDeviceLabel, outputDeviceBox),
             ControlGroup(playingGroupLabel, listenButton, learningButton, createButton),
         ]);
         // Song title on the left, the keyboard size slider on the right of the same row (Fill first, then Right).
@@ -170,7 +165,16 @@ sealed class MainForm : AntdUI.Window
         songTab.Controls.Add(songControlsRow);
 
         pianoRoll.Clickable = true;
-        pianoRoll.KeySelected += pitch => { playbackEngine.PlayNote(pitch); pianoRoll.FlashKey(pitch); };
+        pianoRoll.KeySelected += pitch =>
+        {
+            playbackEngine.PlayNote(pitch);
+            // With the on-screen keyboard as note input, a click is a played note (learning, recording, listening).
+            if (noteSource is ScreenKeyboardNoteSource screen)
+                screen.Press(pitch);
+            else
+                pianoRoll.FlashKey(pitch);
+        };
+        pianoRoll.KeyReleased += pitch => (noteSource as ScreenKeyboardNoteSource)?.Release(pitch);
 
         // Drag the notes to move through the song; playback pauses while dragging and resumes on release.
         pianoRoll.Seekable = true;
@@ -204,15 +208,6 @@ sealed class MainForm : AntdUI.Window
         listenButton.Click += (_, _) => ToggleListening();
         learningButton.Click += (_, _) => ToggleLearningMode(showSetup: true);
         createButton.Click += (_, _) => ToggleCreateMode();
-        outputDeviceBox.SelectedIndexChanged += (_, _) =>
-        {
-            string? name = outputDeviceBox.SelectedIndex > 0 ? outputDeviceNames[outputDeviceBox.SelectedIndex - 1] : null;
-            config.MidiOutputDevice = name;
-            config.Save();
-            playbackEngine.SetOutputDevice(name);
-            if (currentScore != null)
-                playbackEngine.Load(currentScore);
-        };
 
         // --- Bindings tab: macro keyboard mapping (same shape as step 1) ---
         var keyboardRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6, 6, 6, 0), WrapContents = false };
@@ -270,6 +265,9 @@ sealed class MainForm : AntdUI.Window
         list.KeyDown += (_, e) => { if (e.KeyCode == Keys.Delete) RemoveSelected(); };
         enabledBox.CheckedChanged += (_, _) =>
         {
+            // The constructor sets the box from the config; that's not a change to save or announce.
+            if (enabledBox.Checked == config.MacroEnabled)
+                return;
             config.MacroEnabled = enabledBox.Checked;
             if (interceptor != null)
                 interceptor.Enabled = enabledBox.Checked;
@@ -325,23 +323,22 @@ sealed class MainForm : AntdUI.Window
             })
             .ToArray();
 
+        // A saved device that's no longer connected falls back to the default, so show the default as checked.
+        bool usingDefault = config.MidiOutputDevice == null || !outputDeviceNames.Contains(config.MidiOutputDevice);
         var deviceItems = new List<AntdUI.IContextMenuStripItem>
         {
             new AntdUI.ContextMenuStripItem(T("(systémové výchozí)", "(system default)"))
             {
-                Checked = outputDeviceBox.SelectedIndex == 0,
-                Tag = (Action)(() => outputDeviceBox.SelectedIndex = 0),
+                Checked = usingDefault,
+                Tag = (Action)(() => SetMidiOutput(null)),
             },
         };
-        for (int i = 0; i < outputDeviceNames.Count; i++)
-        {
-            int selectIndex = i + 1;
-            deviceItems.Add(new AntdUI.ContextMenuStripItem(outputDeviceNames[i])
+        foreach (var name in outputDeviceNames)
+            deviceItems.Add(new AntdUI.ContextMenuStripItem(name)
             {
-                Checked = outputDeviceBox.SelectedIndex == selectIndex,
-                Tag = (Action)(() => outputDeviceBox.SelectedIndex = selectIndex),
+                Checked = !usingDefault && config.MidiOutputDevice == name,
+                Tag = (Action)(() => SetMidiOutput(name)),
             });
-        }
 
         return
         [
@@ -354,16 +351,19 @@ sealed class MainForm : AntdUI.Window
         ];
     }
 
-    /// <summary>Microphone vs. MIDI input, as one flat list: "Mikrofon" first, then each MIDI input by name.</summary>
+    /// <summary>All note inputs as one flat list: microphone, computer sound, on-screen keyboard, then each MIDI input by name.</summary>
     AntdUI.IContextMenuStripItem[] BuildNoteInputItems()
     {
+        AntdUI.ContextMenuStripItem Item(string text, NoteInputKind kind) => new(text)
+        {
+            Checked = config.NoteInput == kind,
+            Tag = (Action)(() => SetNoteInput(kind, config.MidiInputDevice)),
+        };
         var items = new List<AntdUI.IContextMenuStripItem>
         {
-            new AntdUI.ContextMenuStripItem(T("Mikrofon (akustické piano)", "Microphone (acoustic piano)"))
-            {
-                Checked = config.NoteInput == NoteInputKind.Microphone,
-                Tag = (Action)(() => SetNoteInput(NoteInputKind.Microphone, config.MidiInputDevice)),
-            },
+            Item(T("Mikrofon (akustické piano)", "Microphone (acoustic piano)"), NoteInputKind.Microphone),
+            Item(T("Zvuk z počítače (YouTube, Spotify...)", "Computer sound (YouTube, Spotify...)"), NoteInputKind.SystemAudio),
+            Item(T("Klikání na klaviaturu v appce", "Clicking the on-screen keyboard"), NoteInputKind.ScreenKeyboard),
         };
         foreach (var name in MidiNoteSource.GetDeviceNames())
             items.Add(new AntdUI.ContextMenuStripItem("MIDI: " + name)
@@ -374,14 +374,15 @@ sealed class MainForm : AntdUI.Window
         return items.ToArray();
     }
 
-    void RefreshOutputDeviceItems()
+    /// <param name="name">Null = the system default output.</param>
+    void SetMidiOutput(string? name)
     {
-        int selected = config.MidiOutputDevice != null ? outputDeviceNames.IndexOf(config.MidiOutputDevice) + 1 : 0;
-        outputDeviceBox.Items.Clear();
-        outputDeviceBox.Items.Add(T("(systémové výchozí)", "(system default)"));
-        foreach (var name in outputDeviceNames)
-            outputDeviceBox.Items.Add(name);
-        outputDeviceBox.SelectedIndex = selected >= 0 ? selected : 0;
+        config.MidiOutputDevice = name;
+        config.Save();
+        playbackEngine.SetOutputDevice(name);
+        if (currentScore != null)
+            playbackEngine.Load(currentScore);
+        SetStatus(T("MIDI výstup: ", "MIDI output: ") + (name ?? T("systémový výchozí", "system default")));
     }
 
     /// <summary>Sets every text in the window to the current language.</summary>
@@ -398,7 +399,6 @@ sealed class MainForm : AntdUI.Window
         removeSongButton.Text = T("Odebrat skladbu", "Remove song");
         loadGroupLabel.Text = T("Načíst", "Load");
         playbackGroupLabel.Text = T("Přehrávání", "Playback");
-        outputDeviceLabel.Text = T("Zvuk přehrávání (MIDI výstup)", "Playback sound (MIDI output)");
         playingGroupLabel.Text = T("Hraješ ty (mikrofon / MIDI)", "You play (microphone / MIDI)");
         keyboardSizeLabel.Text = T("Velikost klávesnice", "Keyboard size");
         playPauseButton.Text = T("Přehrát", "Play");
@@ -426,7 +426,6 @@ sealed class MainForm : AntdUI.Window
         languageLabel.Text = T("Jazyk:", "Language:");
         list.Columns[0].Text = T("Klávesa", "Key");
         list.Columns[1].Text = T("Akce", "Action");
-        RefreshOutputDeviceItems();
         RebuildBindings();
         UpdateKeyboardLabel();
         UpdateSongLabel();

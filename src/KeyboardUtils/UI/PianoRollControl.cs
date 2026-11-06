@@ -83,6 +83,10 @@ sealed class PianoRollControl : Control
 
     public event Action<int>? KeySelected;
 
+    /// <summary>The mouse button went up after a <see cref="KeySelected"/> - the on-screen key is let go.</summary>
+    public event Action<int>? KeyReleased;
+    int? pressedKey;
+
     /// <summary>
     /// When true, dragging the note area up/down moves through the song: <see cref="SeekStarted"/>, then
     /// <see cref="Seek"/> with the new time as the mouse moves, then <see cref="SeekEnded"/>. The owner moves the
@@ -308,6 +312,7 @@ sealed class PianoRollControl : Control
         // Clicks above the keyboard used to play the key under them too; only the keys themselves do now.
         if (!Clickable || e.Y < RollHeight || HitTestKey(e.Location) is not { } key)
             return;
+        pressedKey = key;
         KeySelected?.Invoke(key);
     }
 
@@ -329,12 +334,22 @@ sealed class PianoRollControl : Control
     {
         base.OnMouseUp(e);
         EndDrag();
+        ReleaseKey();
     }
 
     protected override void OnMouseCaptureChanged(EventArgs e)
     {
         base.OnMouseCaptureChanged(e);
         EndDrag();
+        ReleaseKey();
+    }
+
+    void ReleaseKey()
+    {
+        if (pressedKey is not { } key)
+            return;
+        pressedKey = null;
+        KeyReleased?.Invoke(key);
     }
 
     void EndDrag()
@@ -348,10 +363,12 @@ sealed class PianoRollControl : Control
 
     int? HitTestKey(Point p)
     {
-        // Black keys are drawn on top, so test them first.
-        foreach (var (note, layout) in keyLayout.Where(k => k.Value.Black))
-            if (p.X >= layout.X && p.X < layout.X + layout.Width)
-                return note;
+        // Black keys are drawn on top, so test them first - but they only reach 60 % down the keyboard; below
+        // that, the same column belongs to the white key.
+        if (p.Y < RollHeight + KeyboardHeight * 0.6f)
+            foreach (var (note, layout) in keyLayout.Where(k => k.Value.Black))
+                if (p.X >= layout.X && p.X < layout.X + layout.Width)
+                    return note;
         foreach (var (note, layout) in keyLayout.Where(k => !k.Value.Black))
             if (p.X >= layout.X && p.X < layout.X + layout.Width)
                 return note;
