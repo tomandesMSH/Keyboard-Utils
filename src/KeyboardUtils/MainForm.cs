@@ -61,9 +61,11 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button listenButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Button learningButton = new() { AutoSize = true, Enabled = false, Type = AntdUI.TTypeMini.Success, Radius = 8 };
     readonly AntdUI.Button createButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Error, Radius = 8 };
-    readonly AntdUI.Label loadGroupLabel = new() { AutoSize = true, Margin = new Padding(2, 0, 0, 2), ForeColor = SystemColors.GrayText };
-    readonly AntdUI.Label playbackGroupLabel = new() { AutoSize = true, Margin = new Padding(2, 0, 0, 2), ForeColor = SystemColors.GrayText };
-    readonly AntdUI.Label playingGroupLabel = new() { AutoSize = true, Margin = new Padding(2, 0, 0, 2), ForeColor = SystemColors.GrayText };
+    // Plain WinForms labels: AntdUI.Label's AutoSize measures a bit short and clipped the last letter
+    // ("Přehrávání" showed as "Přehrávan|"); Label measures and draws with the same GDI text renderer.
+    readonly Label loadGroupLabel = CaptionLabel();
+    readonly Label playbackGroupLabel = CaptionLabel();
+    readonly Label playingGroupLabel = CaptionLabel();
     readonly AntdUI.Checkbox enabledBox = new() { AutoSize = true, Margin = new Padding(12, 6, 3, 3) };
     readonly AntdUI.Label languageLabel = new() { AutoSize = true, Margin = new Padding(12, 8, 3, 3) };
     // List = true: a pick-only dropdown. Without it AntdUI.Select is an editable text box with suggestions.
@@ -94,7 +96,7 @@ sealed class MainForm : AntdUI.Window
         this.interceptor = interceptor;
 
         Text = "Keyboard Utils";
-        Icon = SystemIcons.Application;
+        Icon = AppIcon.Icon;
         Size = new Size(900, 620);
         MinimumSize = new Size(640, 420);
         StartPosition = FormStartPosition.CenterScreen;
@@ -290,7 +292,16 @@ sealed class MainForm : AntdUI.Window
     }
 
     /// <summary>A small grey caption above a row of related controls.</summary>
-    static FlowLayoutPanel ControlGroup(AntdUI.Label caption, params Control[] controls)
+    static Label CaptionLabel() => new()
+    {
+        AutoSize = true,
+        Margin = new Padding(2, 0, 0, 2),
+        ForeColor = SystemColors.GrayText,
+        BackColor = Color.Transparent,
+        Font = new Font("Segoe UI", 9f),
+    };
+
+    static FlowLayoutPanel ControlGroup(Label caption, params Control[] controls)
     {
         var row = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0) };
         row.Controls.AddRange(controls);
@@ -399,7 +410,7 @@ sealed class MainForm : AntdUI.Window
         removeSongButton.Text = T("Odebrat skladbu", "Remove song");
         loadGroupLabel.Text = T("Načíst", "Load");
         playbackGroupLabel.Text = T("Přehrávání", "Playback");
-        playingGroupLabel.Text = T("Hraješ ty (mikrofon / MIDI)", "You play (microphone / MIDI)");
+        playingGroupLabel.Text = T("Nahrávání", "Recording");
         keyboardSizeLabel.Text = T("Velikost klávesnice", "Keyboard size");
         playPauseButton.Text = T("Přehrát", "Play");
         stopButton.Text = T("Stop", "Stop");

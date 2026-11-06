@@ -38,7 +38,7 @@ sealed class MicrophoneSetupForm : AntdUI.Window
         ThresholdDb = Math.Clamp(thresholdDb, MinDb, MaxDb);
 
         Text = T("Mikrofon a citlivost", "Microphone and sensitivity");
-        Icon = SystemIcons.Application;
+        Icon = AppIcon.Icon;
         StartPosition = FormStartPosition.CenterParent;
         Size = new Size(560, 510);
         Resizable = false;

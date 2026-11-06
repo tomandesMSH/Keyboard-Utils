@@ -11,7 +11,7 @@ sealed class NotePickerForm : AntdUI.Window
     public NotePickerForm(int? current = null)
     {
         Text = T("Vyber klávesu k přehrání", "Choose a note to play");
-        Icon = SystemIcons.Application;
+        Icon = AppIcon.Icon;
         StartPosition = FormStartPosition.CenterParent;
         Size = new Size(720, 360);
         Resizable = false;

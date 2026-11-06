@@ -21,7 +21,7 @@ sealed class LearningSetupForm : AntdUI.Window
     public LearningSetupForm(Score score, AppConfig config)
     {
         Text = T("Režim učení", "Learning mode");
-        Icon = SystemIcons.Application;
+        Icon = AppIcon.Icon;
         StartPosition = FormStartPosition.CenterParent;
         Resizable = false;
         MaximizeBox = MinimizeBox = false;

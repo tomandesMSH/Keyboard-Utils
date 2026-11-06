@@ -47,7 +47,7 @@ sealed partial class KeyboardPickerForm : AntdUI.Window
     {
         this.interceptor = interceptor;
         Text = T("Výběr makro klávesnice", "Choose macro keyboard");
-        Icon = SystemIcons.Application;
+        Icon = AppIcon.Icon;
         StartPosition = FormStartPosition.CenterParent;
         Size = new Size(560, 420);
         Resizable = false;

@@ -11,10 +11,13 @@
     <SelfContained>false</SelfContained>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <Version>0.1.0</Version>
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <None Include="..\..\tools\install-interception.exe" Link="install-interception.exe" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The same icon for the windows (title bar / taskbar), loaded by AppIcon. -->
+    <EmbeddedResource Include="Resources\app.ico" LogicalName="KeyboardUtils.app.ico" />
   </ItemGroup>
 
   <ItemGroup>

@@ -11,7 +11,7 @@ sealed class CreateResultForm : AntdUI.Window
     public CreateResultForm(Score recording, int bpm, Func<int, bool> save)
     {
         Text = T("Nahrávka", "Recording");
-        Icon = SystemIcons.Application;
+        Icon = AppIcon.Icon;
         StartPosition = FormStartPosition.CenterParent;
         Size = new Size(500, 330);
         Resizable = false;

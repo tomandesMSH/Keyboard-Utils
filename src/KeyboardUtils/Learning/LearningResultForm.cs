@@ -6,7 +6,7 @@ sealed class LearningResultForm : AntdUI.Window
     public LearningResultForm(LearningResult result, string songTitle)
     {
         Text = T("Hodnocení", "Results");
-        Icon = SystemIcons.Application;
+        Icon = AppIcon.Icon;
         StartPosition = FormStartPosition.CenterParent;
         Size = new Size(440, 400);
         Resizable = false;

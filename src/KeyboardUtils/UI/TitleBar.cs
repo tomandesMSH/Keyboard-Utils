@@ -21,12 +21,22 @@ sealed class TitleBar : Panel
         Height = 40;
         BackColor = Color.White;
 
+        // The window's icon at 20 px (the .ico has that size, so it isn't scaled).
+        var icon = new PictureBox
+        {
+            Dock = DockStyle.Left,
+            Width = 38,
+            SizeMode = PictureBoxSizeMode.CenterImage,
+            Image = owner.Icon != null ? new Icon(owner.Icon, 20, 20).ToBitmap() : null,
+            BackColor = Color.Transparent,
+        };
+
         var title = new Label
         {
             Text = owner.Text,
             Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
-            Padding = new Padding(14, 0, 0, 0),
+            Padding = new Padding(0),
             Font = new Font("Segoe UI", 10f, FontStyle.Bold),
             ForeColor = Color.FromArgb(31, 31, 31),
             BackColor = Color.Transparent,
@@ -43,7 +53,9 @@ sealed class TitleBar : Panel
             buttons.Controls.Add(ChromeButton("□", HoverBack, PressBack, (_, _) => ToggleMax()));
         buttons.Controls.Add(ChromeButton("×", CloseHoverBack, ClosePressBack, (_, _) => owner.Close(), hoverForeWhite: true));
 
+        // Fill first: the docked-last controls (icon left, buttons right) are laid out before it.
         Controls.Add(title);
+        Controls.Add(icon);
         Controls.Add(buttons);
 
         // DraggableMouseDown() hands the mouse to Windows' native move loop, which eats the second click of a
@@ -60,6 +72,7 @@ sealed class TitleBar : Panel
         }
         MouseDown += HandleMouseDown;
         title.MouseDown += HandleMouseDown;
+        icon.MouseDown += HandleMouseDown;
     }
 
     static Button ChromeButton(string text, Color hoverBack, Color pressBack, EventHandler onClick, bool hoverForeWhite = false)

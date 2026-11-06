@@ -42,7 +42,7 @@ sealed class LanguagePickerForm : AntdUI.Window
     public LanguagePickerForm()
     {
         Text = "Keyboard Utils";
-        Icon = SystemIcons.Application;
+        Icon = AppIcon.Icon;
         StartPosition = FormStartPosition.CenterScreen;
         Size = new Size(420, 210); // minimum; grown to fit in Load
         Resizable = false;

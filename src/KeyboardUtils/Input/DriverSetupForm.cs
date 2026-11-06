@@ -27,7 +27,7 @@ sealed class DriverSetupForm : AntdUI.Window
     public DriverSetupForm()
     {
         Text = T("Keyboard Utils - ovladač", "Keyboard Utils - driver");
-        Icon = SystemIcons.Application;
+        Icon = AppIcon.Icon;
         StartPosition = FormStartPosition.CenterScreen;
         Size = new Size(520, 280);
         Resizable = false;
