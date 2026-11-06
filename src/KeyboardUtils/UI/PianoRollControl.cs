@@ -52,8 +52,24 @@ sealed class PianoRollControl : Control
 
     public event Action<int>? KeySelected;
 
+    /// <summary>
+    /// When true, dragging the note area up/down moves through the song: <see cref="SeekStarted"/>, then
+    /// <see cref="Seek"/> with the new time as the mouse moves, then <see cref="SeekEnded"/>. The owner moves the
+    /// playback and calls <see cref="SetCurrentTime"/> - the control itself doesn't change its time.
+    /// </summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool Seekable { get; set; }
+
+    public event Action? SeekStarted;
+    public event Action<double>? Seek;
+    public event Action? SeekEnded;
+
     readonly System.Windows.Forms.Timer flashTimer = new() { Interval = 400 };
     Color flashColor = SelectedColor;
+
+    // Drag-to-seek: where the drag began, on screen and in the song.
+    int? dragStartY;
+    double dragStartSeconds;
 
     public PianoRollControl()
     {
@@ -205,14 +221,62 @@ sealed class PianoRollControl : Control
         DrawKeyboard(g, rollHeight, keyboardHeight, soundingKeys);
     }
 
+    float RollHeight => FillKeyboard ? 0 : ClientSize.Height - KeyboardHeight;
+
+    bool CanSeekAt(Point p) => Seekable && score != null && !RecordingView && p.Y < RollHeight;
+
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e);
-        if (!Clickable || e.Button != MouseButtons.Left)
+        if (e.Button != MouseButtons.Left)
             return;
-        if (HitTestKey(e.Location) is not { } key)
+        if (CanSeekAt(e.Location))
+        {
+            dragStartY = e.Y;
+            dragStartSeconds = currentSeconds;
+            Capture = true;
+            SeekStarted?.Invoke();
+            return;
+        }
+        // Clicks above the keyboard used to play the key under them too; only the keys themselves do now.
+        if (!Clickable || e.Y < RollHeight || HitTestKey(e.Location) is not { } key)
             return;
         KeySelected?.Invoke(key);
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        if (dragStartY is { } startY)
+        {
+            // Grab-and-drag: pulling the notes down brings later ones to the keyboard, i.e. moves forward.
+            double pixelsPerSecond = RollHeight / SecondsVisible;
+            double seconds = dragStartSeconds + (e.Y - startY) / pixelsPerSecond;
+            Seek?.Invoke(Math.Clamp(seconds, 0, score?.DurationSeconds ?? 0));
+            return;
+        }
+        Cursor = CanSeekAt(e.Location) ? Cursors.SizeNS : Clickable && e.Y >= RollHeight ? Cursors.Hand : Cursors.Default;
+    }
+
+    protected override void OnMouseUp(MouseEventArgs e)
+    {
+        base.OnMouseUp(e);
+        EndDrag();
+    }
+
+    protected override void OnMouseCaptureChanged(EventArgs e)
+    {
+        base.OnMouseCaptureChanged(e);
+        EndDrag();
+    }
+
+    void EndDrag()
+    {
+        if (dragStartY == null)
+            return;
+        dragStartY = null;
+        Capture = false;
+        SeekEnded?.Invoke();
     }
 
     int? HitTestKey(Point p)

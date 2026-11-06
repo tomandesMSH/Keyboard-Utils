@@ -12,6 +12,7 @@ sealed class MainForm : AntdUI.Window
     string learningStatus = "";
     NoteRecorder? recorder;
     string recordingTitle = "";
+    bool resumeAfterSeek;
     readonly PlaybackEngine playbackEngine = new();
     readonly StemPlaybackEngine stemPlaybackEngine = new();
     readonly Channel<Binding> actionQueue = Channel.CreateUnbounded<Binding>(new UnboundedChannelOptions { SingleReader = true });
@@ -139,6 +140,28 @@ sealed class MainForm : AntdUI.Window
 
         pianoRoll.Clickable = true;
         pianoRoll.KeySelected += pitch => { playbackEngine.PlayNote(pitch); pianoRoll.FlashKey(pitch); };
+
+        // Drag the notes to move through the song; playback pauses while dragging and resumes on release.
+        pianoRoll.Seekable = true;
+        pianoRoll.SeekStarted += () =>
+        {
+            resumeAfterSeek = playbackEngine.IsRunning;
+            if (resumeAfterSeek)
+                playbackEngine.Pause();
+        };
+        pianoRoll.Seek += seconds =>
+        {
+            if (currentScore == null || learning != null || recorder != null)
+                return;
+            playbackEngine.SeekTo(seconds);
+            pianoRoll.SetCurrentTime(seconds);
+        };
+        pianoRoll.SeekEnded += () =>
+        {
+            if (resumeAfterSeek)
+                playbackEngine.Play();
+            resumeAfterSeek = false;
+        };
 
         openSongButton.Click += (_, _) => OpenSong();
         importStemsButton.Click += (_, _) => ImportStems();
@@ -581,6 +604,8 @@ sealed class MainForm : AntdUI.Window
     void UpdateLearningButton()
     {
         learningButton.Enabled = currentScore != null && recorder == null;
+        // Moving the time would break a learning session's scoring.
+        pianoRoll.Seekable = learning == null;
         learningButton.Text = learning != null ? T("Ukončit učení", "End learning") : T("Režim učení...", "Learning mode...");
     }
 

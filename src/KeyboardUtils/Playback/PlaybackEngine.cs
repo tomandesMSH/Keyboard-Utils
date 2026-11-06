@@ -64,6 +64,8 @@ sealed class PlaybackEngine : IDisposable
             ? new Playback(notes, TempoMap, outputDevice, new PlaybackSettings())
             : new Playback(notes, TempoMap, new PlaybackSettings());
         playback.NoteCallback = (data, _, _, _) => mutedChannels.Contains(data.Channel) ? NotePlaybackData.SkipNote : data;
+        // When jumping (seek), end notes left hanging and start the ones already sounding at the new spot.
+        playback.TrackNotes = true;
         playback.Finished += (_, _) => Finished?.Invoke();
     }
 
@@ -94,6 +96,9 @@ sealed class PlaybackEngine : IDisposable
         get => playback?.Speed ?? 1;
         set { if (playback != null) playback.Speed = value; }
     }
+
+    public void SeekTo(double seconds) =>
+        playback?.MoveToTime(new MetricTimeSpan(TimeSpan.FromSeconds(Math.Max(0, seconds))));
 
     public void Play() => playback?.Start();
     public void Pause() => playback?.Stop();
