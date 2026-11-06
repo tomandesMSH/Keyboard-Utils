@@ -21,6 +21,7 @@ sealed class PianoRollControl : Control
     int lowestKey = 48; // C3
     int highestKey = 84; // C6
     Dictionary<int, KeyLayout> keyLayout = [];
+    readonly HashSet<int> heldKeys = [];
 
     /// <summary>When true, the roll area is hidden and the keyboard fills the whole control (note-picker use).</summary>
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
@@ -58,6 +59,27 @@ sealed class PianoRollControl : Control
         flashTimer.Interval = durationMs;
         flashTimer.Stop();
         flashTimer.Start();
+    }
+
+    /// <summary>Lights a key for as long as it's held (a note heard from the microphone/MIDI input), unlike <see cref="FlashKey"/>.</summary>
+    public void SetKeyHeld(int key, bool held)
+    {
+        if (held ? !heldKeys.Add(key) : !heldKeys.Remove(key))
+            return;
+        // A heard note outside the visible range would otherwise light up nothing.
+        if (held && (key < lowestKey || key > highestKey))
+        {
+            lowestKey = Math.Max(0, Math.Min(lowestKey, key - 2));
+            highestKey = Math.Min(127, Math.Max(highestKey, key + 2));
+            RebuildLayout();
+        }
+        Invalidate();
+    }
+
+    public void ClearHeldKeys()
+    {
+        heldKeys.Clear();
+        Invalidate();
     }
 
     public void SetScore(Score? newScore)
@@ -203,15 +225,18 @@ sealed class PianoRollControl : Control
         using var whiteBrush = new SolidBrush(Color.White);
         using var blackBrush = new SolidBrush(Color.Black);
         using var selectedBrush = new SolidBrush(Color.FromArgb(66, 133, 244));
+        using var heldBrush = new SolidBrush(Color.FromArgb(255, 152, 0));
         using var borderPen = new Pen(Color.Gray);
+
+        Brush BrushFor(int note, Brush rest) => heldKeys.Contains(note) ? heldBrush : note == SelectedKey ? selectedBrush : rest;
 
         foreach (var (note, layout) in keyLayout.Where(k => !k.Value.Black))
         {
             var rect = new RectangleF(layout.X, top, layout.Width, height);
-            g.FillRectangle(note == SelectedKey ? selectedBrush : whiteBrush, rect);
+            g.FillRectangle(BrushFor(note, whiteBrush), rect);
             g.DrawRectangle(borderPen, rect.X, rect.Y, rect.Width, rect.Height);
         }
         foreach (var (note, layout) in keyLayout.Where(k => k.Value.Black))
-            g.FillRectangle(note == SelectedKey ? selectedBrush : blackBrush, layout.X, top, layout.Width, height * 0.6f);
+            g.FillRectangle(BrushFor(note, blackBrush), layout.X, top, layout.Width, height * 0.6f);
     }
 }

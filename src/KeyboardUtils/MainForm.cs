@@ -1,6 +1,4 @@
 using System.Threading.Channels;
-using Melanchall.DryWetMidi.Core;
-using Melanchall.DryWetMidi.Multimedia;
 
 namespace KeyboardUtils;
 
@@ -9,8 +7,7 @@ sealed class MainForm : AntdUI.Window
 
     readonly AppConfig config;
     IMacroKeyboardInterceptor? interceptor;
-    InputDevice? midiInputDevice;
-    bool recording;
+    INoteSource? noteSource;
     readonly PlaybackEngine playbackEngine = new();
     readonly StemPlaybackEngine stemPlaybackEngine = new();
     readonly Channel<Binding> actionQueue = Channel.CreateUnbounded<Binding>(new UnboundedChannelOptions { SingleReader = true });
@@ -45,8 +42,8 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button stopButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Button previousButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Button nextButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
-    readonly AntdUI.Button recordButton = new() { AutoSize = true, Radius = 8 };
-    readonly AntdUI.Select outputDeviceBox = new() { Width = 200, Margin = new Padding(12, 4, 3, 3) };
+    readonly AntdUI.Button listenButton = new() { AutoSize = true, Radius = 8 };
+    readonly AntdUI.Select outputDeviceBox = new() { Size = new Size(200, 36), Margin = new Padding(12, 0, 3, 3) };
     readonly AntdUI.Checkbox enabledBox = new() { AutoSize = true, Margin = new Padding(12, 6, 3, 3) };
     readonly AntdUI.Label languageLabel = new() { AutoSize = true, Margin = new Padding(12, 8, 3, 3) };
     readonly AntdUI.Select languageBox = new() { Width = 90, Margin = new Padding(3, 4, 3, 3) };
@@ -114,8 +111,9 @@ sealed class MainForm : AntdUI.Window
         RefreshOutputDeviceItems();
 
         // --- Song tab: open/transport controls + piano roll + per-part mute panel ---
-        var songControlsRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6), WrapContents = false };
-        songControlsRow.Controls.AddRange([openSongButton, importStemsButton, previousButton, playPauseButton, stopButton, nextButton, outputDeviceBox, recordButton]);
+        // Wraps: the buttons don't fit one row in a narrow window (or in Czech).
+        var songControlsRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6) };
+        songControlsRow.Controls.AddRange([openSongButton, importStemsButton, previousButton, playPauseButton, stopButton, nextButton, outputDeviceBox, listenButton]);
         var songLabelRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6, 0, 6, 0), WrapContents = false };
         songLabelRow.Controls.Add(songLabel);
 
@@ -134,7 +132,7 @@ sealed class MainForm : AntdUI.Window
         stopButton.Click += (_, _) => DoStop();
         previousButton.Click += (_, _) => DoPreviousTrack();
         nextButton.Click += (_, _) => DoNextTrack();
-        recordButton.Click += (_, _) => ToggleRecording();
+        listenButton.Click += (_, _) => ToggleListening();
         outputDeviceBox.SelectedIndexChanged += (_, _) =>
         {
             string? name = outputDeviceBox.SelectedIndex > 0 ? outputDeviceNames[outputDeviceBox.SelectedIndex - 1] : null;
@@ -269,7 +267,29 @@ sealed class MainForm : AntdUI.Window
             new AntdUI.ContextMenuStripItemDivider(),
             new AntdUI.ContextMenuStripItem(T("Jazyk", "Language")) { Sub = languageItems },
             new AntdUI.ContextMenuStripItem(T("MIDI výstup", "MIDI output")) { Sub = deviceItems.ToArray() },
+            new AntdUI.ContextMenuStripItem(T("Vstup not", "Note input")) { Sub = BuildNoteInputItems() },
+            new AntdUI.ContextMenuStripItem(T("Mikrofon a citlivost...", "Microphone and sensitivity...")) { Tag = (Action)ShowMicrophoneSetup },
         ];
+    }
+
+    /// <summary>Microphone vs. MIDI input, as one flat list: "Mikrofon" first, then each MIDI input by name.</summary>
+    AntdUI.IContextMenuStripItem[] BuildNoteInputItems()
+    {
+        var items = new List<AntdUI.IContextMenuStripItem>
+        {
+            new AntdUI.ContextMenuStripItem(T("Mikrofon (akustické piano)", "Microphone (acoustic piano)"))
+            {
+                Checked = config.NoteInput == NoteInputKind.Microphone,
+                Tag = (Action)(() => SetNoteInput(NoteInputKind.Microphone, config.MidiInputDevice)),
+            },
+        };
+        foreach (var name in MidiNoteSource.GetDeviceNames())
+            items.Add(new AntdUI.ContextMenuStripItem("MIDI: " + name)
+            {
+                Checked = config.NoteInput == NoteInputKind.Midi && config.MidiInputDevice == name,
+                Tag = (Action)(() => SetNoteInput(NoteInputKind.Midi, name)),
+            });
+        return items.ToArray();
     }
 
     void RefreshOutputDeviceItems()
@@ -302,7 +322,7 @@ sealed class MainForm : AntdUI.Window
         stopButton.Text = T("Stop", "Stop");
         previousButton.Text = T("<< Předchozí", "<< Previous");
         nextButton.Text = T("Další >>", "Next >>");
-        recordButton.Text = recording ? T("Zastavit nahrávání", "Stop recording") : T("Nahrávat", "Record");
+        listenButton.Text = noteSource != null ? T("Přestat poslouchat", "Stop listening") : T("Poslouchat", "Listen");
         learnButton.Text = T("Nastavit makro klávesnici...", "Set up macro keyboard...");
         forgetButton.Text = T("Zapomenout klávesnici", "Forget keyboard");
         macroInfoLabel.Text = T(
@@ -343,50 +363,79 @@ sealed class MainForm : AntdUI.Window
         base.OnFormClosing(e);
     }
 
-    // --- MIDI input monitor ("Record": live visual feedback, nothing is saved) ----------------
+    // --- Note input ("Listen": notes heard from the microphone or a MIDI input light up the keyboard) ---
 
-    void ToggleRecording()
+    void ToggleListening()
     {
-        if (recording)
+        if (noteSource != null)
         {
-            StopRecording();
-            return;
+            StopListening();
+            SetStatus(T("Poslouchání vypnuto.", "Stopped listening."));
         }
-        var device = InputDevice.GetAll().FirstOrDefault();
-        if (device == null)
-        {
-            ShowModal(this, Text, T("Nenašel jsem žádné MIDI vstupní zařízení.", "No MIDI input device found."), AntdUI.TType.Info);
-            return;
-        }
-        midiInputDevice = device;
-        midiInputDevice.EventReceived += OnMidiInputEvent;
-        midiInputDevice.StartEventsListening();
-        recording = true;
-        recordButton.Text = T("Zastavit nahrávání", "Stop recording");
-        SetStatus(T($"Nahrávám z {device.Name}...", $"Recording from {device.Name}..."));
+        else
+            StartListening();
     }
 
-    void StopRecording()
+    void StartListening()
     {
-        if (midiInputDevice != null)
+        StopListening();
+        var source = config.CreateNoteSource();
+        // Events queued before a stop must not light keys afterwards - hence the noteSource check.
+        source.NoteOn += note => Post(() =>
         {
-            midiInputDevice.EventReceived -= OnMidiInputEvent;
-            midiInputDevice.StopEventsListening();
-            midiInputDevice.Dispose();
-            midiInputDevice = null;
+            if (noteSource != source)
+                return;
+            pianoRoll.SetKeyHeld(note, true);
+            SetStatus(T("Slyším: ", "Hearing: ") + NoteNames.Describe(note));
+        });
+        source.NoteOff += note => Post(() => { if (noteSource == source) pianoRoll.SetKeyHeld(note, false); });
+        try
+        {
+            source.Start();
         }
-        recording = false;
-        recordButton.Text = T("Nahrávat", "Record");
+        catch (NoteSourceException ex)
+        {
+            source.Dispose();
+            ShowModal(this, Text, ex.Message, AntdUI.TType.Error);
+            return;
+        }
+        noteSource = source;
+        listenButton.Text = T("Přestat poslouchat", "Stop listening");
+        SetStatus(T($"Poslouchám: {source.Name}", $"Listening: {source.Name}"));
     }
 
-    /// <summary>Runs on the MIDI input thread.</summary>
-    void OnMidiInputEvent(object? sender, MidiEventReceivedEventArgs e)
+    void StopListening()
     {
-        if (e.Event is NoteOnEvent noteOn && noteOn.Velocity > 0)
+        noteSource?.Dispose();
+        noteSource = null;
+        pianoRoll.ClearHeldKeys();
+        listenButton.Text = T("Poslouchat", "Listen");
+    }
+
+    void SetNoteInput(NoteInputKind kind, string? midiDevice)
+    {
+        config.NoteInput = kind;
+        config.MidiInputDevice = midiDevice;
+        config.Save();
+        if (noteSource != null)
+            StartListening();
+    }
+
+    void ShowMicrophoneSetup()
+    {
+        // The dialog opens the microphone itself; don't hold the device twice.
+        bool wasListening = noteSource != null;
+        StopListening();
+        using var setup = new MicrophoneSetupForm(config.MicrophoneDevice, config.MicrophoneThresholdDb);
+        if (setup.ShowDialog(this) == DialogResult.OK)
         {
-            int pitch = noteOn.NoteNumber;
-            Post(() => pianoRoll.FlashKey(pitch));
+            config.MicrophoneDevice = setup.DeviceName;
+            config.MicrophoneThresholdDb = setup.ThresholdDb;
+            config.Save();
+            SetStatus(T($"Mikrofon nastaven (práh {setup.ThresholdDb:0} dB).", $"Microphone set (threshold {setup.ThresholdDb:0} dB)."));
         }
+        if (wasListening)
+            StartListening();
     }
 
     // --- Keyboard selection -------------------------------------------------------------------
@@ -896,7 +945,7 @@ sealed class MainForm : AntdUI.Window
             playbackTimer.Dispose();
             playbackEngine.Dispose();
             stemPlaybackEngine.Dispose();
-            midiInputDevice?.Dispose();
+            noteSource?.Dispose();
         }
         base.Dispose(disposing);
     }

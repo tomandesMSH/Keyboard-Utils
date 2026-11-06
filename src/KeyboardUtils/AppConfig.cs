@@ -77,9 +77,25 @@ sealed class AppConfig
     /// <summary>Null = system default MIDI output.</summary>
     public string? MidiOutputDevice { get; set; }
 
+    /// <summary>Where played notes are heard from (learning mode, create mode, the "Listen" button).</summary>
+    public NoteInputKind NoteInput { get; set; } = NoteInputKind.Microphone;
+
+    /// <summary>Null = system default recording device.</summary>
+    public string? MicrophoneDevice { get; set; }
+
+    /// <summary>Microphone frames quieter than this (dBFS) count as silence. Set in the calibration dialog.</summary>
+    public double MicrophoneThresholdDb { get; set; } = -45;
+
+    /// <summary>Null = first available MIDI input.</summary>
+    public string? MidiInputDevice { get; set; }
+
     /// <summary>Null until the user picks one on first start.</summary>
     public AppLanguage? Language { get; set; }
     public List<Binding> Bindings { get; set; } = [];
+
+    public INoteSource CreateNoteSource() => NoteInput == NoteInputKind.Midi
+        ? new MidiNoteSource(MidiInputDevice)
+        : new MicrophoneNoteSource(MicrophoneDevice, MicrophoneThresholdDb);
 
     [JsonIgnore]
     public MacroTarget? MacroTarget => MacroKeyboardHardwareId == null
