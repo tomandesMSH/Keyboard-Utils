@@ -94,6 +94,9 @@ sealed class AppConfig
     public int LearningSpeedPercent { get; set; } = 100;
     public bool LearningAccompaniment { get; set; } = true;
 
+    /// <summary>Tempo the recording is written in when saved - MusicXML snaps notes to 16ths at this speed.</summary>
+    public int CreateTempoBpm { get; set; } = 100;
+
     /// <summary>Names of the parts last practiced; matched by name against the next song (all parts if none match).</summary>
     public List<string> LearningPartNames { get; set; } = [];
 

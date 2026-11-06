@@ -6,7 +6,7 @@ namespace KeyboardUtils;
 
 /// <summary>
 /// Minimal MusicXML reader - covers what MuseScore actually exports (score-partwise, measures, notes/rests/chords,
-/// backup/forward, divisions and tempo changes). Not a full MusicXML implementation: things like ties, grace notes
+/// backup/forward, divisions, tempo changes and ties). Not a full MusicXML implementation: things like grace notes
 /// or multi-staff clefs are not specially handled, but the resulting timing is still correct for a flat note list.
 /// </summary>
 static class MusicXmlImporter
@@ -52,6 +52,7 @@ static class MusicXmlImporter
         double microsecondsPerQuarter = 500_000; // 120 BPM default, used until a <sound tempo="..."/> says otherwise.
         double currentSeconds = 0;
         double lastNoteStartSeconds = 0;
+        var tiedNotes = new Dictionary<int, int>(); // pitch -> index in part.Notes of a note whose tie hasn't stopped yet
 
         double SecondsPerDivision() => microsecondsPerQuarter / 1_000_000.0 / divisions;
 
@@ -92,12 +93,34 @@ static class MusicXmlImporter
 
                         if (!isRest && element.Element("pitch") is { } pitch)
                         {
-                            part.Notes.Add(new ScoreNote
+                            int midi = ToMidiNumber(pitch);
+                            var ties = element.Elements("tie").Select(t => t.Attribute("type")?.Value).ToList();
+                            // A tie continues the same sounding note (across a bar line, or a length with no single
+                            // symbol): extend it instead of striking the key again.
+                            if (ties.Contains("stop") && tiedNotes.Remove(midi, out int tiedIndex))
                             {
-                                Pitch = ToMidiNumber(pitch),
-                                StartSeconds = startSeconds,
-                                DurationSeconds = durationSeconds,
-                            });
+                                var tied = part.Notes[tiedIndex];
+                                part.Notes[tiedIndex] = new ScoreNote
+                                {
+                                    Pitch = midi,
+                                    StartSeconds = tied.StartSeconds,
+                                    DurationSeconds = startSeconds + durationSeconds - tied.StartSeconds,
+                                    Velocity = tied.Velocity,
+                                };
+                                if (ties.Contains("start"))
+                                    tiedNotes[midi] = tiedIndex;
+                            }
+                            else
+                            {
+                                part.Notes.Add(new ScoreNote
+                                {
+                                    Pitch = midi,
+                                    StartSeconds = startSeconds,
+                                    DurationSeconds = durationSeconds,
+                                });
+                                if (ties.Contains("start"))
+                                    tiedNotes[midi] = part.Notes.Count - 1;
+                            }
                         }
 
                         if (!isChordNote)

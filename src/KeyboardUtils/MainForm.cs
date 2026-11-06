@@ -10,6 +10,8 @@ sealed class MainForm : AntdUI.Window
     INoteSource? noteSource;
     LearningSession? learning;
     string learningStatus = "";
+    NoteRecorder? recorder;
+    string recordingTitle = "";
     readonly PlaybackEngine playbackEngine = new();
     readonly StemPlaybackEngine stemPlaybackEngine = new();
     readonly Channel<Binding> actionQueue = Channel.CreateUnbounded<Binding>(new UnboundedChannelOptions { SingleReader = true });
@@ -46,6 +48,7 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button nextButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Button listenButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Button learningButton = new() { AutoSize = true, Enabled = false, Type = AntdUI.TTypeMini.Success, Radius = 8 };
+    readonly AntdUI.Button createButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Error, Radius = 8 };
     // List = true: a pick-only dropdown. Without it AntdUI.Select is an editable text box with suggestions.
     readonly AntdUI.Select outputDeviceBox = new() { Size = new Size(240, 36), Margin = new Padding(0), List = true, ListAutoWidth = true };
     readonly AntdUI.Label outputDeviceLabel = new() { AutoSize = true, Margin = new Padding(2, 0, 0, 2), ForeColor = SystemColors.GrayText };
@@ -99,6 +102,8 @@ sealed class MainForm : AntdUI.Window
         {
             if (learning != null)
                 TickLearning();
+            else if (recorder != null)
+                TickCreateMode();
             else if (currentScore != null)
                 pianoRoll.SetCurrentTime(playbackEngine.CurrentSeconds);
             UpdatePlayPauseButton();
@@ -122,7 +127,7 @@ sealed class MainForm : AntdUI.Window
         var songControlsRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6) };
         var outputDeviceGroup = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(12, 0, 3, 3) };
         outputDeviceGroup.Controls.AddRange([outputDeviceLabel, outputDeviceBox]);
-        songControlsRow.Controls.AddRange([openSongButton, importStemsButton, previousButton, playPauseButton, stopButton, nextButton, outputDeviceGroup, listenButton, learningButton]);
+        songControlsRow.Controls.AddRange([openSongButton, importStemsButton, previousButton, playPauseButton, stopButton, nextButton, outputDeviceGroup, listenButton, learningButton, createButton]);
         var songLabelRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6, 0, 6, 0), WrapContents = false };
         songLabelRow.Controls.Add(songLabel);
 
@@ -143,6 +148,7 @@ sealed class MainForm : AntdUI.Window
         nextButton.Click += (_, _) => DoNextTrack();
         listenButton.Click += (_, _) => ToggleListening();
         learningButton.Click += (_, _) => ToggleLearningMode(showSetup: true);
+        createButton.Click += (_, _) => ToggleCreateMode();
         outputDeviceBox.SelectedIndexChanged += (_, _) =>
         {
             string? name = outputDeviceBox.SelectedIndex > 0 ? outputDeviceNames[outputDeviceBox.SelectedIndex - 1] : null;
@@ -182,6 +188,7 @@ sealed class MainForm : AntdUI.Window
         fileMenuButton.Click += (_, _) => ShowMenu(fileMenuButton,
             MenuItem(T("Otevřít skladbu...", "Open song..."), OpenSong),
             MenuItem(T("Importovat stopy (WAV)...", "Import stems (WAV)..."), ImportStems),
+            MenuItem(T("Uložit skladbu jako...", "Save song as..."), SaveCurrentSong),
             new AntdUI.ContextMenuStripItemDivider(),
             MenuItem(T("Exportovat klávesy...", "Export keys..."), ExportBindings),
             MenuItem(T("Importovat klávesy...", "Import keys..."), ImportBindings),
@@ -335,6 +342,7 @@ sealed class MainForm : AntdUI.Window
         nextButton.Text = T("Další >>", "Next >>");
         listenButton.Text = noteSource != null ? T("Přestat poslouchat", "Stop listening") : T("Poslouchat", "Listen");
         UpdateLearningButton();
+        UpdateCreateButton();
         learnButton.Text = T("Nastavit makro klávesnici...", "Set up macro keyboard...");
         forgetButton.Text = T("Zapomenout klávesnici", "Forget keyboard");
         macroInfoLabel.Text = T(
@@ -400,10 +408,18 @@ sealed class MainForm : AntdUI.Window
             pianoRoll.SetKeyHeld(note, true);
             if (learning != null)
                 learning.OnNoteOn(note);
+            else if (recorder != null)
+                recorder.OnNoteOn(note);
             else
                 SetStatus(T("Slyším: ", "Hearing: ") + NoteNames.Describe(note));
         });
-        source.NoteOff += note => Post(() => { if (noteSource == source) pianoRoll.SetKeyHeld(note, false); });
+        source.NoteOff += note => Post(() =>
+        {
+            if (noteSource != source)
+                return;
+            pianoRoll.SetKeyHeld(note, false);
+            recorder?.OnNoteOff(note);
+        });
         try
         {
             source.Start();
@@ -551,6 +567,7 @@ sealed class MainForm : AntdUI.Window
                 playbackEngine.SetPartMuted(i, currentScore.Parts[i].Muted);
         pianoRoll.SetCurrentTime(0);
         UpdateLearningButton();
+        UpdateCreateButton();
         SetStatus(T("Režim učení ukončen.", "Learning mode ended."));
 
         // Nothing played yet: there's nothing to score.
@@ -563,8 +580,127 @@ sealed class MainForm : AntdUI.Window
 
     void UpdateLearningButton()
     {
-        learningButton.Enabled = currentScore != null;
+        learningButton.Enabled = currentScore != null && recorder == null;
         learningButton.Text = learning != null ? T("Ukončit učení", "End learning") : T("Režim učení...", "Learning mode...");
+    }
+
+    // --- Create mode: what's played gets written down, then saved as MIDI / MusicXML --------------
+
+    void ToggleCreateMode()
+    {
+        if (recorder != null)
+            FinishCreateMode();
+        else
+            StartCreateMode();
+    }
+
+    void StartCreateMode()
+    {
+        StopLearningMode(showResult: false);
+        if (noteSource == null)
+            StartListening();
+        if (noteSource is not { } source)
+            return; // the error was already shown
+
+        playbackEngine.Stop();
+        stemPlaybackEngine.Stop();
+        recorder = new NoteRecorder(source.LatencySeconds);
+        recordingTitle = T("Nahrávka ", "Recording ") + DateTime.Now.ToString("yyyy-MM-dd HH-mm");
+        pianoRoll.RecordingView = true;
+        pianoRoll.UpdateLiveScore(recorder.Snapshot(recordingTitle));
+        pianoRoll.SetCurrentTime(0);
+        UpdateCreateButton();
+        UpdateLearningButton();
+        SetStatus(T("Nahrávám - hraj. Noty se zapisují od první zahrané.", "Recording - play. Notes are written from the first one you play."));
+    }
+
+    void TickCreateMode()
+    {
+        var active = recorder!;
+        pianoRoll.UpdateLiveScore(active.Snapshot(recordingTitle));
+        pianoRoll.SetCurrentTime(active.CurrentSeconds);
+        if (active.NoteCount > 0)
+            SetStatus(T($"Nahrávám: {active.NoteCount} not", $"Recording: {active.NoteCount} notes"));
+    }
+
+    /// <summary>Ends recording without asking anything; the recording (if any) becomes the current song.</summary>
+    void StopCreateMode()
+    {
+        if (recorder is not { } active)
+            return;
+        recorder = null;
+        pianoRoll.RecordingView = false;
+        var recording = active.Finish(recordingTitle);
+        if (recording.Parts[0].Notes.Count > 0)
+        {
+            // The recording isn't one of the opened files, so previous/next no longer apply.
+            playlist = [];
+            playlistIndex = -1;
+            ShowScore(recording);
+        }
+        else
+            pianoRoll.SetScore(currentScore);
+        UpdateCreateButton();
+        UpdateLearningButton();
+    }
+
+    void FinishCreateMode()
+    {
+        if (recorder == null)
+            return;
+        StopCreateMode();
+        if (currentScore is not { } recording || recording.Title != recordingTitle)
+        {
+            SetStatus(T("Nic se nezapsalo - nebyla slyšet žádná nota.", "Nothing was recorded - no notes were heard."));
+            return;
+        }
+        SetStatus(T($"Nahráno: {recording.Parts[0].Notes.Count} not.", $"Recorded: {recording.Parts[0].Notes.Count} notes."));
+
+        using var dialog = new CreateResultForm(recording, config.CreateTempoBpm, bpm => SaveScore(recording, bpm));
+        dialog.ShowDialog(this);
+        if (dialog.Bpm != config.CreateTempoBpm)
+        {
+            config.CreateTempoBpm = dialog.Bpm;
+            config.Save();
+        }
+    }
+
+    void UpdateCreateButton() =>
+        createButton.Text = recorder != null ? T("Ukončit nahrávání", "Stop recording") : T("Zapisovat noty", "Write down notes");
+
+    void SaveCurrentSong()
+    {
+        if (currentScore == null)
+        {
+            ShowModal(this, Text, T("Není otevřená žádná skladba (MIDI, MusicXML nebo nahrávka).", "No song is open (MIDI, MusicXML or a recording)."), AntdUI.TType.Info);
+            return;
+        }
+        SaveScore(currentScore, config.CreateTempoBpm);
+    }
+
+    /// <summary>Asks where and saves; true if the file was written.</summary>
+    bool SaveScore(Score score, int bpm)
+    {
+        string fileName = string.Concat(score.Title.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
+        using var dialog = new SaveFileDialog
+        {
+            Filter = ScoreExporter.FileFilter,
+            FileName = fileName,
+            Title = T("Uložit skladbu", "Save song"),
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+            return false;
+        try
+        {
+            ScoreExporter.Save(score, dialog.FileName, bpm);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ShowModal(this, Text, T("Uložení se nepovedlo: ", "Saving failed: ") + ex.Message, AntdUI.TType.Error);
+            return false;
+        }
+        SetStatus(T($"Uloženo: {dialog.FileName}", $"Saved: {dialog.FileName}"));
+        return true;
     }
 
     // --- Keyboard selection -------------------------------------------------------------------
@@ -655,6 +791,8 @@ sealed class MainForm : AntdUI.Window
 
     void OpenSong()
     {
+        // Switching songs mid-recording must not silently throw the recording away: finish it (offers saving).
+        FinishCreateMode();
         using var dialog = new OpenFileDialog { Filter = ScoreImporter.FileFilter, Title = T("Otevřít skladbu", "Open song"), Multiselect = true };
         if (dialog.ShowDialog(this) != DialogResult.OK || dialog.FileNames.Length == 0)
             return;
@@ -679,6 +817,13 @@ sealed class MainForm : AntdUI.Window
             return;
         }
 
+        ShowScore(score);
+        SetStatus(T($"Načteno: {score.Title}", $"Loaded: {score.Title}"));
+    }
+
+    /// <summary>Makes <paramref name="score"/> the current song: playback, piano roll, parts panel, buttons.</summary>
+    void ShowScore(Score score)
+    {
         StopLearningMode(showResult: false);
         stemPlaybackEngine.Stop();
         currentStems = null;
@@ -691,11 +836,11 @@ sealed class MainForm : AntdUI.Window
         previousButton.Enabled = nextButton.Enabled = playlist.Count > 1;
         UpdateSongLabel();
         UpdateLearningButton();
-        SetStatus(T($"Načteno: {currentScore.Title}", $"Loaded: {currentScore.Title}"));
     }
 
     void ImportStems()
     {
+        FinishCreateMode();
         using var dialog = new FolderBrowserDialog { Description = T("Vyber složku se stopami (.wav)", "Choose the folder with the stems (.wav)") };
         if (dialog.ShowDialog(this) != DialogResult.OK)
             return;
@@ -788,6 +933,9 @@ sealed class MainForm : AntdUI.Window
 
     void TogglePlayPause()
     {
+        // Playing the song over a recording would be heard (by the mic) and written down.
+        if (recorder != null)
+            return;
         if (learning != null)
         {
             bool pause = !learning.Paused;
@@ -823,6 +971,11 @@ sealed class MainForm : AntdUI.Window
 
     void DoStop()
     {
+        if (recorder != null)
+        {
+            FinishCreateMode();
+            return;
+        }
         if (learning != null)
         {
             StopLearningMode(showResult: true);
@@ -839,6 +992,7 @@ sealed class MainForm : AntdUI.Window
 
     void DoNextTrack()
     {
+        FinishCreateMode();
         if (playlist.Count == 0)
             return;
         playlistIndex = (playlistIndex + 1) % playlist.Count;
@@ -849,6 +1003,7 @@ sealed class MainForm : AntdUI.Window
 
     void DoPreviousTrack()
     {
+        FinishCreateMode();
         if (playlist.Count == 0)
             return;
         playlistIndex = (playlistIndex - 1 + playlist.Count) % playlist.Count;
@@ -1077,8 +1232,10 @@ sealed class MainForm : AntdUI.Window
                 // From a macro key there's no one at the mouse: start straight away with the last settings.
                 ToggleLearningMode(showSetup: false);
                 break;
+            case MacroAction.ToggleCreateMode:
+                ToggleCreateMode();
+                break;
             default:
-                // Create mode: wired up once that feature lands.
                 SetStatus(T("Akce: ", "Action: ") + binding.Describe());
                 break;
         }

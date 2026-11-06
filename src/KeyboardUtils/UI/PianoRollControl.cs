@@ -41,6 +41,10 @@ sealed class PianoRollControl : Control
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public LearningSession? Learning { get; set; }
 
+    /// <summary>Create mode: time runs upward - notes appear at the keyboard as they're played and rise away.</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool RecordingView { get; set; }
+
     public static Color CorrectColor { get; } = Color.FromArgb(52, 199, 89);
     public static Color WrongColor { get; } = Color.FromArgb(234, 67, 53);
     static Color SelectedColor { get; } = Color.FromArgb(66, 133, 244);
@@ -107,6 +111,23 @@ sealed class PianoRollControl : Control
             highestKey = Math.Min(127, pitches.Max() + 2);
         }
         RebuildLayout();
+        Invalidate();
+    }
+
+    /// <summary>
+    /// Swaps in an updated version of a score that's still being written (create mode) without resetting the
+    /// time or shrinking the keyboard - it only widens if a note falls outside, so it doesn't jump while playing.
+    /// </summary>
+    public void UpdateLiveScore(Score liveScore)
+    {
+        score = liveScore;
+        foreach (int pitch in liveScore.Parts.SelectMany(p => p.Notes).Select(n => n.Pitch))
+            if (pitch < lowestKey || pitch > highestKey)
+            {
+                lowestKey = Math.Max(0, Math.Min(lowestKey, pitch - 2));
+                highestKey = Math.Min(127, Math.Max(highestKey, pitch + 2));
+                RebuildLayout();
+            }
         Invalidate();
     }
 
@@ -226,13 +247,25 @@ sealed class PianoRollControl : Control
             foreach (var note in part.Notes)
             {
                 double noteEnd = note.StartSeconds + note.DurationSeconds;
-                if (noteEnd < currentSeconds || note.StartSeconds > currentSeconds + SecondsVisible)
-                    continue;
                 if (!keyLayout.TryGetValue(note.Pitch, out var layout))
                     continue;
 
-                float yBottom = rollHeight - (float)((note.StartSeconds - currentSeconds) * pixelsPerSecond);
-                float yTop = rollHeight - (float)((noteEnd - currentSeconds) * pixelsPerSecond);
+                float yBottom, yTop;
+                if (RecordingView)
+                {
+                    // Played notes rise away from the keyboard: the newest at the line, older ones higher up.
+                    if (noteEnd < currentSeconds - SecondsVisible || note.StartSeconds > currentSeconds)
+                        continue;
+                    yTop = rollHeight - (float)((currentSeconds - note.StartSeconds) * pixelsPerSecond);
+                    yBottom = rollHeight - (float)((currentSeconds - noteEnd) * pixelsPerSecond);
+                }
+                else
+                {
+                    if (noteEnd < currentSeconds || note.StartSeconds > currentSeconds + SecondsVisible)
+                        continue;
+                    yBottom = rollHeight - (float)((note.StartSeconds - currentSeconds) * pixelsPerSecond);
+                    yTop = rollHeight - (float)((noteEnd - currentSeconds) * pixelsPerSecond);
+                }
                 float height = Math.Max(3, yBottom - yTop);
                 var noteBrush = !practiced ? brush : Learning!.MarkOf(note) switch
                 {
