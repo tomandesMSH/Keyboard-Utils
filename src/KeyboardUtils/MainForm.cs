@@ -51,8 +51,11 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button learningButton = new() { AutoSize = true, Enabled = false, Type = AntdUI.TTypeMini.Success, Radius = 8 };
     readonly AntdUI.Button createButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Error, Radius = 8 };
     // List = true: a pick-only dropdown. Without it AntdUI.Select is an editable text box with suggestions.
-    readonly AntdUI.Select outputDeviceBox = new() { Size = new Size(240, 36), Margin = new Padding(0), List = true, ListAutoWidth = true };
+    readonly AntdUI.Select outputDeviceBox = new() { Size = new Size(240, 36), Margin = new Padding(3), List = true, ListAutoWidth = true };
     readonly AntdUI.Label outputDeviceLabel = new() { AutoSize = true, Margin = new Padding(2, 0, 0, 2), ForeColor = SystemColors.GrayText };
+    readonly AntdUI.Label loadGroupLabel = new() { AutoSize = true, Margin = new Padding(2, 0, 0, 2), ForeColor = SystemColors.GrayText };
+    readonly AntdUI.Label playbackGroupLabel = new() { AutoSize = true, Margin = new Padding(2, 0, 0, 2), ForeColor = SystemColors.GrayText };
+    readonly AntdUI.Label playingGroupLabel = new() { AutoSize = true, Margin = new Padding(2, 0, 0, 2), ForeColor = SystemColors.GrayText };
     readonly AntdUI.Checkbox enabledBox = new() { AutoSize = true, Margin = new Padding(12, 6, 3, 3) };
     readonly AntdUI.Label languageLabel = new() { AutoSize = true, Margin = new Padding(12, 8, 3, 3) };
     readonly AntdUI.Select languageBox = new() { Size = new Size(110, 36), Margin = new Padding(3, 0, 3, 3), List = true };
@@ -123,12 +126,17 @@ sealed class MainForm : AntdUI.Window
 
         RefreshOutputDeviceItems();
 
-        // --- Song tab: open/transport controls + piano roll + per-part mute panel ---
-        // Wraps: the buttons don't fit one row in a narrow window (or in Czech).
+        // --- Song tab: grouped controls + piano roll + per-part mute panel ---
+        // Each group has a caption so it's clear what its buttons act on. The row wraps whole groups when the
+        // window is too narrow.
         var songControlsRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6) };
-        var outputDeviceGroup = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(12, 0, 3, 3) };
-        outputDeviceGroup.Controls.AddRange([outputDeviceLabel, outputDeviceBox]);
-        songControlsRow.Controls.AddRange([openSongButton, importStemsButton, previousButton, playPauseButton, stopButton, nextButton, outputDeviceGroup, listenButton, learningButton, createButton]);
+        songControlsRow.Controls.AddRange(
+        [
+            ControlGroup(loadGroupLabel, openSongButton, importStemsButton),
+            ControlGroup(playbackGroupLabel, previousButton, playPauseButton, stopButton, nextButton),
+            ControlGroup(outputDeviceLabel, outputDeviceBox),
+            ControlGroup(playingGroupLabel, listenButton, learningButton, createButton),
+        ]);
         var songLabelRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6, 0, 6, 0), WrapContents = false };
         songLabelRow.Controls.Add(songLabel);
 
@@ -259,6 +267,16 @@ sealed class MainForm : AntdUI.Window
         };
     }
 
+    /// <summary>A small grey caption above a row of related controls.</summary>
+    static FlowLayoutPanel ControlGroup(AntdUI.Label caption, params Control[] controls)
+    {
+        var row = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0) };
+        row.Controls.AddRange(controls);
+        var group = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(0, 0, 24, 6) };
+        group.Controls.AddRange([caption, row]);
+        return group;
+    }
+
     static AntdUI.ContextMenuStripItem MenuItem(string text, Action action) => new(text) { Tag = action };
 
     static void ShowMenu(Control anchor, params AntdUI.IContextMenuStripItem[] items)
@@ -353,7 +371,10 @@ sealed class MainForm : AntdUI.Window
         bindingsTab.Text = T("Makro klávesnice", "Macro keyboard");
         openSongButton.Text = T("Otevřít skladbu...", "Open song...");
         importStemsButton.Text = T("Importovat stopy...", "Import stems...");
-        outputDeviceLabel.Text = T("Zvuk přehrávání (MIDI výstup):", "Playback sound (MIDI output):");
+        loadGroupLabel.Text = T("Načíst", "Load");
+        playbackGroupLabel.Text = T("Přehrávání", "Playback");
+        outputDeviceLabel.Text = T("Zvuk přehrávání (MIDI výstup)", "Playback sound (MIDI output)");
+        playingGroupLabel.Text = T("Hraješ ty (mikrofon / MIDI)", "You play (microphone / MIDI)");
         stemsInfoLabel.Text = T(
             "Tip: FL Studio - Export > WAV File > Miscellaneous > \"Split mixer tracks\" vyexportuje každou stopu zvlášť. "
             + "Rozpracované verze skladeb (stems) se dají občas stáhnout i hotové, např. na RemixPacks a podobných stránkách.",
