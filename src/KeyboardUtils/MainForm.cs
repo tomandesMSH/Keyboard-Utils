@@ -54,6 +54,7 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button openSongButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly AntdUI.Button importStemsButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Button removeSongButton = new() { AutoSize = true, Radius = 8, Visible = false };
+    readonly AntdUI.Button convertAudioButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Button playPauseButton = new() { AutoSize = true, Enabled = false, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly AntdUI.Button stopButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Button previousButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
@@ -141,7 +142,7 @@ sealed class MainForm : AntdUI.Window
         var songControlsRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6) };
         songControlsRow.Controls.AddRange(
         [
-            ControlGroup(loadGroupLabel, openSongButton, importStemsButton, removeSongButton),
+            ControlGroup(loadGroupLabel, openSongButton, importStemsButton, convertAudioButton, removeSongButton),
             ControlGroup(playbackGroupLabel, previousButton, playPauseButton, stopButton, nextButton),
             ControlGroup(playingGroupLabel, listenButton, learningButton, createButton),
         ]);
@@ -203,6 +204,7 @@ sealed class MainForm : AntdUI.Window
         openSongButton.Click += (_, _) => OpenSong();
         importStemsButton.Click += (_, _) => ImportStems();
         removeSongButton.Click += (_, _) => RemoveSong();
+        convertAudioButton.Click += (_, _) => ConvertAudioToNotes();
         playPauseButton.Click += (_, _) => TogglePlayPause();
         stopButton.Click += (_, _) => DoStop();
         previousButton.Click += (_, _) => DoPreviousTrack();
@@ -408,6 +410,7 @@ sealed class MainForm : AntdUI.Window
         openSongButton.Text = T("Otevřít skladbu...", "Open song...");
         importStemsButton.Text = T("Importovat stopy...", "Import stems...");
         removeSongButton.Text = T("Odebrat skladbu", "Remove song");
+        convertAudioButton.Text = T("Převést zvuk na noty...", "Convert audio to notes...");
         loadGroupLabel.Text = T("Načíst", "Load");
         playbackGroupLabel.Text = T("Přehrávání", "Playback");
         playingGroupLabel.Text = T("Nahrávání", "Recording");
@@ -975,6 +978,23 @@ sealed class MainForm : AntdUI.Window
                 : T("Žádná skladba nenačtena.", "No song loaded.");
         // Called on every song change, so it's also where "Remove song" appears/disappears.
         removeSongButton.Visible = currentScore != null || currentStems != null;
+    }
+
+    /// <summary>Notes detected from an audio file open as a new, not yet saved song.</summary>
+    void ConvertAudioToNotes()
+    {
+        FinishCreateMode();
+        // Start the file picker in the loaded stems' folder: converting one of them is the likely next step.
+        string? stemsFolder = currentStems?.Tracks.FirstOrDefault() is { } track ? Path.GetDirectoryName(track.FilePath) : null;
+        using var dialog = new AudioToNotesForm(stemsFolder);
+        if (dialog.ShowDialog(this) != DialogResult.OK || dialog.Result is not { } score)
+            return;
+        playlist = [];
+        playlistIndex = -1;
+        ShowScore(score);
+        unsavedRecording = score;
+        SetStatus(T($"Převedeno: {score.Parts.Sum(p => p.Notes.Count)} not. Ulož přes Soubor > Uložit skladbu jako...",
+            $"Converted: {score.Parts.Sum(p => p.Notes.Count)} notes. Save via File > Save song as..."));
     }
 
     /// <summary>Takes the song out of the player (the file on disk stays). Asks first if it's an unsaved recording.</summary>
