@@ -11,15 +11,46 @@ sealed class PianoRollControl : Control
         Color.FromArgb(15, 157, 88), Color.FromArgb(171, 71, 188), Color.FromArgb(255, 112, 67),
     ];
 
-    const int KeyboardHeight = 60;
     const double SecondsVisible = 4.0;
+
+    /// <summary>A real piano: A0 to C8.</summary>
+    const int PianoLowest = 21, PianoHighest = 108;
+
+    public const int MinKeyWidth = 14, MaxKeyWidth = 60, DefaultKeyWidth = 26;
+
+    /// <summary>Keyboard height as a multiple of the white key width - roughly a real key's proportions.</summary>
+    const float KeyHeightRatio = 4.2f;
+    const float MinKeyboardHeight = 60;
 
     readonly record struct KeyLayout(float X, float Width, bool Black);
 
     Score? score;
     double currentSeconds;
-    int lowestKey = 48; // C3
-    int highestKey = 84; // C6
+
+    // The keys that must be visible (the song's range, held keys) vs. the keys shown, which RebuildLayout
+    // widens around the required range to fill the width.
+    int requiredLowest = 48; // C3
+    int requiredHighest = 84; // C6
+    int lowestKey = 48;
+    int highestKey = 84;
+    float whiteKeyWidth = DefaultKeyWidth;
+    int keyWidth = DefaultKeyWidth;
+
+    /// <summary>
+    /// White key width the keyboard aims for (the "keyboard size" slider); a wider window shows more octaves
+    /// rather than wider keys. Keys get narrower than this only when the song's range wouldn't fit otherwise.
+    /// </summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public int KeyWidth
+    {
+        get => keyWidth;
+        set
+        {
+            keyWidth = Math.Clamp(value, MinKeyWidth, MaxKeyWidth);
+            RebuildLayout();
+            Invalidate();
+        }
+    }
     Dictionary<int, KeyLayout> keyLayout = [];
     readonly HashSet<int> heldKeys = [];
 
@@ -101,13 +132,19 @@ sealed class PianoRollControl : Control
         if (held ? !heldKeys.Add(key) : !heldKeys.Remove(key))
             return;
         // A heard note outside the visible range would otherwise light up nothing.
-        if (held && (key < lowestKey || key > highestKey))
-        {
-            lowestKey = Math.Max(0, Math.Min(lowestKey, key - 2));
-            highestKey = Math.Min(127, Math.Max(highestKey, key + 2));
-            RebuildLayout();
-        }
+        if (held)
+            Require(key);
         Invalidate();
+    }
+
+    /// <summary>Makes sure <paramref name="key"/> (with a little margin) stays on the keyboard.</summary>
+    void Require(int key)
+    {
+        if (key - 2 >= requiredLowest && key + 2 <= requiredHighest)
+            return;
+        requiredLowest = Math.Max(0, Math.Min(requiredLowest, key - 2));
+        requiredHighest = Math.Min(127, Math.Max(requiredHighest, key + 2));
+        RebuildLayout();
     }
 
     public void ClearHeldKeys()
@@ -123,8 +160,8 @@ sealed class PianoRollControl : Control
         var pitches = score?.Parts.SelectMany(p => p.Notes).Select(n => n.Pitch).ToList() ?? [];
         if (pitches.Count > 0)
         {
-            lowestKey = Math.Max(0, pitches.Min() - 2);
-            highestKey = Math.Min(127, pitches.Max() + 2);
+            requiredLowest = Math.Max(0, pitches.Min() - 2);
+            requiredHighest = Math.Min(127, pitches.Max() + 2);
         }
         RebuildLayout();
         Invalidate();
@@ -138,12 +175,7 @@ sealed class PianoRollControl : Control
     {
         score = liveScore;
         foreach (int pitch in liveScore.Parts.SelectMany(p => p.Notes).Select(n => n.Pitch))
-            if (pitch < lowestKey || pitch > highestKey)
-            {
-                lowestKey = Math.Max(0, Math.Min(lowestKey, pitch - 2));
-                highestKey = Math.Min(127, Math.Max(highestKey, pitch + 2));
-                RebuildLayout();
-            }
+            Require(pitch);
         Invalidate();
     }
 
@@ -169,11 +201,41 @@ sealed class PianoRollControl : Control
 
     static bool IsBlackKey(int note) => (note % 12) is 1 or 3 or 6 or 8 or 10;
 
+    static int WhiteKeysBetween(int low, int high) => Enumerable.Range(low, high - low + 1).Count(n => !IsBlackKey(n));
+
+    /// <summary>
+    /// Widens the required range alternately down and up, one white key at a time, until the keys are about
+    /// <see cref="KeyWidth"/> wide or the whole piano is shown. Never shrinks below the required range,
+    /// so in a narrow window the keys just get narrower.
+    /// </summary>
+    void FitRangeToWidth()
+    {
+        int low = requiredLowest, high = requiredHighest;
+        // Start and end on white keys: a black key at the edge would be cut in half.
+        while (IsBlackKey(low) && low > 0) low--;
+        while (IsBlackKey(high) && high < 127) high++;
+
+        int wanted = Math.Max(1, ClientSize.Width) / keyWidth;
+        bool down = true;
+        while (WhiteKeysBetween(low, high) < wanted && (low > PianoLowest || high < PianoHighest))
+        {
+            if (down && low > PianoLowest)
+                do low--; while (IsBlackKey(low) && low > PianoLowest);
+            else if (high < PianoHighest)
+                do high++; while (IsBlackKey(high) && high < PianoHighest);
+            down = !down;
+        }
+        lowestKey = low;
+        highestKey = high;
+    }
+
     void RebuildLayout()
     {
+        FitRangeToWidth();
         var layout = new Dictionary<int, KeyLayout>();
-        int whiteCount = Enumerable.Range(lowestKey, highestKey - lowestKey + 1).Count(n => !IsBlackKey(n));
+        int whiteCount = WhiteKeysBetween(lowestKey, highestKey);
         float whiteWidth = whiteCount > 0 ? (float)Math.Max(1, ClientSize.Width) / whiteCount : 20f;
+        whiteKeyWidth = whiteWidth;
         float blackWidth = whiteWidth * 0.6f;
 
         var whiteX = new Dictionary<int, float>();
@@ -206,7 +268,7 @@ sealed class PianoRollControl : Control
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.Clear(BackColor);
 
-        float keyboardHeight = FillKeyboard ? ClientSize.Height : KeyboardHeight;
+        float keyboardHeight = KeyboardHeight;
         float rollHeight = ClientSize.Height - keyboardHeight;
         if (rollHeight < 0)
             return;
@@ -220,6 +282,11 @@ sealed class PianoRollControl : Control
         }
         DrawKeyboard(g, rollHeight, keyboardHeight, soundingKeys);
     }
+
+    /// <summary>Proportional to the key width (like a real keyboard), but never under 60 px or over a quarter of the control.</summary>
+    float KeyboardHeight => FillKeyboard
+        ? ClientSize.Height
+        : Math.Clamp(whiteKeyWidth * KeyHeightRatio, MinKeyboardHeight, Math.Max(MinKeyboardHeight, ClientSize.Height * 0.25f));
 
     float RollHeight => FillKeyboard ? 0 : ClientSize.Height - KeyboardHeight;
 
@@ -372,11 +439,21 @@ sealed class PianoRollControl : Control
             : soundingKeys.TryGetValue(note, out var color) ? soundingBrushes[color]
             : rest;
 
+        // "C4" etc. on every C, so you can find your way on a wide keyboard. Skipped when keys are too narrow to fit it.
+        using var labelFont = new Font("Segoe UI", Math.Clamp(whiteKeyWidth * 0.32f, 6.5f, 9f));
+        using var labelBrush = new SolidBrush(Color.FromArgb(140, 140, 140));
+        using var labelFormat = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Far };
+        bool showLabels = whiteKeyWidth >= 16 && height >= 40;
+
         foreach (var (note, layout) in keyLayout.Where(k => !k.Value.Black))
         {
             var rect = new RectangleF(layout.X, top, layout.Width, height);
-            g.FillRectangle(BrushFor(note, whiteBrush), rect);
+            var fill = BrushFor(note, whiteBrush);
+            g.FillRectangle(fill, rect);
             g.DrawRectangle(borderPen, rect.X, rect.Y, rect.Width, rect.Height);
+            if (showLabels && note % 12 == 0)
+                g.DrawString(NoteNames.Describe(note), labelFont, fill == whiteBrush ? labelBrush : Brushes.White,
+                    new RectangleF(rect.X, rect.Y, rect.Width, rect.Height - 3), labelFormat);
         }
         foreach (var (note, layout) in keyLayout.Where(k => k.Value.Black))
             g.FillRectangle(BrushFor(note, blackBrush), layout.X, top, layout.Width, height * 0.6f);

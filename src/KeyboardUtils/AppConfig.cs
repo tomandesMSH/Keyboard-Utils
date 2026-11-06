@@ -94,6 +94,9 @@ sealed class AppConfig
     public int LearningSpeedPercent { get; set; } = 100;
     public bool LearningAccompaniment { get; set; } = true;
 
+    /// <summary>Piano roll key width in px - the "keyboard size" slider.</summary>
+    public int KeyboardKeyWidth { get; set; } = PianoRollControl.DefaultKeyWidth;
+
     /// <summary>Tempo the recording is written in when saved - MusicXML snaps notes to 16ths at this speed.</summary>
     public int CreateTempoBpm { get; set; } = 100;
 

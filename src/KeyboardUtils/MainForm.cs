@@ -35,8 +35,15 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Label macroInfoLabel = new() { AutoSize = false, Dock = DockStyle.Top, Height = 54, Padding = new Padding(6), ForeColor = SystemColors.GrayText };
     readonly AntdUI.Label keyboardLabel = new() { AutoSize = true };
     readonly AntdUI.Button forgetButton = new() { AutoSize = true, Radius = 8 };
-    readonly AntdUI.Label songLabel = new() { AutoSize = true, Text = "" };
-    readonly AntdUI.Label stemsInfoLabel = new() { AutoSize = false, Dock = DockStyle.Top, Height = 36, Padding = new Padding(6, 0, 6, 0), ForeColor = SystemColors.GrayText };
+    readonly AntdUI.Label songLabel = new() { AutoSize = false, Dock = DockStyle.Fill, Padding = new Padding(8, 0, 6, 0), Text = "" };
+    readonly AntdUI.Label keyboardSizeLabel = new() { AutoSize = true, Margin = new Padding(0, 8, 6, 0), ForeColor = SystemColors.GrayText };
+    readonly AntdUI.Slider keyboardSizeSlider = new()
+    {
+        MinValue = PianoRollControl.MinKeyWidth,
+        MaxValue = PianoRollControl.MaxKeyWidth,
+        Size = new Size(160, 28),
+        Margin = new Padding(0, 2, 0, 0),
+    };
     readonly AntdUI.Label statusLabel = new() { Dock = DockStyle.Bottom, Height = 28, Padding = new Padding(6) };
     readonly AntdUI.Button learnButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly AntdUI.Button addButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
@@ -63,7 +70,7 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Checkbox enabledBox = new() { AutoSize = true, Margin = new Padding(12, 6, 3, 3) };
     readonly AntdUI.Label languageLabel = new() { AutoSize = true, Margin = new Padding(12, 8, 3, 3) };
     readonly AntdUI.Select languageBox = new() { Size = new Size(110, 36), Margin = new Padding(3, 0, 3, 3), List = true };
-    readonly FlowLayoutPanel partsPanel = new() { Dock = DockStyle.Right, Width = 180, AutoScroll = true, Padding = new Padding(6), FlowDirection = FlowDirection.TopDown, WrapContents = false };
+    readonly FlowLayoutPanel partsPanel = new() { Dock = DockStyle.Right, Width = 180, AutoScroll = true, Padding = new Padding(6), FlowDirection = FlowDirection.TopDown, WrapContents = false, Visible = false };
     readonly PianoRollControl pianoRoll = new() { Dock = DockStyle.Fill };
     readonly System.Windows.Forms.Timer playbackTimer = new() { Interval = 33 };
     readonly AntdUI.Tabs tabs = new() { Dock = DockStyle.Fill };
@@ -141,13 +148,25 @@ sealed class MainForm : AntdUI.Window
             ControlGroup(outputDeviceLabel, outputDeviceBox),
             ControlGroup(playingGroupLabel, listenButton, learningButton, createButton),
         ]);
-        var songLabelRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6, 0, 6, 0), WrapContents = false };
-        songLabelRow.Controls.Add(songLabel);
+        // Song title on the left, the keyboard size slider on the right of the same row (Fill first, then Right).
+        var keyboardSizeGroup = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false, Padding = new Padding(0, 0, 12, 0) };
+        keyboardSizeGroup.Controls.AddRange([keyboardSizeLabel, keyboardSizeSlider]);
+        var songInfoRow = new Panel { Dock = DockStyle.Top, Height = 34 };
+        songInfoRow.Controls.Add(songLabel);
+        songInfoRow.Controls.Add(keyboardSizeGroup);
 
         songTab.Controls.Add(pianoRoll);
         songTab.Controls.Add(partsPanel);
-        songTab.Controls.Add(songLabelRow);
-        songTab.Controls.Add(stemsInfoLabel);
+        songTab.Controls.Add(songInfoRow);
+
+        keyboardSizeSlider.Value = Math.Clamp(config.KeyboardKeyWidth, PianoRollControl.MinKeyWidth, PianoRollControl.MaxKeyWidth);
+        pianoRoll.KeyWidth = keyboardSizeSlider.Value;
+        keyboardSizeSlider.ValueChanged += (_, _) =>
+        {
+            pianoRoll.KeyWidth = keyboardSizeSlider.Value;
+            config.KeyboardKeyWidth = keyboardSizeSlider.Value;
+            config.Save();
+        };
         songTab.Controls.Add(songControlsRow);
 
         pianoRoll.Clickable = true;
@@ -381,11 +400,7 @@ sealed class MainForm : AntdUI.Window
         playbackGroupLabel.Text = T("Přehrávání", "Playback");
         outputDeviceLabel.Text = T("Zvuk přehrávání (MIDI výstup)", "Playback sound (MIDI output)");
         playingGroupLabel.Text = T("Hraješ ty (mikrofon / MIDI)", "You play (microphone / MIDI)");
-        stemsInfoLabel.Text = T(
-            "Tip: FL Studio - Export > WAV File > Miscellaneous > \"Split mixer tracks\" vyexportuje každou stopu zvlášť. "
-            + "Rozpracované verze skladeb (stems) se dají občas stáhnout i hotové, např. na RemixPacks a podobných stránkách.",
-            "Tip: FL Studio - Export > WAV File > Miscellaneous > \"Split mixer tracks\" exports each track separately. "
-            + "Stems (a song split into its instruments) can also sometimes be downloaded ready-made, e.g. from RemixPacks and similar sites.");
+        keyboardSizeLabel.Text = T("Velikost klávesnice", "Keyboard size");
         playPauseButton.Text = T("Přehrát", "Play");
         stopButton.Text = T("Stop", "Stop");
         previousButton.Text = T("<< Předchozí", "<< Previous");
@@ -991,6 +1006,8 @@ sealed class MainForm : AntdUI.Window
         var parts = currentScore?.Parts.Select(p => (p.Name, p.Muted, p.Volume)).ToList()
             ?? currentStems?.Tracks.Select(t => (t.Name, t.Muted, t.Volume)).ToList()
             ?? [];
+        // No song: give the piano roll the full width instead of leaving an empty strip.
+        partsPanel.Visible = parts.Count > 0;
         if (parts.Count == 0)
             return;
 
