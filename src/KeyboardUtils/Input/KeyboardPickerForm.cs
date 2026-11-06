@@ -28,6 +28,15 @@ sealed partial class KeyboardPickerForm : AntdUI.Window
         Font = new Font("Segoe UI", 10f),
         Padding = new Padding(12, 0, 12, 0),
     };
+    readonly AntdUI.Label currentLabel = new()
+    {
+        Dock = DockStyle.Bottom,
+        Height = 24,
+        TextAlign = ContentAlignment.MiddleCenter,
+        Font = new Font("Segoe UI", 9f),
+        Padding = new Padding(12, 0, 12, 0),
+        ForeColor = Color.Gray,
+    };
     readonly AntdUI.Button useButton = new() { Text = T("Použít tuto klávesnici", "Use this keyboard"), AutoSize = true, Enabled = false, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly AntdUI.Button retryButton = new() { Text = T("Zkusit znovu", "Try again"), AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Button cancelButton = new() { Text = T("Zrušit", "Cancel"), AutoSize = true, Radius = 8 };
@@ -40,7 +49,7 @@ sealed partial class KeyboardPickerForm : AntdUI.Window
         Text = T("Výběr makro klávesnice", "Choose macro keyboard");
         Icon = SystemIcons.Application;
         StartPosition = FormStartPosition.CenterParent;
-        Size = new Size(560, 300);
+        Size = new Size(560, 420);
         Resizable = false;
         MaximizeBox = MinimizeBox = false;
         TopMost = true;
@@ -49,6 +58,7 @@ sealed partial class KeyboardPickerForm : AntdUI.Window
         buttons.Controls.AddRange([cancelButton, useButton, retryButton]);
         Controls.Add(detail);
         Controls.Add(prompt);
+        Controls.Add(currentLabel);
         Controls.Add(buttons);
         Controls.Add(new TitleBar(this));
 
@@ -63,7 +73,7 @@ sealed partial class KeyboardPickerForm : AntdUI.Window
         };
 
         if (current != null)
-            detail.Tag = T("Aktuálně: ", "Current: ") + Describe(current.HardwareId);
+            currentLabel.Text = T("Aktuálně: ", "Current: ") + Describe(current.HardwareId);
         Listen();
     }
 
@@ -73,7 +83,7 @@ sealed partial class KeyboardPickerForm : AntdUI.Window
         useButton.Enabled = retryButton.Enabled = false;
         prompt.Text = T("Stiskni libovolnou klávesu na klávesnici,\nkterou chceš používat jako MAKRO KLÁVESNICI (ovládání appky)",
             "Press any key on the keyboard\nyou want to use as the MACRO KEYBOARD (to control the app)");
-        detail.Text = T("Na hlavní klávesnici teď nic nemačkej.", "Don't press anything on your main keyboard now.") + "\n\n" + (detail.Tag as string ?? "");
+        detail.Text = T("Na hlavní klávesnici teď nic nemačkej.", "Don't press anything on your main keyboard now.");
         interceptor.StartLearning();
     }
 
