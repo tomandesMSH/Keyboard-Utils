@@ -44,7 +44,8 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button nextButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Button listenButton = new() { AutoSize = true, Radius = 8 };
     // List = true: a pick-only dropdown. Without it AntdUI.Select is an editable text box with suggestions.
-    readonly AntdUI.Select outputDeviceBox = new() { Size = new Size(240, 36), Margin = new Padding(12, 0, 3, 3), List = true, ListAutoWidth = true };
+    readonly AntdUI.Select outputDeviceBox = new() { Size = new Size(240, 36), Margin = new Padding(0), List = true, ListAutoWidth = true };
+    readonly AntdUI.Label outputDeviceLabel = new() { AutoSize = true, Margin = new Padding(2, 0, 0, 2), ForeColor = SystemColors.GrayText };
     readonly AntdUI.Checkbox enabledBox = new() { AutoSize = true, Margin = new Padding(12, 6, 3, 3) };
     readonly AntdUI.Label languageLabel = new() { AutoSize = true, Margin = new Padding(12, 8, 3, 3) };
     readonly AntdUI.Select languageBox = new() { Size = new Size(110, 36), Margin = new Padding(3, 0, 3, 3), List = true };
@@ -114,7 +115,9 @@ sealed class MainForm : AntdUI.Window
         // --- Song tab: open/transport controls + piano roll + per-part mute panel ---
         // Wraps: the buttons don't fit one row in a narrow window (or in Czech).
         var songControlsRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6) };
-        songControlsRow.Controls.AddRange([openSongButton, importStemsButton, previousButton, playPauseButton, stopButton, nextButton, outputDeviceBox, listenButton]);
+        var outputDeviceGroup = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(12, 0, 3, 3) };
+        outputDeviceGroup.Controls.AddRange([outputDeviceLabel, outputDeviceBox]);
+        songControlsRow.Controls.AddRange([openSongButton, importStemsButton, previousButton, playPauseButton, stopButton, nextButton, outputDeviceGroup, listenButton]);
         var songLabelRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6, 0, 6, 0), WrapContents = false };
         songLabelRow.Controls.Add(songLabel);
 
@@ -314,6 +317,7 @@ sealed class MainForm : AntdUI.Window
         bindingsTab.Text = T("Makro klávesnice", "Macro keyboard");
         openSongButton.Text = T("Otevřít skladbu...", "Open song...");
         importStemsButton.Text = T("Importovat stopy...", "Import stems...");
+        outputDeviceLabel.Text = T("Zvuk přehrávání (MIDI výstup):", "Playback sound (MIDI output):");
         stemsInfoLabel.Text = T(
             "Tip: FL Studio - Export > WAV File > Miscellaneous > \"Split mixer tracks\" vyexportuje každou stopu zvlášť. "
             + "Rozpracované verze skladeb (stems) se dají občas stáhnout i hotové, např. na RemixPacks a podobných stránkách.",
