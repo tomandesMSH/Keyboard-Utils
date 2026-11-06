@@ -44,7 +44,7 @@ sealed class LanguagePickerForm : AntdUI.Window
         Text = "Keyboard Utils";
         Icon = SystemIcons.Application;
         StartPosition = FormStartPosition.CenterScreen;
-        Size = new Size(420, 210);
+        Size = new Size(420, 210); // minimum; grown to fit in Load
         Resizable = false;
         MaximizeBox = MinimizeBox = false;
         TopMost = true;
@@ -56,7 +56,7 @@ sealed class LanguagePickerForm : AntdUI.Window
             Font = new Font("Segoe UI", 13f, FontStyle.Bold),
             Margin = new Padding(20, 28, 20, 16),
         };
-        var buttons = new FlowLayoutPanel { AutoSize = true, Padding = new Padding(16, 0, 16, 20), Margin = new Padding(0) };
+        var buttons = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Padding = new Padding(16, 0, 16, 20), Margin = new Padding(0) };
         foreach (var language in Enum.GetValues<AppLanguage>())
         {
             var button = new AntdUI.Button
@@ -72,9 +72,20 @@ sealed class LanguagePickerForm : AntdUI.Window
             buttons.Controls.Add(button);
         }
 
-        var layout = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, FlowDirection = FlowDirection.TopDown, Padding = new Padding(8) };
+        // WrapContents=false: a wrapping TopDown panel that runs out of height moves the buttons into a second
+        // column to the right, clipped by the window edge.
+        var layout = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = false, FlowDirection = FlowDirection.TopDown, Padding = new Padding(8) };
         layout.Controls.AddRange([prompt, buttons]);
+        var titleBar = new TitleBar(this);
         Controls.Add(layout);
-        Controls.Add(new TitleBar(this));
+        Controls.Add(titleBar);
+
+        // Fit the window to its content after DPI scaling rather than guessing a fixed size.
+        Load += (_, _) =>
+        {
+            var content = layout.GetPreferredSize(Size.Empty);
+            ClientSize = new Size(Math.Max(ClientSize.Width, content.Width), titleBar.Height + content.Height);
+            CenterToScreen();
+        };
     }
 }
