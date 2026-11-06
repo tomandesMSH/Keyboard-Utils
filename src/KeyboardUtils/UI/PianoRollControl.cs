@@ -195,13 +195,14 @@ sealed class PianoRollControl : Control
         if (rollHeight < 0)
             return;
 
+        var soundingKeys = new Dictionary<int, Color>();
         if (!FillKeyboard)
         {
-            DrawNotes(g, rollHeight);
+            DrawNotes(g, rollHeight, soundingKeys);
             using var nowPen = new Pen(Color.White, 2);
             g.DrawLine(nowPen, 0, rollHeight, ClientSize.Width, rollHeight);
         }
-        DrawKeyboard(g, rollHeight, keyboardHeight);
+        DrawKeyboard(g, rollHeight, keyboardHeight, soundingKeys);
     }
 
     protected override void OnMouseDown(MouseEventArgs e)
@@ -226,7 +227,9 @@ sealed class PianoRollControl : Control
         return null;
     }
 
-    void DrawNotes(Graphics g, float rollHeight)
+    /// <param name="soundingKeys">Filled with the keys whose note has reached the keyboard and is still sounding,
+    /// in that note's colour - so the key lights up in the colour of what hits it.</param>
+    void DrawNotes(Graphics g, float rollHeight, Dictionary<int, Color> soundingKeys)
     {
         if (score == null)
             return;
@@ -267,18 +270,26 @@ sealed class PianoRollControl : Control
                     yTop = rollHeight - (float)((noteEnd - currentSeconds) * pixelsPerSecond);
                 }
                 float height = Math.Max(3, yBottom - yTop);
-                var noteBrush = !practiced ? brush : Learning!.MarkOf(note) switch
+                var mark = practiced ? Learning!.MarkOf(note) : NoteMark.Pending;
+                var noteBrush = mark switch
                 {
                     NoteMark.Correct => correctBrush,
                     NoteMark.Wrong => wrongBrush,
                     _ => brush,
                 };
                 g.FillRectangle(noteBrush, layout.X + 1, yTop, Math.Max(2, layout.Width - 2), height);
+
+                // Recording shows what's held via the held keys instead. In learning mode only practiced notes
+                // that were already judged light up - a pending one is the "play this" hint, the rest is dimmed context.
+                bool lights = !RecordingView && note.StartSeconds <= currentSeconds && currentSeconds < noteEnd
+                    && (Learning == null || mark != NoteMark.Pending);
+                if (lights)
+                    soundingKeys[note.Pitch] = ((SolidBrush)noteBrush).Color;
             }
         }
     }
 
-    void DrawKeyboard(Graphics g, float top, float height)
+    void DrawKeyboard(Graphics g, float top, float height, IReadOnlyDictionary<int, Color> soundingKeys)
     {
         using var whiteBrush = new SolidBrush(Color.White);
         using var blackBrush = new SolidBrush(Color.Black);
@@ -288,10 +299,13 @@ sealed class PianoRollControl : Control
         using var borderPen = new Pen(Color.Gray);
         var hintKeys = Learning?.ExpectedKeys().ToHashSet() ?? [];
 
-        // A flash (e.g. a red wrong key) wins over a held key, which wins over the "play this" hint.
+        var soundingBrushes = soundingKeys.Values.Distinct().ToDictionary(c => c, c => new SolidBrush(c));
+
+        // A flash (e.g. a red wrong key) wins over a held key, then the "play this" hint, then a sounding note.
         Brush BrushFor(int note, Brush rest) => note == SelectedKey ? selectedBrush
             : heldKeys.Contains(note) ? heldBrush
             : hintKeys.Contains(note) ? hintBrush
+            : soundingKeys.TryGetValue(note, out var color) ? soundingBrushes[color]
             : rest;
 
         foreach (var (note, layout) in keyLayout.Where(k => !k.Value.Black))
@@ -302,5 +316,8 @@ sealed class PianoRollControl : Control
         }
         foreach (var (note, layout) in keyLayout.Where(k => k.Value.Black))
             g.FillRectangle(BrushFor(note, blackBrush), layout.X, top, layout.Width, height * 0.6f);
+
+        foreach (var brush in soundingBrushes.Values)
+            brush.Dispose();
     }
 }
