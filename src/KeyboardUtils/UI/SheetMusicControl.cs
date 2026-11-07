@@ -472,15 +472,25 @@ sealed class SheetMusicControl : Control, IThemed
         if ((ModifierKeys & Keys.Control) != 0)
         {
             // Ctrl + wheel zooms, keeping the line under the mouse in place.
-            float before = (scrollY + e.Y) / Math.Max(1, contentHeight);
-            zoom = Math.Clamp(zoom * (e.Delta > 0 ? 1.1f : 1 / 1.1f), MinZoom, MaxZoom);
-            ClearGlyphs();
-            LayoutSystems();
-            ScrollTo(before * contentHeight - e.Y);
+            ZoomBy(e.Delta > 0 ? 1 : -1, e.Y);
             return;
         }
         ScrollTo(scrollY - e.Delta / 120f * 6 * S);
     }
+
+    /// <summary>Zooms by <paramref name="steps"/> × 10 % (negative = smaller), keeping the line at <paramref name="anchorY"/> in place.</summary>
+    public void ZoomBy(int steps, float? anchorY = null)
+    {
+        float y = anchorY ?? ClientSize.Height / 2f;
+        float before = (scrollY + y) / Math.Max(1, contentHeight);
+        zoom = Math.Clamp(zoom * MathF.Pow(1.1f, steps), MinZoom, MaxZoom);
+        ClearGlyphs();
+        LayoutSystems();
+        ScrollTo(before * contentHeight - y);
+    }
+
+    /// <summary>1 = 100 %.</summary>
+    public float Zoom => zoom;
 
     RectangleF Thumb
     {

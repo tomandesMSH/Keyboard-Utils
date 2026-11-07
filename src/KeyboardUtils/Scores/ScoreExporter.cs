@@ -74,7 +74,8 @@ static class ScoreExporter
 
         var file = new MidiFile(chunks) { TimeDivision = new TicksPerQuarterNoteTimeDivision(TicksPerQuarter) };
         file.ReplaceTempoMap(tempoMap);
-        file.Write(path, overwriteFile: true);
+        // Texts (part names) as UTF-8: DryWetMidi's default, ASCII, turns "Část 1" into "??st 1".
+        file.Write(path, overwriteFile: true, settings: new WritingSettings { TextEncoding = System.Text.Encoding.UTF8 });
     }
 
     // --- MusicXML --------------------------------------------------------------------------------

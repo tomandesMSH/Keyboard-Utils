@@ -3,7 +3,8 @@ namespace KeyboardUtils;
 /// <summary>Before learning starts: which parts the player plays, wait vs. tempo, speed and accompaniment.</summary>
 sealed class LearningSetupForm : AntdUI.Window
 {
-    static readonly int[] Speeds = [25, 50, 75, 100];
+    /// <summary>The speeds offered, in %. Also stepped through by the "Learning: speed" macro key.</summary>
+    public static readonly int[] Speeds = [25, 50, 75, 100];
 
     readonly List<AntdUI.Checkbox> partBoxes = [];
     readonly AntdUI.Select modeBox = new() { Size = new Size(480, 36), List = true };
@@ -97,6 +98,9 @@ sealed class LearningSetupForm : AntdUI.Window
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(12) };
         buttons.Controls.AddRange([cancel, start]);
 
+        // Enter starts, Esc cancels (also from the macro keyboard's Confirm / Cancel).
+        AcceptButton = start;
+        CancelButton = cancel;
         var titleBar = new TitleBar(this);
         Controls.Add(layout);
         Controls.Add(buttons);

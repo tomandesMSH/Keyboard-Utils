@@ -5,9 +5,27 @@ namespace KeyboardUtils;
 
 static class MidiImporter
 {
+    static readonly System.Text.Encoding StrictUtf8 = new System.Text.UTF8Encoding(false, throwOnInvalidBytes: true);
+
+    /// <summary>
+    /// Track names etc.: UTF-8 when they are (what the app writes, "Část 1"), otherwise Latin-1 - the usual 8-bit
+    /// text of older MIDI files, which isn't valid UTF-8 as soon as it has an accent.
+    /// </summary>
+    static string DecodeText(byte[] bytes, ReadingSettings settings)
+    {
+        try
+        {
+            return StrictUtf8.GetString(bytes);
+        }
+        catch (System.Text.DecoderFallbackException)
+        {
+            return System.Text.Encoding.Latin1.GetString(bytes);
+        }
+    }
+
     public static Score Import(string path)
     {
-        var midiFile = MidiFile.Read(path);
+        var midiFile = MidiFile.Read(path, new ReadingSettings { DecodeTextCallback = DecodeText });
         var tempoMap = midiFile.GetTempoMap();
         var score = new Score
         {

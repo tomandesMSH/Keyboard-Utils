@@ -2,7 +2,7 @@ using System.Threading.Channels;
 
 namespace KeyboardUtils;
 
-sealed class MainForm : AntdUI.Window
+sealed partial class MainForm : AntdUI.Window
 {
 
     readonly AppConfig config;
@@ -26,6 +26,10 @@ sealed class MainForm : AntdUI.Window
 
     // Read from the interception thread; replaced wholesale, never mutated.
     volatile IReadOnlyDictionary<int, Binding> bindingsByKey = new Dictionary<int, Binding>();
+
+    // Pairing a knob: after picking a step action, the next other key gets the opposite one (read on the interception thread).
+    volatile Binding? pendingOpposite;
+    volatile int pendingOppositeFrom;
     volatile bool capturingKey;
 
     // A song is either a note-based Score (MIDI/MusicXML - has a piano roll, supports a playlist) or a
@@ -313,6 +317,8 @@ sealed class MainForm : AntdUI.Window
             MenuItem(T("Importovat stopy...", "Import stems..."), ImportStems),
             MenuItem(T("Uložit skladbu jako...", "Save song as..."), SaveCurrentSong),
             new AntdUI.ContextMenuStripItemDivider(),
+            new AntdUI.ContextMenuStripItem(T("Nedávné skladby", "Recent songs")) { Sub = BuildRecentSongItems(), Enabled = config.RecentSongs.Count > 0 },
+            new AntdUI.ContextMenuStripItem(T("Skladby ze složky", "Songs from the folder")) { Tag = (Action)(() => LoadSongsFolder()) },
             new AntdUI.ContextMenuStripItem(T("Předchozí skladba", "Previous song")) { Enabled = playlist.Count > 1, Tag = (Action)DoPreviousTrack },
             new AntdUI.ContextMenuStripItem(T("Další skladba", "Next song")) { Enabled = playlist.Count > 1, Tag = (Action)DoNextTrack },
             new AntdUI.ContextMenuStripItemDivider(),
@@ -603,7 +609,7 @@ sealed class MainForm : AntdUI.Window
         speedBox.ValueChanged += (_, _) => SetSpeed((int)Math.Round(speedBox.Value));
         speedResetButton.Click += (_, _) => SetSpeed(100);
         // Arrows step by 5 % (to the next multiple of 5, so 73 goes to 75 / 70).
-        speedArrows.Step += direction => SetSpeed(direction > 0 ? (speedSlider.Value / 5 + 1) * 5 : (speedSlider.Value + 4) / 5 * 5 - 5);
+        speedArrows.Step += StepSpeed;
         return row;
     }
 
@@ -639,16 +645,22 @@ sealed class MainForm : AntdUI.Window
         speedLabel.Text = T("Rychlost přehrávání:", "Playback speed:");
         keyLabelsBox.Text = T("Popisky kláves", "Key labels");
         metronomeBox.Text = T("Metronom", "Metronome");
-        toolTip.SetToolTip(metronomeBox, T("Klikání na každou dobu a takt předehry před začátkem (ne u stop).",
-            "A click on every beat and a bar of count-in before starting (not with stems)."));
+        toolTip.SetToolTip(metronomeBox, T("Klikání na každou dobu a takt předehry před začátkem (ne u stop). (M)",
+            "A click on every beat and a bar of count-in before starting (not with stems). (M)"));
         loopCaption.Text = T("Smyčka", "Loop");
         loopStartCaption.Text = T("od", "from");
         loopEndCaption.Text = T("do", "to");
         toolTip.SetToolTip(loopButton, T("Opakovat úsek (zapnout / vypnout). Úsek označíš tažením přes takty v notách, nebo tlačítky A a B.",
-            "Repeat a section (on / off). Pick it by dragging across bars in the sheet music, or with A and B."));
-        toolTip.SetToolTip(loopStartButton, T("Začátek smyčky = aktuální místo", "Loop start = current position"));
-        toolTip.SetToolTip(loopEndButton, T("Konec smyčky = aktuální místo", "Loop end = current position"));
-        toolTip.SetToolTip(speedResetButton, T("Vrátit na 100 %", "Reset to 100 %"));
+            "Repeat a section (on / off). Pick it by dragging across bars in the sheet music, or with A and B.") + " (L)");
+        toolTip.SetToolTip(loopStartButton, T("Začátek smyčky = aktuální místo (A)", "Loop start = current position (A)"));
+        toolTip.SetToolTip(loopEndButton, T("Konec smyčky = aktuální místo (B)", "Loop end = current position (B)"));
+        toolTip.SetToolTip(speedResetButton, T("Vrátit na 100 % (R)", "Reset to 100 % (R)"));
+        toolTip.SetToolTip(rewindButton, T("O 5 s zpět, držením dál (←)", "Back 5 s, hold to keep going (←)"));
+        toolTip.SetToolTip(forwardButton, T("O 5 s dopředu, držením dál (→)", "Forward 5 s, hold to keep going (→)"));
+        toolTip.SetToolTip(playPauseButton, T("Přehrát / pauza (mezerník)", "Play / pause (Space)"));
+        toolTip.SetToolTip(stopButton, T("Zastavit (Home)", "Stop (Home)"));
+        toolTip.SetToolTip(speedSlider, T("Rychlost přehrávání (↑ / ↓)", "Playback speed (↑ / ↓)"));
+        toolTip.SetToolTip(keyLabelsBox, T("Názvy not na všech bílých klávesách (K)", "Note names on every white key (K)"));
     }
 
     /// <summary>
@@ -853,11 +865,14 @@ sealed class MainForm : AntdUI.Window
             new AntdUI.ContextMenuStripItem(T("MIDI výstup", "MIDI output")) { Sub = deviceItems.ToArray() },
             new AntdUI.ContextMenuStripItem(T("Vstup not", "Note input")) { Sub = BuildNoteInputItems() },
             new AntdUI.ContextMenuStripItem(T("Mikrofon a citlivost...", "Microphone and sensitivity...")) { Tag = (Action)ShowMicrophoneSetup },
+            new AntdUI.ContextMenuStripItem(T("Složka se skladbami...", "Songs folder...")) { Tag = (Action)PickSongsFolder },
             new AntdUI.ContextMenuStripItem(T("Rozpoznávání akordů (doplněk)...", "Chord detection (add-on)..."))
             {
                 Checked = BasicPitchModule.IsInstalled,
                 Tag = (Action)(async () => await ChordAddonPrompt.ManageAsync(this, config, SetStatus)),
             },
+            new AntdUI.ContextMenuStripItemDivider(),
+            new AntdUI.ContextMenuStripItem(T("Klávesové zkratky... (F1)", "Keyboard shortcuts... (F1)")) { Tag = (Action)ShowShortcuts },
         ];
     }
 
@@ -1504,6 +1519,8 @@ sealed class MainForm : AntdUI.Window
         }
 
         ShowScore(score);
+        loadedSong = (score, path);
+        AddRecentSong(path);
         SetStatus(T($"Načteno: {score.Title}", $"Loaded: {score.Title}"));
     }
 
@@ -1932,6 +1949,7 @@ sealed class MainForm : AntdUI.Window
     void CancelCapture()
     {
         capturingKey = false;
+        pendingOpposite = null;
         addButton.Text = T("Přidat klávesu...", "Add key...");
     }
 
@@ -1940,6 +1958,15 @@ sealed class MainForm : AntdUI.Window
     {
         if (capturingKey)
         {
+            if (pendingOpposite is { } opposite)
+            {
+                // The rest of the burst from turning the knob the first way: wait for the other way.
+                if (key == pendingOppositeFrom)
+                    return;
+                capturingKey = false;
+                BeginInvoke(() => { CancelCapture(); Assign(key, opposite); });
+                return;
+            }
             capturingKey = false;
             BeginInvoke(() => { CancelCapture(); PickActionFor(key); });
             return;
@@ -1972,6 +1999,21 @@ sealed class MainForm : AntdUI.Window
             }
             binding.Pitch = pitch;
         }
+        Assign(key, binding);
+        // A knob: the other way of turning it gets the opposite action, without going through the list again.
+        if (picker.PairOpposite && MacroActions.Opposite(binding.Action) is { } opposite)
+        {
+            pendingOppositeFrom = key;
+            pendingOpposite = new Binding { Action = opposite, PartIndex = binding.PartIndex, PartName = binding.PartName };
+            capturingKey = true;
+            addButton.Text = T("Zrušit", "Cancel");
+            SetStatus(T($"{KeyDisplay.Describe(key)} -> {binding.Describe()}. Teď otoč kolečkem na druhou stranu: {pendingOpposite.Describe()}",
+                $"{KeyDisplay.Describe(key)} -> {binding.Describe()}. Now turn the knob the other way: {pendingOpposite.Describe()}"));
+        }
+    }
+
+    void Assign(int key, Binding binding)
+    {
         binding.Key = key;
         config.Bindings.RemoveAll(b => b.Key == key);
         config.Bindings.Add(binding);
@@ -2082,14 +2124,67 @@ sealed class MainForm : AntdUI.Window
 
     // --- Action dispatch --------------------------------------------------------------------------
 
+    /// <summary>
+    /// Runs the macro keys' actions on the UI thread, one at a time. Presses of one key that pile up meanwhile - a
+    /// knob turned fast sends a burst - are done as one action with a count, so the UI keeps up instead of seeking
+    /// and redrawing for every single step.
+    /// </summary>
     async Task ActionLoop()
     {
-        await foreach (var binding in actionQueue.Reader.ReadAllAsync())
-            Post(() => Dispatch(binding));
+        var reader = actionQueue.Reader;
+        Binding? carried = null;
+        while (true)
+        {
+            var binding = carried;
+            carried = null;
+            if (binding == null)
+            {
+                if (!await reader.WaitToReadAsync())
+                    return;
+                if (!reader.TryRead(out binding))
+                    continue;
+            }
+            int count = 1;
+            while (reader.TryRead(out var next))
+            {
+                if (next == binding)
+                    count++;
+                else
+                {
+                    carried = next;
+                    break;
+                }
+            }
+            var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var action = binding;
+            int times = count;
+            Post(() =>
+            {
+                try { Dispatch(action, times); }
+                finally { done.TrySetResult(); }
+            });
+            // An action can open a dialog and only return once it's closed; the keys answering that dialog must
+            // still get through - so don't wait for it longer than a moment.
+            await Task.WhenAny(done.Task, Task.Delay(100));
+        }
     }
 
-    void Dispatch(Binding binding)
+    Binding? lastDispatched;
+    long lastDispatchedAt;
+
+    /// <param name="count">Presses of the key in a row: how many steps for a step action; others run once.</param>
+    void Dispatch(Binding binding, int count = 1)
     {
+        bool step = MacroActions.IsStep(binding.Action);
+        // An on/off switch hit twice within a moment is a knob or a bouncing key, not a decision to switch back.
+        long now = Environment.TickCount64;
+        bool repeat = binding == lastDispatched && now - lastDispatchedAt < 150;
+        lastDispatched = binding;
+        lastDispatchedAt = now;
+        if (!step && repeat)
+            return;
+        if (DispatchMore(binding, count))
+            return;
         switch (binding.Action)
         {
             case MacroAction.PlayPause:
@@ -2098,12 +2193,7 @@ sealed class MainForm : AntdUI.Window
             case MacroAction.Stop:
                 DoStop();
                 break;
-            case MacroAction.NextTrack:
-                DoNextTrack();
-                break;
-            case MacroAction.PreviousTrack:
-                DoPreviousTrack();
-                break;
+
             case MacroAction.ToggleMutePart:
                 // Same rows as the parts panel: stems when loaded, otherwise parts.
                 int? partIndex = currentStems != null ? currentStems.ResolvePartIndex(binding) : currentScore?.ResolvePartIndex(binding);
@@ -2129,6 +2219,34 @@ sealed class MainForm : AntdUI.Window
                 break;
             case MacroAction.ToggleCreateMode:
                 ToggleCreateMode();
+                break;
+            case MacroAction.SpeedReset:
+                ResetSpeed();
+                break;
+            case MacroAction.ToggleLoop:
+                LoopToggleAction();
+                break;
+            case MacroAction.LoopStart:
+                LoopStartAction();
+                break;
+            case MacroAction.LoopEnd:
+                LoopEndAction();
+                break;
+            case MacroAction.ToggleMetronome:
+                ToggleMetronome();
+                break;
+            case MacroAction.ToggleKeyLabels:
+                ToggleKeyLabels();
+                break;
+            case MacroAction.SwitchView:
+                CycleSongView();
+                break;
+            case MacroAction.ToggleListening:
+                ToggleListening();
+                break;
+            case MacroAction.OpenSong:
+                RestoreWindow();
+                OpenSong();
                 break;
             default:
                 SetStatus(T("Akce: ", "Action: ") + binding.Describe());

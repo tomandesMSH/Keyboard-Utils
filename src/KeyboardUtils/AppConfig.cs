@@ -4,8 +4,7 @@ using System.Text.Json.Serialization;
 namespace KeyboardUtils;
 
 /// <summary>
-/// Everything a macro keyboard key can trigger. More actions (mode switches, part mutes, ...) are added
-/// as the corresponding feature lands; for now they are recognized but have no effect yet.
+/// Everything a macro keyboard key can trigger. Saved by name, so new ones can go anywhere - but keep the old names.
 /// </summary>
 enum MacroAction
 {
@@ -17,14 +16,96 @@ enum MacroAction
     ToggleLearningMode,
     ToggleCreateMode,
     PlayNote,
+    SeekBack,
+    SeekForward,
+    SpeedDown,
+    SpeedUp,
+    SpeedReset,
+    ToggleLoop,
+    LoopStart,
+    LoopEnd,
+    ToggleMetronome,
+    ToggleKeyLabels,
+    SwitchView,
+    ToggleListening,
+    OpenSong,
+    SeekBackFine,
+    SeekForwardFine,
+    ZoomIn,
+    ZoomOut,
+    KeyboardLarger,
+    KeyboardSmaller,
+    PartVolumeUp,
+    PartVolumeDown,
+    VolumeUp,
+    VolumeDown,
+    SongsFromFolder,
+    RecentSongs,
+    SaveRecording,
+    LearningModeNext,
+    LearningPartsNext,
+    LearningSpeedNext,
+    NoteInputNext,
+    ShowWindow,
+    MinimizeWindow,
+    ToggleDarkMode,
+    KeyEnter,
+    KeyEscape,
+    KeyTab,
+    KeyShiftTab,
+    KeyUp,
+    KeyDown,
+    KeyLeft,
+    KeyRight,
+    KeySpace,
 }
 
-/// <summary>What the song area shows: the falling-notes keyboard, sheet music, or both side by side.</summary>
-enum SongView
+/// <summary>How the actions behave when a key repeats fast - a knob (rotary encoder) sends a burst of one key.</summary>
+static class MacroActions
 {
-    Keyboard,
-    Sheet,
-    SheetAndKeyboard,
+    /// <summary>
+    /// Actions that move by a step: a burst of presses is done as one move by that many steps. Everything else
+    /// (on/off switches above all) runs once per burst, so a knob doesn't flip it back and forth.
+    /// </summary>
+    public static bool IsStep(MacroAction action) => action is
+        MacroAction.SeekBack or MacroAction.SeekForward or MacroAction.SeekBackFine or MacroAction.SeekForwardFine or
+        MacroAction.SpeedDown or MacroAction.SpeedUp or MacroAction.ZoomIn or MacroAction.ZoomOut or
+        MacroAction.KeyboardLarger or MacroAction.KeyboardSmaller or MacroAction.PartVolumeUp or MacroAction.PartVolumeDown or
+        MacroAction.VolumeUp or MacroAction.VolumeDown or MacroAction.NextTrack or MacroAction.PreviousTrack or
+        MacroAction.KeyTab or MacroAction.KeyShiftTab or MacroAction.KeyUp or MacroAction.KeyDown or
+        MacroAction.KeyLeft or MacroAction.KeyRight;
+
+    /// <summary>The other direction of a step action (the other way of turning a knob); null if it has none.</summary>
+    public static MacroAction? Opposite(MacroAction action) => action switch
+    {
+        MacroAction.SeekBack => MacroAction.SeekForward,
+        MacroAction.SeekForward => MacroAction.SeekBack,
+        MacroAction.SeekBackFine => MacroAction.SeekForwardFine,
+        MacroAction.SeekForwardFine => MacroAction.SeekBackFine,
+        MacroAction.SpeedDown => MacroAction.SpeedUp,
+        MacroAction.SpeedUp => MacroAction.SpeedDown,
+        MacroAction.ZoomIn => MacroAction.ZoomOut,
+        MacroAction.ZoomOut => MacroAction.ZoomIn,
+        MacroAction.KeyboardLarger => MacroAction.KeyboardSmaller,
+        MacroAction.KeyboardSmaller => MacroAction.KeyboardLarger,
+        MacroAction.PartVolumeUp => MacroAction.PartVolumeDown,
+        MacroAction.PartVolumeDown => MacroAction.PartVolumeUp,
+        MacroAction.VolumeUp => MacroAction.VolumeDown,
+        MacroAction.VolumeDown => MacroAction.VolumeUp,
+        MacroAction.NextTrack => MacroAction.PreviousTrack,
+        MacroAction.PreviousTrack => MacroAction.NextTrack,
+        MacroAction.KeyTab => MacroAction.KeyShiftTab,
+        MacroAction.KeyShiftTab => MacroAction.KeyTab,
+        MacroAction.KeyUp => MacroAction.KeyDown,
+        MacroAction.KeyDown => MacroAction.KeyUp,
+        MacroAction.KeyLeft => MacroAction.KeyRight,
+        MacroAction.KeyRight => MacroAction.KeyLeft,
+        _ => null,
+    };
+
+    /// <summary>Actions on one part of the song: offered once per part, the binding remembers which.</summary>
+    public static bool IsPerPart(MacroAction action) =>
+        action is MacroAction.ToggleMutePart or MacroAction.PartVolumeUp or MacroAction.PartVolumeDown;
 }
 
 sealed class Binding
@@ -32,7 +113,7 @@ sealed class Binding
     public int Key { get; set; }
     public MacroAction Action { get; set; }
 
-    /// <summary>Only used by <see cref="MacroAction.ToggleMutePart"/>: which part of the current song to mute.</summary>
+    /// <summary>Only used by the per-part actions (<see cref="MacroActions.IsPerPart"/>): which part of the current song.</summary>
     public int? PartIndex { get; set; }
 
     /// <summary>Remembered part name, since part order can differ between songs/imports.</summary>
@@ -50,13 +131,63 @@ sealed class Binding
         MacroAction.ToggleMutePart => PartName != null
             ? T($"Ztlumit/zapnout: {PartName}", $"Mute/unmute: {PartName}")
             : T("Ztlumit/zapnout část...", "Mute/unmute part..."),
-        MacroAction.ToggleLearningMode => T("Přepnout režim učení", "Toggle learning mode"),
-        MacroAction.ToggleCreateMode => T("Přepnout create mode", "Toggle create mode"),
+        MacroAction.PartVolumeUp => T($"Hlasitost +10 %: {PartName}", $"Volume +10 %: {PartName}"),
+        MacroAction.PartVolumeDown => T($"Hlasitost −10 %: {PartName}", $"Volume −10 %: {PartName}"),
+        MacroAction.ToggleLearningMode => T("Režim učení spustit / ukončit", "Learning mode start / end"),
+        MacroAction.ToggleCreateMode => T("Zapisovat noty spustit / ukončit", "Write notes start / end"),
         MacroAction.PlayNote => Pitch is { } pitch
             ? T($"Zahrát {NoteNames.Describe(pitch)}", $"Play {NoteNames.Describe(pitch)}")
             : T("Zahrát klávesu...", "Play note..."),
+        MacroAction.SeekBack => T("O 5 s zpět", "Back 5 s"),
+        MacroAction.SeekForward => T("O 5 s dopředu", "Forward 5 s"),
+        MacroAction.SeekBackFine => T("O 1 s zpět", "Back 1 s"),
+        MacroAction.SeekForwardFine => T("O 1 s dopředu", "Forward 1 s"),
+        MacroAction.SpeedDown => T("Pomalejší přehrávání (−5 %)", "Slower playback (−5 %)"),
+        MacroAction.SpeedUp => T("Rychlejší přehrávání (+5 %)", "Faster playback (+5 %)"),
+        MacroAction.SpeedReset => T("Rychlost zpět na 100 %", "Speed back to 100 %"),
+        MacroAction.ToggleLoop => T("Smyčka zapnout / vypnout", "Loop on / off"),
+        MacroAction.LoopStart => T("Začátek smyčky = aktuální místo", "Loop start = current position"),
+        MacroAction.LoopEnd => T("Konec smyčky = aktuální místo", "Loop end = current position"),
+        MacroAction.ToggleMetronome => T("Metronom zapnout / vypnout", "Metronome on / off"),
+        MacroAction.ToggleKeyLabels => T("Popisky kláves zapnout / vypnout", "Key labels on / off"),
+        MacroAction.SwitchView => T("Přepnout zobrazení (klávesy / noty / obojí)", "Switch the view (keyboard / sheet / both)"),
+        MacroAction.ZoomIn => T("Noty větší", "Sheet music larger"),
+        MacroAction.ZoomOut => T("Noty menší", "Sheet music smaller"),
+        MacroAction.KeyboardLarger => T("Klávesnice větší", "Keyboard larger"),
+        MacroAction.KeyboardSmaller => T("Klávesnice menší", "Keyboard smaller"),
+        MacroAction.VolumeUp => T("Hlasitost všech částí +10 %", "Volume of all parts +10 %"),
+        MacroAction.VolumeDown => T("Hlasitost všech částí −10 %", "Volume of all parts −10 %"),
+        MacroAction.ToggleListening => T("Poslouchat zapnout / vypnout", "Listen on / off"),
+        MacroAction.OpenSong => T("Otevřít skladbu (dialog)", "Open song (dialog)"),
+        MacroAction.SongsFromFolder => T("Skladby ze složky", "Songs from the folder"),
+        MacroAction.RecentSongs => T("Nedávné skladby", "Recent songs"),
+        MacroAction.SaveRecording => T("Uložit nahrávku (MIDI, bez dialogu)", "Save the recording (MIDI, no dialog)"),
+        MacroAction.LearningModeNext => T("Učení: čekat na notu / v tempu", "Learning: wait for note / in tempo"),
+        MacroAction.LearningPartsNext => T("Učení: co hraju (všechno / jednotlivé části)", "Learning: what I play (all / each part)"),
+        MacroAction.LearningSpeedNext => T("Učení: rychlost (25 / 50 / 75 / 100 %)", "Learning: speed (25 / 50 / 75 / 100 %)"),
+        MacroAction.NoteInputNext => T("Vstup not: další (mikrofon, zvuk z počítače, MIDI...)", "Note input: next (microphone, computer sound, MIDI...)"),
+        MacroAction.ShowWindow => T("Okno appky do popředí", "Bring the app window to the front"),
+        MacroAction.MinimizeWindow => T("Minimalizovat okno", "Minimize the window"),
+        MacroAction.ToggleDarkMode => T("Tmavý / světlý režim", "Dark / light mode"),
+        MacroAction.KeyEnter => T("Potvrdit (Enter)", "Confirm (Enter)"),
+        MacroAction.KeyEscape => T("Zrušit / zavřít (Esc)", "Cancel / close (Esc)"),
+        MacroAction.KeyTab => T("Další volba (Tab)", "Next option (Tab)"),
+        MacroAction.KeyShiftTab => T("Předchozí volba (Shift + Tab)", "Previous option (Shift + Tab)"),
+        MacroAction.KeyUp => T("Šipka nahoru", "Arrow up"),
+        MacroAction.KeyDown => T("Šipka dolů", "Arrow down"),
+        MacroAction.KeyLeft => T("Šipka doleva", "Arrow left"),
+        MacroAction.KeyRight => T("Šipka doprava", "Arrow right"),
+        MacroAction.KeySpace => T("Zaškrtnout / stisknout (mezerník)", "Check / press (Space)"),
         _ => Action.ToString(),
     };
+}
+
+/// <summary>What the song area shows: the falling-notes keyboard, sheet music, or both side by side.</summary>
+enum SongView
+{
+    Keyboard,
+    Sheet,
+    SheetAndKeyboard,
 }
 
 /// <summary>MIDI pitch (0-127) &lt;-&gt; scientific pitch notation (e.g. 60 -&gt; "C4").</summary>
@@ -135,6 +266,14 @@ sealed class AppConfig
 
     /// <summary>Names of the parts last practiced; matched by name against the next song (all parts if none match).</summary>
     public List<string> LearningPartNames { get; set; } = [];
+
+    /// <summary>Its songs are a playlist browsed with next / previous song - no file dialog needed.</summary>
+    public string? SongsFolder { get; set; }
+
+    /// <summary>Last opened song files, the newest first.</summary>
+    public List<string> RecentSongs { get; set; } = [];
+
+    public const int MaxRecentSongs = 10;
 
     /// <summary>Null until the user picks one on first start.</summary>
     public AppLanguage? Language { get; set; }

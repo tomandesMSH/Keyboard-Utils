@@ -59,6 +59,9 @@ sealed class LearningResultForm : AntdUI.Window
         Controls.Add(percent);
         Controls.Add(buttons);
         Controls.Add(new TitleBar(this));
+        // Enter = try again, Esc = close (also from the macro keyboard's Confirm / Cancel).
+        AcceptButton = retry;
+        CancelButton = close;
 
         retry.Click += (_, _) => { DialogResult = DialogResult.Retry; Close(); };
         close.Click += (_, _) => { DialogResult = DialogResult.OK; Close(); };

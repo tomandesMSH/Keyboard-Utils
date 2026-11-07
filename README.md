@@ -24,6 +24,9 @@ Makro klávesnice je volitelná a nic dalšího k běhu aplikace nepotřebuje �
 
 - **Otevřít skladbu...** načte MIDI (`.mid`) nebo MusicXML (`.musicxml`, `.mxl`). Vybrat můžeš víc souborů najednou,
   mezi nimi pak přepínáš v **Soubor > Předchozí skladba / Další skladba**.
+- **Složka se skladbami** (**Nastavení > Složka se skladbami...**) – všechny MIDI / MusicXML v ní (i v podsložkách)
+  jsou playlist; **Soubor > Skladby ze složky** ho načte a další / předchozí skladba jím listuje bez dialogu.
+  **Soubor > Nedávné skladby** ukáže posledních 10 otevřených.
 - **Hledat noty zdarma...** prohledá [Mutopia Project](https://www.mutopiaproject.org/) – přes 2000 skladeb (hlavně
   klasika) jako volné dílo nebo pod licencí Creative Commons. Vybranou skladbu stáhne jako MIDI a otevře; věty
   skladby jsou v seznamu (**Soubor > Předchozí / Další skladba**). U licencí CC BY uveď při sdílení autora a zdroj.
@@ -53,6 +56,31 @@ Makro klávesnice je volitelná a nic dalšího k běhu aplikace nepotřebuje �
 - **Odebrat skladbu** ji zavře (soubor na disku zůstane).
 - **Soubor > Uložit skladbu jako...** uloží skladbu jako MIDI nebo MusicXML. Skladba otevřená ze souboru si nechá
   své tempo (i jeho změny), takt a předznamenání; MusicXML vypadá stejně jako noty v appce.
+
+### Klávesové zkratky
+
+Na kartě Skladba (seznam ukáže **F1** nebo **Nastavení > Klávesové zkratky...**):
+
+| Klávesa | Akce |
+| --- | --- |
+| Mezerník | přehrát / pauza |
+| Home | zastavit (zpět na začátek) |
+| ← / → | o 5 s zpět / dopředu (se Shiftem o 1 s) |
+| ↑ / ↓ | rychlost přehrávání +5 % / −5 % |
+| R | rychlost zpět na 100 % |
+| L | smyčka zapnout / vypnout |
+| A / B | začátek / konec smyčky na aktuálním místě |
+| M | metronom |
+| K | popisky kláves |
+| V | přepnout zobrazení (klávesy / noty / obojí) |
+| F5 / F6 / F7 | režim učení / zapisovat noty / poslouchat |
+| + / − | noty větší / menší |
+| Page Up / Page Down | předchozí / další skladba (bez otevřené skladby začne ve složce se skladbami) |
+| Ctrl + R | uložit nahrávku jako MIDI bez dialogu (do `Dokumenty\Keyboard Utils\Nahrávky`) |
+| Ctrl + O / Ctrl + S | otevřít / uložit skladbu |
+| Ctrl + D | tmavý / světlý režim |
+
+Při psaní do políčka rychlosti klávesy patří políčku.
 
 ### Vstup not (co appka slyší)
 
@@ -123,8 +151,25 @@ Klávesy z ní se nedostanou do Windows, hlavní klávesnice funguje normálně.
    Když chybí driver Interception, nabídne **instalaci ovladače** (potvrdíš v UAC) a pak restart počítače.
    Ruční odinstalace: `install-interception.exe /uninstall` jako administrátor a restart.
 2. Stiskni klávesu na klávesnici, kterou chceš používat, a potvrď **Použít tuto klávesnici**.
-3. **Přidat klávesu...**, stiskni klávesu na makro klávesnici a vyber akci: přehrát / pauza, stop, další / předchozí
-   skladba, vypnout / zapnout část, zahrát notu, přepnout režim učení, přepnout zapisování not.
+3. **Přidat klávesu...**, stiskni klávesu na makro klávesnici a vyber akci. Akce jsou ve skupinách:
+   - **Přehrávání** – přehrát / pauza, stop, posun o 5 s nebo 1 s, metronom, hlasitost všech částí.
+   - **Smyčka a rychlost** – smyčka (zapnout, začátek, konec), pomalejší / rychlejší / 100 %.
+   - **Skladby** – další / předchozí, skladby ze složky, nedávné skladby, otevřít skladbu.
+   - **Učení a nahrávání** – režim učení, a bez dialogu nastavení: čekat na notu / v tempu, co hraješ
+     (všechno / jednotlivé části), rychlost; zapisovat noty, uložit nahrávku (MIDI bez dialogu), poslouchat,
+     vstup not (mikrofon → zvuk z počítače → klikání → MIDI zařízení).
+   - **Zobrazení** – přepnout zobrazení, noty a klávesnice větší / menší, popisky kláves, tmavý režim,
+     okno do popředí / minimalizovat.
+   - **Dialogy a okna** – Enter, Esc, Tab, Shift + Tab, šipky a mezerník: odpovíš na každý dialog appky bez
+     počítačové klávesnice a myši (třeba hodnocení učení: Enter = zkusit znovu, Esc = zavřít).
+   - **Části skladby** – pro každou část vypnout / zapnout a hlasitost ±10 %.
+   - **Nota** – zahrát zvolenou notu.
+
+**Kolečko** (otočné tlačítko na makro klávesnici, které při otáčení posílá jednu klávesu pořád dokola): vyber
+krokovou akci (posun, rychlost, hlasitost, velikost not, další skladba, šipky...) a nech zaškrtnuté **Kolečko:
+otočením na druhou stranu nastavit opačný směr** – pak stačí kolečkem otočit na druhou stranu a opačná akce se
+přiřadí sama. Rychlé otáčení se sečte do jednoho kroku (5 cvaknutí = posun o 25 s), při listování skladbami se
+načte až ta, na které se zastavíš. Přepínače (smyčka, metronom...) se při rychlém opakování přepnou jen jednou.
 
 Přiřazení kláves uložíš do souboru tlačítkem **Exportovat...** a načteš tlačítkem **Importovat...**
 (nahradit současné, nebo přidat ke stávajícím). Volba klávesnice se neexportuje, platí jen pro daný počítač.
