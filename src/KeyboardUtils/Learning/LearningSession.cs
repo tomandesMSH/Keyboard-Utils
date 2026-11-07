@@ -56,6 +56,9 @@ sealed class LearningSession
     readonly Action? startTempoClock;
     readonly Stopwatch elapsed = new();
     readonly double startSeconds, endSeconds;
+
+    /// <summary>How long the count-in before the first note is, in score time.</summary>
+    readonly double leadIn;
     double position;
     long lastTickTicks;
     bool tempoClockStarted;
@@ -67,16 +70,18 @@ sealed class LearningSession
     /// <param name="tempoClock">Tempo mode only: current score time of the accompaniment playback.</param>
     /// <param name="startTempoClock">Tempo mode only: starts that playback once the lead-in is over.</param>
     /// <param name="range">Only practise the notes starting in this stretch (a loop); null = the whole song.</param>
+    /// <param name="leadInSeconds">Score time before the first note (a bar of metronome count-in); null = 2 s.</param>
     public LearningSession(Score score, IReadOnlyCollection<int> practicedParts, LearningMode mode, double speed,
         bool polyphonicInput, double inputLatencySeconds, Func<double>? tempoClock = null, Action? startTempoClock = null,
-        (double Start, double End)? range = null)
+        (double Start, double End)? range = null, double? leadInSeconds = null)
     {
         Mode = mode;
         Speed = Math.Clamp(speed, 0.1, 2);
         startSeconds = range?.Start ?? 0;
         Range = range;
         // Score time runs at Speed, so this makes the lead-in the same real time at any speed.
-        position = startSeconds - LeadInSeconds * Speed;
+        leadIn = leadInSeconds ?? LeadInSeconds * Speed;
+        position = startSeconds - leadIn;
         PolyphonicInput = polyphonicInput;
         InputLatencySeconds = inputLatencySeconds;
         this.tempoClock = tempoClock;
@@ -218,7 +223,7 @@ sealed class LearningSession
     public void OnNoteOn(int pitch)
     {
         // Ignore the first half of the lead-in: whatever was still ringing when learning started.
-        if (IsFinished || Paused || position < startSeconds - LeadInSeconds * Speed / 2)
+        if (IsFinished || Paused || position < startSeconds - leadIn / 2)
             return;
         if (Mode == LearningMode.WaitForNote)
             OnNoteWait(pitch);

@@ -38,7 +38,26 @@ sealed class PlaybackEngine : IDisposable
 
     public static IReadOnlyList<string> GetOutputDeviceNames() => OutputDevice.GetAll().Select(d => d.Name).ToList();
 
-    public void Load(Score score)
+    /// <summary>
+    /// General MIDI's drum channel (10, index 9) carries the metronome; the parts use the other 15, so none of them
+    /// turns into drums.
+    /// </summary>
+    const int ClickChannel = 9;
+    const int AccentClick = 76, Click = 77; // Hi / Low Wood Block
+
+    static int ChannelOf(int partIndex) => partIndex % 15 >= ClickChannel ? partIndex % 15 + 1 : partIndex % 15;
+
+    volatile bool metronome;
+
+    /// <summary>Whether the click track is heard. It's always in the playback, so it stays exactly in time.</summary>
+    public bool Metronome
+    {
+        get => metronome;
+        set => metronome = value;
+    }
+
+    /// <param name="clickTiming">Where the metronome's beats fall: the score's own timing, or a set tempo for a recording.</param>
+    public void Load(Score score, ScoreTiming clickTiming)
     {
         playback?.Dispose();
         playback = null;
@@ -47,7 +66,7 @@ sealed class PlaybackEngine : IDisposable
         var notes = new List<Note>();
         for (int partIndex = 0; partIndex < score.Parts.Count; partIndex++)
         {
-            var channel = (FourBitNumber)(partIndex % 16);
+            var channel = (FourBitNumber)ChannelOf(partIndex);
             foreach (var note in score.Parts[partIndex].Notes)
             {
                 long time = TimeConverter.ConvertFrom(new MetricTimeSpan(TimeSpan.FromSeconds(note.StartSeconds)), TempoMap);
@@ -60,10 +79,27 @@ sealed class PlaybackEngine : IDisposable
             }
         }
 
+        // The click track: a short wood block on every beat, the higher one on the first beat of each bar.
+        double endQuarters = clickTiming.ToQuarters(score.DurationSeconds);
+        long clickLength = TimeConverter.ConvertFrom(new MetricTimeSpan(TimeSpan.FromMilliseconds(60)), TempoMap);
+        for (double q = 0; q <= endQuarters + 1e-6; q += clickTiming.ClickQuarters)
+        {
+            bool accent = Math.Abs(Math.IEEERemainder(q, clickTiming.BarQuarters)) < 1e-6;
+            long time = TimeConverter.ConvertFrom(new MetricTimeSpan(TimeSpan.FromSeconds(clickTiming.ToSeconds(q))), TempoMap);
+            notes.Add(new Note((SevenBitNumber)(accent ? AccentClick : Click), clickLength, time)
+            {
+                Channel = (FourBitNumber)ClickChannel,
+                Velocity = (SevenBitNumber)(accent ? 120 : 90),
+            });
+        }
+
         playback = outputDevice != null
             ? new Playback(notes, TempoMap, outputDevice, new PlaybackSettings())
             : new Playback(notes, TempoMap, new PlaybackSettings());
-        playback.NoteCallback = (data, _, _, _) => mutedChannels.Contains(data.Channel) ? NotePlaybackData.SkipNote : data;
+        playback.NoteCallback = (data, _, _, _) =>
+            data.Channel == ClickChannel ? (metronome ? data : NotePlaybackData.SkipNote)
+            : mutedChannels.Contains(data.Channel) ? NotePlaybackData.SkipNote
+            : data;
         // When jumping (seek), end notes left hanging and start the ones already sounding at the new spot.
         playback.TrackNotes = true;
 
@@ -75,7 +111,7 @@ sealed class PlaybackEngine : IDisposable
 
     public void SetPartMuted(int partIndex, bool muted)
     {
-        int channel = partIndex % 16;
+        int channel = ChannelOf(partIndex);
         var next = new HashSet<int>(mutedChannels);
         if (muted)
             next.Add(channel);
@@ -93,7 +129,17 @@ sealed class PlaybackEngine : IDisposable
         if (outputDevice is not { } device)
             return;
         var value = (SevenBitNumber)(int)Math.Round(Math.Clamp(volume, 0, 1) * 127);
-        device.SendEvent(new ControlChangeEvent((SevenBitNumber)7, value) { Channel = (FourBitNumber)(partIndex % 16) });
+        device.SendEvent(new ControlChangeEvent((SevenBitNumber)7, value) { Channel = (FourBitNumber)ChannelOf(partIndex) });
+    }
+
+    /// <summary>One metronome click right now (the count-in before playing). Safe to call from any thread.</summary>
+    public void PlayClick(bool accent)
+    {
+        if (outputDevice is not { } device)
+            return;
+        var note = (SevenBitNumber)(accent ? AccentClick : Click);
+        device.SendEvent(new NoteOnEvent(note, (SevenBitNumber)(accent ? 120 : 90)) { Channel = (FourBitNumber)ClickChannel });
+        _ = Task.Delay(60).ContinueWith(_ => device.SendEvent(new NoteOffEvent(note, (SevenBitNumber)0) { Channel = (FourBitNumber)ClickChannel }));
     }
 
     /// <summary>Fires a single note at the output device, independent of score playback. Fire-and-forget.</summary>

@@ -89,7 +89,11 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button speedResetButton = new() { IconSvg = Icons.Reset, IconRatio = 1.1f, Size = new Size(30, 28), Radius = 8, Margin = new Padding(0) };
     readonly ToolTip toolTip = new();
     const int MinSpeed = 25, MaxSpeed = 200;
-    readonly AntdUI.Checkbox keyLabelsBox = new() { AutoSize = true, Margin = new Padding(24, 6, 0, 0) };
+    readonly AntdUI.Checkbox keyLabelsBox = new() { AutoSize = true, Margin = new Padding(16, 6, 0, 0) };
+    readonly AntdUI.Checkbox metronomeBox = new() { AutoSize = true, Margin = new Padding(24, 6, 0, 0) };
+
+    /// <summary>The count-in running before playback (or a learning pass) starts; null when none is.</summary>
+    CancellationTokenSource? countIn;
     readonly System.Windows.Forms.Timer seekRepeatTimer = new();
     double seekRepeatStep;
 
@@ -546,7 +550,16 @@ sealed class MainForm : AntdUI.Window
         var row = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = false, Padding = new Padding(8, 6, 8, 2) };
         var loopGroup = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(14, 0, 0, 0) };
         loopGroup.Controls.AddRange([WithCaption(loopButton, loopCaption), WithCaption(loopStartButton, loopStartCaption), WithCaption(loopEndButton, loopEndCaption)]);
-        row.Controls.AddRange([WithCaption(rewindButton, rewindCaption), WithCaption(forwardButton, forwardCaption), playPauseButton, stopButton, loopGroup, speedGroup, keyLabelsBox]);
+        row.Controls.AddRange([WithCaption(rewindButton, rewindCaption), WithCaption(forwardButton, forwardCaption), playPauseButton, stopButton, loopGroup, speedGroup, metronomeBox, keyLabelsBox]);
+
+        metronomeBox.Checked = playbackEngine.Metronome = config.Metronome;
+        metronomeBox.CheckedChanged += (_, _) =>
+        {
+            if (metronomeBox.Checked == config.Metronome)
+                return;
+            playbackEngine.Metronome = config.Metronome = metronomeBox.Checked;
+            config.Save();
+        };
 
         loopButton.Margin = new Padding((loopCaption.Width - loopButton.Width) / 2, 0, 4 + (loopCaption.Width - loopButton.Width) / 2, 0);
         loopButton.Click += (_, _) => ToggleLoop();
@@ -625,6 +638,9 @@ sealed class MainForm : AntdUI.Window
     {
         speedLabel.Text = T("Rychlost přehrávání:", "Playback speed:");
         keyLabelsBox.Text = T("Popisky kláves", "Key labels");
+        metronomeBox.Text = T("Metronom", "Metronome");
+        toolTip.SetToolTip(metronomeBox, T("Klikání na každou dobu a takt předehry před začátkem (ne u stop).",
+            "A click on every beat and a bar of count-in before starting (not with stems)."));
         loopCaption.Text = T("Smyčka", "Loop");
         loopStartCaption.Text = T("od", "from");
         loopEndCaption.Text = T("do", "to");
@@ -646,6 +662,8 @@ sealed class MainForm : AntdUI.Window
         rewindButton.Enabled = forwardButton.Enabled = song && learning == null && recorder == null;
         // The loop is set up before learning starts; a running session keeps the one it started with.
         loopButton.Enabled = loopStartButton.Enabled = loopEndButton.Enabled = sheet.LoopSelectable = song && learning == null && recorder == null;
+        // The stems are audio, the clicks are MIDI: they can't be kept together.
+        metronomeBox.Enabled = !StemsPlay;
         speedSlider.Enabled = speedBox.Enabled = speedArrows.Enabled = speedResetButton.Enabled = speedLabel.Enabled = !StemsPlay && learning == null;
     }
 
@@ -727,6 +745,43 @@ sealed class MainForm : AntdUI.Window
             return;
         if (PlaybackSeconds >= range.End)
             PlaybackSeek(range.Start);
+    }
+
+    /// <summary>Where the metronome's beats are: the song's own tempo, or the recording tempo for a recording.</summary>
+    ScoreTiming ClickTiming => currentScore?.Timing ?? ScoreTiming.Constant(config.CreateTempoBpm);
+
+    bool MetronomeOn => config.Metronome && !StemsPlay;
+
+    /// <summary>A bar of clicks at the tempo found at <paramref name="atSeconds"/>, then <paramref name="then"/>.</summary>
+    void StartCountIn(double atSeconds, double speed, Action then)
+    {
+        CancelCountIn();
+        var timing = ClickTiming;
+        double interval = timing.ClickQuarters / timing.QuartersPerSecondAt(atSeconds) / speed;
+        var cts = countIn = new CancellationTokenSource();
+        _ = RunCountIn();
+        async Task RunCountIn()
+        {
+            bool done = await CountIn.Run(timing.ClicksPerBar, interval, playbackEngine.PlayClick, cts.Token);
+            if (!done || countIn != cts)
+                return;
+            countIn = null;
+            then();
+            UpdatePlayPauseButton();
+        }
+    }
+
+    void CancelCountIn()
+    {
+        countIn?.Cancel();
+        countIn = null;
+    }
+
+    /// <summary>Score time of a bar of count-in starting at <paramref name="atSeconds"/> (the learning lead-in).</summary>
+    double CountInSeconds(double atSeconds)
+    {
+        var timing = ClickTiming;
+        return timing.ClicksPerBar * timing.ClickQuarters / timing.QuartersPerSecondAt(atSeconds);
     }
 
     /// <summary>A small grey caption above a row of related controls.</summary>
@@ -837,7 +892,7 @@ sealed class MainForm : AntdUI.Window
         playbackEngine.SetOutputDevice(name);
         if (currentScore != null)
         {
-            playbackEngine.Load(currentScore);
+            playbackEngine.Load(currentScore, ClickTiming);
             playbackEngine.Speed = playbackSpeed;
         }
         SetStatus(T("MIDI výstup: ", "MIDI output: ") + (name ?? T("systémový výchozí", "system default")));
@@ -1073,10 +1128,16 @@ sealed class MainForm : AntdUI.Window
         if (source is IExpectedNotesListener listener)
             listener.CheckChords = config.LearningCheckChords;
         var range = loopOn ? LoopRange : null;
+        // In tempo, with the metronome on, the lead-in is a bar of count-in clicks, so the player comes in on time.
+        bool countInLeadIn = tempo && MetronomeOn;
+        double from = range?.Start ?? 0;
         var session = new LearningSession(score, parts, config.LearningMode, speed, source.Polyphonic, source.LatencySeconds,
             tempo ? () => PlaybackSeconds : null,
             tempo ? () => { if (range is { } r) PlaybackSeek(r.Start); PlaybackPlay(); } : null,
-            range);
+            range,
+            countInLeadIn ? CountInSeconds(from) : null);
+        if (countInLeadIn)
+            StartCountIn(from, speed, () => { });
         session.WrongKey += pitch => pianoRoll.FlashKey(pitch, 300, PianoRollControl.WrongColor);
         session.Finished += () => BeginInvoke(() =>
         {
@@ -1125,6 +1186,7 @@ sealed class MainForm : AntdUI.Window
     {
         if (learning is not { } session)
             return;
+        CancelCountIn();
         var result = session.Stop();
         learning = null;
         pianoRoll.Learning = null;
@@ -1454,7 +1516,7 @@ sealed class MainForm : AntdUI.Window
         currentScore = score;
         ClearLoop();
 
-        playbackEngine.Load(currentScore);
+        playbackEngine.Load(currentScore, ClickTiming);
         SetViewScore(currentScore);
         RebuildPartsPanel();
         playbackEngine.Speed = playbackSpeed;
@@ -1762,6 +1824,8 @@ sealed class MainForm : AntdUI.Window
         {
             bool pause = !learning.Paused;
             learning.SetPaused(pause);
+            if (pause)
+                CancelCountIn();
             // In tempo mode the accompaniment is the clock - but only once the lead-in has started it.
             if (learning.Mode == LearningMode.InTempo && !learning.InLeadIn)
             {
@@ -1770,14 +1834,19 @@ sealed class MainForm : AntdUI.Window
         }
         else if (currentScore != null || currentStems != null)
         {
-            if (PlaybackRunning)
+            if (countIn != null)
+                CancelCountIn(); // pressed again during the count-in: don't start after all
+            else if (PlaybackRunning)
                 PlaybackPause();
             else
             {
                 // With the loop on, playing starts inside it.
                 if (loopOn && LoopRange is { } range && (PlaybackSeconds < range.Start || PlaybackSeconds >= range.End))
                     PlaybackSeek(range.Start);
-                PlaybackPlay();
+                if (MetronomeOn)
+                    StartCountIn(PlaybackSeconds, playbackSpeed, PlaybackPlay);
+                else
+                    PlaybackPlay();
             }
         }
         else
@@ -1789,7 +1858,7 @@ sealed class MainForm : AntdUI.Window
 
     void UpdatePlayPauseButton()
     {
-        bool running = learning != null ? !learning.Paused : (currentScore != null || currentStems != null) && PlaybackRunning;
+        bool running = learning != null ? !learning.Paused : countIn != null || ((currentScore != null || currentStems != null) && PlaybackRunning);
         // Called every playback tick: only touch the icon when it changes (setting it re-renders the SVG).
         string icon = running ? Icons.Pause : Icons.Play;
         if (playPauseButton.IconSvg != icon)
@@ -1808,6 +1877,7 @@ sealed class MainForm : AntdUI.Window
             StopLearningMode(showResult: true);
             return;
         }
+        CancelCountIn();
         PlaybackStop();
         SetViewTime(0);
         UpdatePlayPauseButton();
