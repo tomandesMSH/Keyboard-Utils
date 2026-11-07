@@ -67,10 +67,9 @@ sealed class SheetMusicControl : Control, IThemed
     ScoreTiming timing = ScoreTiming.Constant(100);
     int measureLength = 16, measureCount;
 
-    /// <summary>The key signature (fifths), how it spells each pitch class, and what it does to each letter.</summary>
+    /// <summary>The key signature (fifths) and how it spells each pitch class.</summary>
     int keyFifths;
     (int Letter, int Alter)[] spelling = KeySignature.Spelling(0);
-    int[] keyAlters = KeySignature.LetterAlters(0);
     readonly List<StaffEvent>[] staffEvents = [[], []];
     List<StaffEvent>[] eventsByMeasure = [];
     List<SystemLine> systems = [];
@@ -188,7 +187,7 @@ sealed class SheetMusicControl : Control, IThemed
     {
         staffEvents[0].Clear();
         staffEvents[1].Clear();
-        SetKey(score == null ? 0 : score.KeyFifths ?? KeySignature.Estimate(score.Parts.SelectMany(p => p.Notes)));
+        SetKey(score == null ? 0 : KeySignature.Of(score));
         if (score == null)
         {
             measureCount = 0;
@@ -220,7 +219,6 @@ sealed class SheetMusicControl : Control, IThemed
     {
         keyFifths = Math.Clamp(fifths, -7, 7);
         spelling = KeySignature.Spelling(keyFifths);
-        keyAlters = KeySignature.LetterAlters(keyFifths);
     }
 
     int Diatonic(int pitch) => KeySignature.Diatonic(pitch, spelling[pitch % 12]);
@@ -240,8 +238,7 @@ sealed class SheetMusicControl : Control, IThemed
                 continue;
             }
 
-            // The key signature applies to every octave; an accidental overrides it on its own line until the bar line.
-            var accidentals = new Dictionary<int, int>();
+            var accidentals = new AccidentalState(keyFifths);
             foreach (var (segment, index) in inMeasure)
             {
                 var pieces = SheetQuantizer.Decompose(segment.Length);
@@ -257,12 +254,8 @@ sealed class SheetMusicControl : Control, IThemed
                     for (int k = 0; k < e.Notes.Count; k++)
                     {
                         int pitch = e.Notes[k].Pitch;
-                        var (letter, alter) = spelling[pitch % 12];
-                        int line = Diatonic(pitch);
-                        int current = accidentals.TryGetValue(line, out int set) ? set : keyAlters[letter];
-                        if (!e.TiedFromPrevious && alter != current)
-                            e.Accidentals[k] = alter > 0 ? Sharp : alter < 0 ? Flat : Natural;
-                        accidentals[line] = alter;
+                        if (accidentals.Next(pitch, e.TiedFromPrevious) is { } sign)
+                            e.Accidentals[k] = sign > 0 ? Sharp : sign < 0 ? Flat : Natural;
                     }
                     events.Add(e);
                     offset += pieces[p].Length;

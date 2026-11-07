@@ -6,15 +6,20 @@ using Melanchall.DryWetMidi.Interaction;
 namespace KeyboardUtils;
 
 /// <summary>
-/// Saves a <see cref="Score"/> as MIDI (exact timing) or MusicXML (sheet music for MuseScore). Scores only know
-/// seconds, so both need a tempo: MIDI just records it, MusicXML snaps every note to a 16th-note grid at it.
+/// Saves a <see cref="Score"/> as MIDI (exact timing) or MusicXML (sheet music for MuseScore). A song opened from a
+/// file keeps its own tempo (with its changes), time signature and key; a recording or converted audio has none, so
+/// it's written at the tempo picked when saving, in 4/4, in a key guessed from its notes. MusicXML snaps every
+/// note to a 16th-note grid - the same notes the sheet music view shows.
 /// </summary>
 static class ScoreExporter
 {
+    const int TicksPerQuarter = 480;
+
     public static string FileFilter =>
         "MIDI (*.mid)|*.mid|MusicXML (*.musicxml)|*.musicxml";
 
     /// <summary>Picks the format by extension. Throws IOException/UnauthorizedAccessException on write errors.</summary>
+    /// <param name="bpm">Tempo for a score without its own (<see cref="Score.Timing"/> null).</param>
     public static void Save(Score score, string path, int bpm)
     {
         if (Path.GetExtension(path).Equals(".mid", StringComparison.OrdinalIgnoreCase)
@@ -24,12 +29,23 @@ static class ScoreExporter
             SaveMusicXml(score, path, bpm);
     }
 
+    static ScoreTiming TimingOf(Score score, int bpm) => score.Timing ?? ScoreTiming.Constant(bpm);
+
     // --- MIDI ------------------------------------------------------------------------------------
 
     public static void SaveMidi(Score score, string path, int bpm)
     {
-        var tempoMap = TempoMap.Create(new TicksPerQuarterNoteTimeDivision(480), Tempo.FromBeatsPerMinute(bpm));
-        long Ticks(double seconds) => TimeConverter.ConvertFrom(new MetricTimeSpan(TimeSpan.FromSeconds(Math.Max(0, seconds))), tempoMap);
+        var timing = TimingOf(score, bpm);
+        long Ticks(double seconds) => (long)Math.Round(Math.Max(0, timing.ToQuarters(seconds)) * TicksPerQuarter);
+
+        TempoMap tempoMap;
+        using (var tempoManager = new TempoMapManager(new TicksPerQuarterNoteTimeDivision(TicksPerQuarter)))
+        {
+            foreach (var point in timing.Tempo)
+                tempoManager.SetTempo((long)Math.Round(point.Quarters * TicksPerQuarter), new Tempo((long)Math.Round(1_000_000 / point.QuartersPerSecond)));
+            tempoManager.SetTimeSignature(0, new TimeSignature(timing.Beats, timing.BeatType));
+            tempoMap = tempoManager.TempoMap;
+        }
 
         var chunks = new List<TrackChunk>();
         for (int i = 0; i < score.Parts.Count; i++)
@@ -52,8 +68,11 @@ static class ScoreExporter
             }
             chunks.Add(chunk);
         }
+        // The key goes in with the first track, at the very start.
+        if (chunks.Count > 0)
+            chunks[0].Events.Insert(0, new KeySignatureEvent((sbyte)KeySignature.Of(score), 0));
 
-        var file = new MidiFile(chunks) { TimeDivision = new TicksPerQuarterNoteTimeDivision(480) };
+        var file = new MidiFile(chunks) { TimeDivision = new TicksPerQuarterNoteTimeDivision(TicksPerQuarter) };
         file.ReplaceTempoMap(tempoMap);
         file.Write(path, overwriteFile: true);
     }
@@ -62,36 +81,58 @@ static class ScoreExporter
 
     const int Divisions = SheetQuantizer.Divisions;
 
-    /// <summary>4/4 time.</summary>
-    const int MeasureLength = 4 * Divisions;
-
     public static void SaveMusicXml(Score score, string path, int bpm)
     {
-        double unitsPerSecond = bpm / 60.0 * Divisions;
-        var notes = score.Parts.SelectMany((p, index) => p.Notes.Select(n => (n, index)));
-        var (treble, bass, measures, _) = SheetQuantizer.Quantize(notes, seconds => seconds * unitsPerSecond, MeasureLength);
+        var timing = TimingOf(score, bpm);
+        int measureLength = timing.MeasureSixteenths;
+        int fifths = KeySignature.Of(score);
+        var spelling = KeySignature.Spelling(fifths);
+        double ToUnits(double seconds) => timing.ToQuarters(seconds) * Divisions;
 
+        var notes = score.Parts.SelectMany((p, index) => p.Notes.Select(n => (n, index)));
+        var (treble, bass, measures, _) = SheetQuantizer.Quantize(notes, ToUnits, measureLength);
+
+        // Tempo changes, on the grid, by bar: the first one is written with the opening attributes.
+        var tempoChanges = timing.Tempo
+            .Select(p => (Units: (int)Math.Round(p.Quarters * Divisions), Bpm: Math.Round(p.QuartersPerSecond * 60, 1)))
+            .GroupBy(t => t.Units).Select(g => g.Last())
+            .ToList();
+
+        var trebleAccidentals = new AccidentalState(fifths);
+        var bassAccidentals = new AccidentalState(fifths);
         var part = new XElement("part", new XAttribute("id", "P1"));
+        double? lastBpm = null;
         for (int m = 0; m < measures; m++)
         {
             var measure = new XElement("measure", new XAttribute("number", m + 1));
             if (m == 0)
-            {
                 measure.Add(new XElement("attributes",
                     new XElement("divisions", Divisions),
-                    new XElement("key", new XElement("fifths", 0)),
-                    new XElement("time", new XElement("beats", 4), new XElement("beat-type", 4)),
+                    new XElement("key", new XElement("fifths", fifths)),
+                    new XElement("time", new XElement("beats", timing.Beats), new XElement("beat-type", timing.BeatType)),
                     new XElement("staves", 2),
                     new XElement("clef", new XAttribute("number", 1), new XElement("sign", "G"), new XElement("line", 2)),
                     new XElement("clef", new XAttribute("number", 2), new XElement("sign", "F"), new XElement("line", 4))));
-                measure.Add(new XElement("direction", new XAttribute("placement", "above"),
+
+            int measureStart = m * measureLength;
+            foreach (var (units, tempo) in tempoChanges.Where(t => (m == 0 || t.Units >= measureStart) && t.Units < measureStart + measureLength))
+            {
+                if (tempo == lastBpm)
+                    continue;
+                lastBpm = tempo;
+                var direction = new XElement("direction", new XAttribute("placement", "above"),
                     new XElement("direction-type", new XElement("metronome",
-                        new XElement("beat-unit", "quarter"), new XElement("per-minute", bpm))),
-                    new XElement("sound", new XAttribute("tempo", bpm))));
+                        new XElement("beat-unit", "quarter"), new XElement("per-minute", Math.Round(tempo)))));
+                // Where in the bar the change happens, counted from the bar's start.
+                if (units > measureStart)
+                    direction.Add(new XElement("offset", units - measureStart));
+                direction.Add(new XElement("sound", new XAttribute("tempo", tempo.ToString(System.Globalization.CultureInfo.InvariantCulture))));
+                measure.Add(direction);
             }
-            WriteMeasure(measure, treble, m, staff: 1, voice: 1);
-            measure.Add(new XElement("backup", new XElement("duration", MeasureLength)));
-            WriteMeasure(measure, bass, m, staff: 2, voice: 5);
+
+            WriteMeasure(measure, treble, m, measureLength, trebleAccidentals, spelling, staff: 1, voice: 1);
+            measure.Add(new XElement("backup", new XElement("duration", measureLength)));
+            WriteMeasure(measure, bass, m, measureLength, bassAccidentals, spelling, staff: 2, voice: 5);
             part.Add(measure);
         }
 
@@ -105,14 +146,16 @@ static class ScoreExporter
         document.Save(path);
     }
 
-    static void WriteMeasure(XElement measure, List<Segment> staffSegments, int measureIndex, int staff, int voice)
+    static void WriteMeasure(XElement measure, List<Segment> staffSegments, int measureIndex, int measureLength,
+        AccidentalState accidentals, (int Letter, int Alter)[] spelling, int staff, int voice)
     {
-        var indices = SheetQuantizer.InMeasure(staffSegments, measureIndex, MeasureLength).Select(s => s.Index).ToList();
+        var indices = SheetQuantizer.InMeasure(staffSegments, measureIndex, measureLength).Select(s => s.Index).ToList();
+        accidentals.NewBar();
 
         if (indices.All(i => staffSegments[i].IsRest))
         {
             measure.Add(new XElement("note", new XElement("rest", new XAttribute("measure", "yes")),
-                new XElement("duration", MeasureLength), new XElement("voice", voice), new XElement("staff", staff)));
+                new XElement("duration", measureLength), new XElement("voice", voice), new XElement("staff", staff)));
             return;
         }
 
@@ -128,46 +171,50 @@ static class ScoreExporter
                 var value = pieces[p];
                 if (segment.IsRest)
                 {
-                    measure.Add(NoteElement(null, chord: false, value, tieStart: false, tieStop: false, staff, voice));
+                    measure.Add(NoteElement(null, null, chord: false, value, tieStart: false, tieStop: false, staff, voice));
                     continue;
                 }
                 bool tieStop = p > 0 || continuesFromBefore;
                 bool tieStart = p < pieces.Count - 1 || continuesAfter;
                 for (int k = 0; k < segment.Notes.Count; k++)
-                    measure.Add(NoteElement(segment.Notes[k].Pitch, chord: k > 0, value, tieStart, tieStop, staff, voice));
+                {
+                    int pitch = segment.Notes[k].Pitch;
+                    int? sign = accidentals.Next(pitch, tieStop);
+                    measure.Add(NoteElement((pitch, spelling[pitch % 12]), sign, chord: k > 0, value, tieStart, tieStop, staff, voice));
+                }
             }
         }
     }
 
-    static XElement NoteElement(int? pitch, bool chord, NoteValue value, bool tieStart, bool tieStop, int staff, int voice)
+    static XElement NoteElement((int Pitch, (int Letter, int Alter) Spelled)? note, int? accidental, bool chord, NoteValue value,
+        bool tieStart, bool tieStop, int staff, int voice)
     {
         // Element order is fixed by the MusicXML schema.
-        var note = new XElement("note");
+        var element = new XElement("note");
         if (chord)
-            note.Add(new XElement("chord"));
-        if (pitch is { } p)
+            element.Add(new XElement("chord"));
+        if (note is { } n)
         {
-            var (step, alter) = SheetQuantizer.Spelling[p % 12];
-            var pitchElement = new XElement("pitch", new XElement("step", step));
-            if (alter != 0)
-                pitchElement.Add(new XElement("alter", alter));
-            pitchElement.Add(new XElement("octave", p / 12 - 1));
-            note.Add(pitchElement);
+            var pitch = new XElement("pitch", new XElement("step", KeySignature.LetterNames[n.Spelled.Letter]));
+            if (n.Spelled.Alter != 0)
+                pitch.Add(new XElement("alter", n.Spelled.Alter));
+            pitch.Add(new XElement("octave", KeySignature.Diatonic(n.Pitch, n.Spelled) / 7));
+            element.Add(pitch);
         }
         else
-            note.Add(new XElement("rest"));
-        note.Add(new XElement("duration", value.Length));
+            element.Add(new XElement("rest"));
+        element.Add(new XElement("duration", value.Length));
         if (tieStop)
-            note.Add(new XElement("tie", new XAttribute("type", "stop")));
+            element.Add(new XElement("tie", new XAttribute("type", "stop")));
         if (tieStart)
-            note.Add(new XElement("tie", new XAttribute("type", "start")));
-        note.Add(new XElement("voice", voice));
-        note.Add(new XElement("type", value.Type));
+            element.Add(new XElement("tie", new XAttribute("type", "start")));
+        element.Add(new XElement("voice", voice));
+        element.Add(new XElement("type", value.Type));
         if (value.Dotted)
-            note.Add(new XElement("dot"));
-        if (pitch is { } q && SheetQuantizer.Spelling[q % 12].Alter != 0)
-            note.Add(new XElement("accidental", "sharp"));
-        note.Add(new XElement("staff", staff));
+            element.Add(new XElement("dot"));
+        if (accidental is { } sign)
+            element.Add(new XElement("accidental", sign > 0 ? "sharp" : sign < 0 ? "flat" : "natural"));
+        element.Add(new XElement("staff", staff));
         if (tieStart || tieStop)
         {
             var notations = new XElement("notations");
@@ -175,8 +222,8 @@ static class ScoreExporter
                 notations.Add(new XElement("tied", new XAttribute("type", "stop")));
             if (tieStart)
                 notations.Add(new XElement("tied", new XAttribute("type", "start")));
-            note.Add(notations);
+            element.Add(notations);
         }
-        return note;
+        return element;
     }
 }

@@ -40,7 +40,8 @@ Makro klávesnice je volitelná a nic dalšího k běhu aplikace nepotřebuje �
   v souboru není (nebo MIDI uvádí C dur), appka ho odhadne z not. Noty jsou zarovnané na šestnáctiny (stejně jako
   export do MusicXML), takže rychlé ozdoby nebo trioly vypadají zjednodušeně.
 - **Odebrat skladbu** ji zavře (soubor na disku zůstane).
-- **Soubor > Uložit skladbu jako...** uloží skladbu jako MIDI nebo MusicXML.
+- **Soubor > Uložit skladbu jako...** uloží skladbu jako MIDI nebo MusicXML. Skladba otevřená ze souboru si nechá
+  své tempo (i jeho změny), takt a předznamenání; MusicXML vypadá stejně jako noty v appce.
 
 ### Vstup not (co appka slyší)
 

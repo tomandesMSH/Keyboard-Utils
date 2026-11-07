@@ -88,5 +88,38 @@ static class KeySignature
         return best;
     }
 
+    /// <summary>The score's key: from its file, otherwise guessed from all its notes.</summary>
+    public static int Of(Score score) => score.KeyFifths ?? Estimate(score.Parts.SelectMany(p => p.Notes));
+
+    /// <summary>Letter names, for MusicXML's &lt;step&gt;.</summary>
+    public static readonly string[] LetterNames = ["C", "D", "E", "F", "G", "A", "B"];
+
     static int Mod12(int value) => ((value % 12) + 12) % 12;
+}
+
+/// <summary>
+/// Which accidentals are in force on one staff: the key signature everywhere, plus signs written earlier in the
+/// current bar on their own line. Decides which notes need a sharp, flat or natural in front of them - the same
+/// for the sheet music view and the MusicXML export.
+/// </summary>
+sealed class AccidentalState(int fifths)
+{
+    readonly (int Letter, int Alter)[] spelling = KeySignature.Spelling(fifths);
+    readonly int[] keyAlters = KeySignature.LetterAlters(fifths);
+    readonly Dictionary<int, int> inBar = [];
+
+    public void NewBar() => inBar.Clear();
+
+    /// <summary>
+    /// The sign to write before <paramref name="pitch"/> (-1 flat, 0 natural, 1 sharp), or null when the key or the
+    /// bar already makes it right. A tied continuation never gets one.
+    /// </summary>
+    public int? Next(int pitch, bool tiedFromPrevious)
+    {
+        var spelled = spelling[pitch % 12];
+        int line = KeySignature.Diatonic(pitch, spelled);
+        int current = inBar.TryGetValue(line, out int alter) ? alter : keyAlters[spelled.Letter];
+        inBar[line] = spelled.Alter;
+        return !tiedFromPrevious && spelled.Alter != current ? spelled.Alter : null;
+    }
 }

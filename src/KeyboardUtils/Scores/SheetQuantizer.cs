@@ -31,10 +31,6 @@ static class SheetQuantizer
     /// <summary>Notes from middle C up go to the treble staff, the rest to the bass staff.</summary>
     public const int SplitPitch = 60;
 
-    /// <summary>Spelled with sharps: (letter, alteration) for each pitch class.</summary>
-    public static readonly (string Step, int Alter)[] Spelling =
-        [("C", 0), ("C", 1), ("D", 0), ("D", 1), ("E", 0), ("F", 0), ("F", 1), ("G", 0), ("G", 1), ("A", 0), ("A", 1), ("B", 0)];
-
     /// <summary>Written durations, longest first: whole, dotted half, half, dotted quarter, quarter, dotted 8th, 8th, 16th.</summary>
     static readonly NoteValue[] NoteValues =
     [
