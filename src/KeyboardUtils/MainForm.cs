@@ -57,7 +57,6 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button openSongButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly AntdUI.Button importStemsButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Button removeSongButton = new() { AutoSize = true, Radius = 8, Visible = false };
-    readonly AntdUI.Button freeScoresButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Button playPauseButton = new() { AutoSize = true, Enabled = false, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly AntdUI.Button stopButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Button previousButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
@@ -145,7 +144,7 @@ sealed class MainForm : AntdUI.Window
         var songControlsRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6) };
         songControlsRow.Controls.AddRange(
         [
-            ControlGroup(loadGroupLabel, openSongButton, freeScoresButton, importStemsButton, removeSongButton),
+            ControlGroup(loadGroupLabel, openSongButton, importStemsButton, removeSongButton),
             ControlGroup(playbackGroupLabel, previousButton, playPauseButton, stopButton, nextButton),
             ControlGroup(playingGroupLabel, listenButton, learningButton, createButton),
         ]);
@@ -204,10 +203,12 @@ sealed class MainForm : AntdUI.Window
             resumeAfterSeek = false;
         };
 
-        openSongButton.Click += (_, _) => OpenSong();
+        // Both ways of getting a song: a file you have, or a free one from the internet.
+        openSongButton.Click += (_, _) => ShowMenu(openSongButton,
+            MenuItem(T("Ze souboru (MIDI, XML)...", "From a file (MIDI, XML)..."), OpenSong),
+            MenuItem(T("Hledat noty zdarma...", "Find free sheet music..."), FindFreeScores));
         importStemsButton.Click += (_, _) => ImportStems();
         removeSongButton.Click += (_, _) => RemoveSong();
-        freeScoresButton.Click += (_, _) => FindFreeScores();
         playPauseButton.Click += (_, _) => TogglePlayPause();
         stopButton.Click += (_, _) => DoStop();
         previousButton.Click += (_, _) => DoPreviousTrack();
@@ -244,6 +245,7 @@ sealed class MainForm : AntdUI.Window
 
         fileMenuButton.Click += (_, _) => ShowMenu(fileMenuButton,
             MenuItem(T("Otevřít skladbu...", "Open song..."), OpenSong),
+            MenuItem(T("Hledat noty zdarma...", "Find free sheet music..."), FindFreeScores),
             MenuItem(T("Importovat stopy...", "Import stems..."), ImportStems),
             MenuItem(T("Uložit skladbu jako...", "Save song as..."), SaveCurrentSong),
             new AntdUI.ContextMenuStripItemDivider(),
@@ -415,10 +417,9 @@ sealed class MainForm : AntdUI.Window
         macroSetupMenuButton.Text = T("Makro klávesnice", "Macro keyboard");
         songTab.Text = T("Skladba", "Song");
         bindingsTab.Text = T("Makro klávesnice", "Macro keyboard");
-        openSongButton.Text = T("Otevřít skladbu...", "Open song...");
+        openSongButton.Text = T("Otevřít skladbu ▾", "Open song ▾");
         importStemsButton.Text = T("Importovat stopy...", "Import stems...");
         removeSongButton.Text = T("Odebrat skladbu", "Remove song");
-        freeScoresButton.Text = T("Hledat noty zdarma...", "Find free sheet music...");
         loadGroupLabel.Text = T("Načíst", "Load");
         playbackGroupLabel.Text = T("Přehrávání", "Playback");
         playingGroupLabel.Text = T("Nahrávání", "Recording");
