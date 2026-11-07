@@ -41,6 +41,7 @@ sealed partial class MainForm
             case MacroAction.SongsFromFolder: LoadSongsFolder(); break;
             case MacroAction.RecentSongs: OpenRecentSongs(0); break;
             case MacroAction.SaveRecording: SaveRecordingQuick(); break;
+            case MacroAction.ShowPracticeHistory: ShowPracticeHistory(); break;
             case MacroAction.LearningModeNext: CycleLearningMode(); break;
             case MacroAction.LearningPartsNext: CycleLearningParts(); break;
             case MacroAction.LearningSpeedNext: CycleLearningSpeed(); break;
@@ -210,6 +211,42 @@ sealed partial class MainForm
             LoadCurrentSong();
         SetStatus(T($"Nedávné skladby: {files.Count}. Další / předchozí skladba mezi nimi listuje.",
             $"Recent songs: {files.Count}. Next / previous song go through them."));
+    }
+
+    // --- Practice history ---------------------------------------------------------------------------
+
+    /// <summary>How the open song is known in the history: its file, or its title when it has none.</summary>
+    string PracticeKey() =>
+        loadedSong is { } loaded && loaded.Score == currentScore
+            ? PracticeHistory.KeyFor(loaded.Path, currentScore!.Title)
+            : PracticeHistory.KeyFor(null, currentScore?.Title ?? "");
+
+    /// <summary>Writes the session to the history once; false when nothing was played (nothing to score).</summary>
+    bool RecordPractice(LearningSession session, LearningResult result)
+    {
+        if (session.DoneNotes == 0 && !result.Completed)
+            return false;
+        if (recordedSession == session)
+            return true;
+        recordedSession = session;
+        var info = learningInfo;
+        practiceHistory.Add(PracticeKey(), new PracticeEntry(DateTime.Now, Math.Round(result.Percent, 1), result.CorrectNotes, result.TotalNotes,
+            result.WrongPresses, result.MissedNotes, Math.Round(result.Duration.TotalSeconds, 1), result.Completed, info.Mode, info.SpeedPercent,
+            info.Parts, info.Range?.Start, info.Range?.End));
+        practiceHistory.Save();
+        return true;
+    }
+
+    void ShowPracticeHistory()
+    {
+        if (currentScore == null)
+        {
+            SetStatus(T("Nejdřív otevři skladbu.", "Open a song first."));
+            return;
+        }
+        RestoreWindow();
+        using var form = new PracticeHistoryForm(currentScore.Title, practiceHistory.For(PracticeKey()));
+        form.ShowDialog(this);
     }
 
     // --- Recording ------------------------------------------------------------------------------

@@ -58,6 +58,7 @@ enum MacroAction
     KeyLeft,
     KeyRight,
     KeySpace,
+    ShowPracticeHistory,
 }
 
 /// <summary>How the actions behave when a key repeats fast - a knob (rotary encoder) sends a burst of one key.</summary>
@@ -178,6 +179,7 @@ sealed class Binding
         MacroAction.KeyLeft => T("Šipka doleva", "Arrow left"),
         MacroAction.KeyRight => T("Šipka doprava", "Arrow right"),
         MacroAction.KeySpace => T("Zaškrtnout / stisknout (mezerník)", "Check / press (Space)"),
+        MacroAction.ShowPracticeHistory => T("Historie cvičení této skladby", "Practice history of this song"),
         _ => Action.ToString(),
     };
 }
@@ -260,6 +262,9 @@ sealed class AppConfig
     public double SplitRatio { get; set; } = 0.47;
 
     public bool DarkMode { get; set; }
+
+    /// <summary>What a macro key or a shortcut did, shown big over the song for a moment.</summary>
+    public bool BigNotices { get; set; } = true;
 
     /// <summary>Tempo the recording is written in when saved - MusicXML snaps notes to 16ths at this speed.</summary>
     public int CreateTempoBpm { get; set; } = 100;

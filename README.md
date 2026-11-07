@@ -108,7 +108,9 @@ a u akordu pak stačí jedna správná nota.
 
 Klávesy, které máš zahrát, svítí světle modře. Správně zahraná nota zezelená, chyba zčervená.
 Na konci (nebo po **Ukončit učení** / **Stop**) se ukáže hodnocení: procento správných not, špatné klávesy,
-vynechané noty a čas.
+vynechané noty a čas, výsledek z minula, nejlepší výsledek a graf posledních pokusů. Každý pokus (i každé kolo
+smyčky) se ukládá do historie – **Soubor > Historie cvičení...** ukáže všechny pokusy u otevřené skladby
+(datum, %, rychlost, režim, části, úsek). Historie je v `%APPDATA%\KeyboardUtils\history.json`.
 
 ### Zapisování not
 
@@ -170,6 +172,9 @@ krokovou akci (posun, rychlost, hlasitost, velikost not, další skladba, šipky
 otočením na druhou stranu nastavit opačný směr** – pak stačí kolečkem otočit na druhou stranu a opačná akce se
 přiřadí sama. Rychlé otáčení se sečte do jednoho kroku (5 cvaknutí = posun o 25 s), při listování skladbami se
 načte až ta, na které se zastavíš. Přepínače (smyčka, metronom...) se při rychlém opakování přepnou jen jednou.
+
+**Velké hlášky:** co makro klávesa nebo klávesová zkratka udělala („Rychlost přehrávání: 85 %“, „[3/12] Skladba“...),
+se na chvíli ukáže velkým písmem uprostřed okna – čitelné i od piana. Vypnout jde v **Nastavení > Velké hlášky**.
 
 Přiřazení kláves uložíš do souboru tlačítkem **Exportovat...** a načteš tlačítkem **Importovat...**
 (nahradit současné, nebo přidat ke stávajícím). Volba klávesnice se neexportuje, platí jen pro daný počítač.

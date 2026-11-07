@@ -10,6 +10,20 @@ sealed partial class MainForm : AntdUI.Window
     INoteSource? noteSource;
     LearningSession? learning;
     string learningStatus = "";
+
+    /// <summary>The big message over the song area, for what a macro key or a shortcut did.</summary>
+    readonly ToastOverlay toast = new();
+
+    /// <summary>True while a macro key's or a shortcut's action runs: its status message also shows big.</summary>
+    bool fromControl;
+
+    readonly PracticeHistory practiceHistory = PracticeHistory.Load();
+
+    /// <summary>What the running learning session practices, for its entry in the history.</summary>
+    (LearningMode Mode, int SpeedPercent, string[] Parts, (double Start, double End)? Range) learningInfo;
+
+    /// <summary>The session last written to the history - a session ends through more than one path.</summary>
+    LearningSession? recordedSession;
     NoteRecorder? recorder;
     string recordingTitle = "";
     bool resumeAfterSeek;
@@ -229,6 +243,8 @@ sealed partial class MainForm : AntdUI.Window
             config.Save();
         };
         songTab.Controls.Add(songControlsRow);
+        // Not docked: floats over the song views when shown.
+        songTab.Controls.Add(toast);
         BuildSongViews();
 
         pianoRoll.Clickable = true;
@@ -319,6 +335,7 @@ sealed partial class MainForm : AntdUI.Window
             new AntdUI.ContextMenuStripItemDivider(),
             new AntdUI.ContextMenuStripItem(T("Nedávné skladby", "Recent songs")) { Sub = BuildRecentSongItems(), Enabled = config.RecentSongs.Count > 0 },
             new AntdUI.ContextMenuStripItem(T("Skladby ze složky", "Songs from the folder")) { Tag = (Action)(() => LoadSongsFolder()) },
+            new AntdUI.ContextMenuStripItem(T("Historie cvičení...", "Practice history...")) { Enabled = currentScore != null, Tag = (Action)ShowPracticeHistory },
             new AntdUI.ContextMenuStripItem(T("Předchozí skladba", "Previous song")) { Enabled = playlist.Count > 1, Tag = (Action)DoPreviousTrack },
             new AntdUI.ContextMenuStripItem(T("Další skladba", "Next song")) { Enabled = playlist.Count > 1, Tag = (Action)DoNextTrack },
             new AntdUI.ContextMenuStripItemDivider(),
@@ -862,6 +879,11 @@ sealed partial class MainForm : AntdUI.Window
             new AntdUI.ContextMenuStripItemDivider(),
             new AntdUI.ContextMenuStripItem(T("Jazyk", "Language")) { Sub = languageItems },
             new AntdUI.ContextMenuStripItem(T("Tmavý režim", "Dark mode")) { Checked = config.DarkMode, Tag = (Action)ToggleDarkMode },
+            new AntdUI.ContextMenuStripItem(T("Velké hlášky (makro klávesy, zkratky)", "Big messages (macro keys, shortcuts)"))
+            {
+                Checked = config.BigNotices,
+                Tag = (Action)(() => { config.BigNotices = !config.BigNotices; config.Save(); }),
+            },
             new AntdUI.ContextMenuStripItem(T("MIDI výstup", "MIDI output")) { Sub = deviceItems.ToArray() },
             new AntdUI.ContextMenuStripItem(T("Vstup not", "Note input")) { Sub = BuildNoteInputItems() },
             new AntdUI.ContextMenuStripItem(T("Mikrofon a citlivost...", "Microphone and sensitivity...")) { Tag = (Action)ShowMicrophoneSetup },
@@ -1161,7 +1183,9 @@ sealed partial class MainForm : AntdUI.Window
             // A loop goes round again by itself; its result shows in the status line instead of a window.
             if (session.Range != null && loopOn)
             {
-                lastPassPercent = session.Stop().Percent;
+                var pass = session.Stop();
+                RecordPractice(session, pass);
+                lastPassPercent = pass.Percent;
                 loopPass++;
                 StartLearningMode(showSetup: false, nextPass: true);
                 return;
@@ -1170,6 +1194,9 @@ sealed partial class MainForm : AntdUI.Window
         });
         learning = session;
         learningStatus = "";
+        learningInfo = (config.LearningMode, (int)Math.Round(speed * 100), parts.Select(i => score.Parts[i].Name).ToArray(), range);
+        if (!nextPass)
+            SetStatus(T("Režim učení", "Learning mode") + (config.LearningMode == LearningMode.InTempo ? T(" - v tempu", " - in tempo") : ""));
         pianoRoll.Learning = session;
         sheet.Learning = session;
         sheet.NotesChanged();
@@ -1227,9 +1254,9 @@ sealed partial class MainForm : AntdUI.Window
         SetStatus(T("Režim učení ukončen.", "Learning mode ended."));
 
         // Nothing played yet: there's nothing to score.
-        if (!showResult || (session.DoneNotes == 0 && !result.Completed))
+        if (!RecordPractice(session, result) || !showResult)
             return;
-        using var dialog = new LearningResultForm(result, currentScore?.Title ?? "");
+        using var dialog = new LearningResultForm(result, currentScore?.Title ?? "", practiceHistory.For(PracticeKey()));
         if (dialog.ShowDialog(this) == DialogResult.Retry)
             StartLearningMode(showSetup: false);
     }
@@ -1871,6 +1898,9 @@ sealed partial class MainForm : AntdUI.Window
             return;
         }
         UpdatePlayPauseButton();
+        SetStatus(learning != null ? (learning.Paused ? T("Pauza", "Paused") : T("Pokračuje se", "Going on"))
+            : countIn != null ? T("Odpočítávání...", "Count-in...")
+            : PlaybackRunning ? T("Přehrávání", "Playing") : T("Pauza", "Paused"));
     }
 
     void UpdatePlayPauseButton()
@@ -2183,6 +2213,11 @@ sealed partial class MainForm : AntdUI.Window
         lastDispatchedAt = now;
         if (!step && repeat)
             return;
+        RunFromControl(() => DispatchAction(binding, count));
+    }
+
+    void DispatchAction(Binding binding, int count)
+    {
         if (DispatchMore(binding, count))
             return;
         switch (binding.Action)
@@ -2260,7 +2295,21 @@ sealed partial class MainForm : AntdUI.Window
             BeginInvoke(action);
     }
 
-    void SetStatus(string text) => statusLabel.Text = text;
+    void SetStatus(string text)
+    {
+        statusLabel.Text = text;
+        if (fromControl && config.BigNotices)
+            toast.ShowMessage(text);
+    }
+
+    /// <summary>Runs a macro key's or a shortcut's action, its status message shown big.</summary>
+    void RunFromControl(Action action)
+    {
+        bool outer = fromControl;
+        fromControl = true;
+        try { action(); }
+        finally { fromControl = outer; }
+    }
 
     protected override void Dispose(bool disposing)
     {

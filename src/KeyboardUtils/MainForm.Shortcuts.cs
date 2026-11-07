@@ -51,7 +51,7 @@ sealed partial class MainForm
             {
                 if (shortcut.Keys != keyData || (shortcut.SongTabOnly && tabs.SelectedTab != songTab))
                     continue;
-                shortcut.Run();
+                RunFromControl(shortcut.Run);
                 return true;
             }
         return base.ProcessCmdKey(ref msg, keyData);
