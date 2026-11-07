@@ -116,7 +116,17 @@ sealed class PlaybackEngine : IDisposable
     public void SeekTo(double seconds) =>
         playback?.MoveToTime(new MetricTimeSpan(TimeSpan.FromSeconds(Math.Max(0, seconds))));
 
-    public void Play() => playback?.Start();
+    public void Play()
+    {
+        if (playback == null)
+            return;
+        // A playback that has never run starts from the beginning, whatever MoveToTime said before: keep the spot
+        // that was moved to (a click in the sheet music, a loop start) and go back there once it's running.
+        double from = CurrentSeconds;
+        playback.Start();
+        if (from > 0 && Math.Abs(CurrentSeconds - from) > 0.05)
+            SeekTo(from);
+    }
     public void Pause() => playback?.Stop();
 
     public void Stop()

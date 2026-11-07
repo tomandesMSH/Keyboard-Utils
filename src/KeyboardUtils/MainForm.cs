@@ -64,6 +64,22 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button stopButton = TransportButton(Icons.Stop);
     readonly Label rewindCaption = TransportCaption("RW");
     readonly Label forwardCaption = TransportCaption("FF");
+
+    // Loop: a stretch of the song played (or practised) over and over. Its start (A) and end (B) are set from the
+    // transport row or by dragging across bars in the sheet music.
+    readonly AntdUI.Button loopButton = TransportButton(Icons.Loop);
+    readonly AntdUI.Button loopStartButton = LetterButton("A");
+    readonly AntdUI.Button loopEndButton = LetterButton("B");
+    // Wider than the others: "Smyčka" doesn't fit under one button; the button is centred above it.
+    readonly Label loopCaption = TransportCaption("", width: 52);
+    readonly Label loopStartCaption = TransportCaption("");
+    readonly Label loopEndCaption = TransportCaption("");
+    double? loopStart, loopEnd;
+    bool loopOn;
+
+    /// <summary>Learning a loop: which pass this is, and how the one before went.</summary>
+    int loopPass = 1;
+    double? lastPassPercent;
     readonly AntdUI.Label speedLabel = new() { AutoSize = true, Margin = new Padding(0, 6, 4, 0) };
     readonly AntdUI.Slider speedSlider = new() { MinValue = MinSpeed, MaxValue = MaxSpeed, Value = 100, Size = new Size(170, 22), Margin = new Padding(0, 4, 6, 0) };
 
@@ -149,8 +165,12 @@ sealed class MainForm : AntdUI.Window
                 TickLearning();
             else if (recorder != null)
                 TickCreateMode();
-            else if (currentScore != null)
-                SetViewTime(PlaybackSeconds);
+            else
+            {
+                KeepPlaybackInLoop();
+                if (currentScore != null)
+                    SetViewTime(PlaybackSeconds);
+            }
             UpdatePlayPauseButton();
             UpdateSaveRecordingButton();
         };
@@ -368,6 +388,11 @@ sealed class MainForm : AntdUI.Window
 
         sheet.FallbackBpm = config.CreateTempoBpm;
         sheet.Seekable = true;
+        sheet.LoopSelected += (start, end) =>
+        {
+            if (learning == null && recorder == null)
+                SetLoop(start, end);
+        };
         sheet.Seek += seconds =>
         {
             if (currentScore == null || learning != null || recorder != null)
@@ -456,6 +481,12 @@ sealed class MainForm : AntdUI.Window
         public const string FastForward = Head + "M208 272v480l304-240zM512 272v480l304-240z" + Tail;
 
         /// <summary>A circular arrow (↺): back to the default.</summary>
+        /// <summary>Two arrows chasing each other round a circle: repeat.</summary>
+        public const string Loop = Head + "M202 625L226 677L259 724L300 765L347 798L399 822L455 837L512 842L569 837L625 822L677 798L724 765L765 724L696 666L666 696L632 720L594 738L554 748L512 752L470 748L430 738L392 720L358 696L328 666L304 632L286 594z"
+            + "M822 772L827 580L638 618z"
+            + "M822 399L798 347L765 300L724 259L677 226L625 202L569 187L512 182L455 187L399 202L347 226L300 259L259 300L328 358L358 328L392 304L430 286L470 276L512 272L554 276L594 286L632 304L666 328L696 358L720 392L738 430z"
+            + "M202 252L197 444L386 406z" + Tail;
+
         public const string Reset = Head + "M455 187L399 202L347 226L300 259L259 300L226 347L202 399L187 455L182 512L187 569L202 625L226 677L259 724L300 765L347 798L399 822L455 837L512 842L569 837L625 822L677 798L724 765L765 724L798 677L822 625L837 569L842 512L837 455L822 399L798 347L765 300L688 364L711 397L728 433L739 472L742 512L739 552L728 591L711 627L688 660L660 688L627 711L591 728L552 739L512 742L472 739L433 728L397 711L364 688L336 660L313 627L296 591L285 552L282 512L285 472L296 433L313 397L336 364L364 336L397 313L433 296L472 285z"
             + "M818 255L630 217L635 409z" + Tail;
     }
@@ -470,11 +501,21 @@ sealed class MainForm : AntdUI.Window
         Margin = new Padding(0, 0, 4, 0),
     };
 
-    static Label TransportCaption(string text) => new()
+    static AntdUI.Button LetterButton(string letter) => new()
+    {
+        Text = letter,
+        Size = new Size(38, 32),
+        Radius = 8,
+        Enabled = false,
+        Margin = new Padding(0, 0, 4, 0),
+        Font = new Font("Segoe UI", 10f, FontStyle.Bold),
+    };
+
+    static Label TransportCaption(string text, int width = 38) => new()
     {
         Text = text,
         AutoSize = false,
-        Size = new Size(38, 18),
+        Size = new Size(width, 18),
         TextAlign = ContentAlignment.TopCenter,
         Margin = new Padding(0, 1, 4, 0),
         ForeColor = SystemColors.GrayText,
@@ -503,7 +544,14 @@ sealed class MainForm : AntdUI.Window
         speedControls.Controls.AddRange([speedSlider, speedResetButton]);
         speedGroup.Controls.AddRange([speedHeader, speedControls]);
         var row = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = false, Padding = new Padding(8, 6, 8, 2) };
-        row.Controls.AddRange([WithCaption(rewindButton, rewindCaption), WithCaption(forwardButton, forwardCaption), playPauseButton, stopButton, speedGroup, keyLabelsBox]);
+        var loopGroup = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(14, 0, 0, 0) };
+        loopGroup.Controls.AddRange([WithCaption(loopButton, loopCaption), WithCaption(loopStartButton, loopStartCaption), WithCaption(loopEndButton, loopEndCaption)]);
+        row.Controls.AddRange([WithCaption(rewindButton, rewindCaption), WithCaption(forwardButton, forwardCaption), playPauseButton, stopButton, loopGroup, speedGroup, keyLabelsBox]);
+
+        loopButton.Margin = new Padding((loopCaption.Width - loopButton.Width) / 2, 0, 4 + (loopCaption.Width - loopButton.Width) / 2, 0);
+        loopButton.Click += (_, _) => ToggleLoop();
+        loopStartButton.Click += (_, _) => SetLoopStart(PlaybackSeconds);
+        loopEndButton.Click += (_, _) => SetLoopEnd(PlaybackSeconds);
 
         keyLabelsBox.Checked = pianoRoll.AllKeyLabels = config.AllKeyLabels;
         keyLabelsBox.CheckedChanged += (_, _) =>
@@ -577,6 +625,13 @@ sealed class MainForm : AntdUI.Window
     {
         speedLabel.Text = T("Rychlost přehrávání:", "Playback speed:");
         keyLabelsBox.Text = T("Popisky kláves", "Key labels");
+        loopCaption.Text = T("Smyčka", "Loop");
+        loopStartCaption.Text = T("od", "from");
+        loopEndCaption.Text = T("do", "to");
+        toolTip.SetToolTip(loopButton, T("Opakovat úsek (zapnout / vypnout). Úsek označíš tažením přes takty v notách, nebo tlačítky A a B.",
+            "Repeat a section (on / off). Pick it by dragging across bars in the sheet music, or with A and B."));
+        toolTip.SetToolTip(loopStartButton, T("Začátek smyčky = aktuální místo", "Loop start = current position"));
+        toolTip.SetToolTip(loopEndButton, T("Konec smyčky = aktuální místo", "Loop end = current position"));
         toolTip.SetToolTip(speedResetButton, T("Vrátit na 100 %", "Reset to 100 %"));
     }
 
@@ -589,7 +644,89 @@ sealed class MainForm : AntdUI.Window
         bool song = currentScore != null || currentStems != null;
         playPauseButton.Enabled = stopButton.Enabled = song;
         rewindButton.Enabled = forwardButton.Enabled = song && learning == null && recorder == null;
+        // The loop is set up before learning starts; a running session keeps the one it started with.
+        loopButton.Enabled = loopStartButton.Enabled = loopEndButton.Enabled = sheet.LoopSelectable = song && learning == null && recorder == null;
         speedSlider.Enabled = speedBox.Enabled = speedArrows.Enabled = speedResetButton.Enabled = speedLabel.Enabled = !StemsPlay && learning == null;
+    }
+
+    (double Start, double End)? LoopRange => loopStart is { } start && loopEnd is { } end && end > start ? (start, end) : null;
+
+    /// <summary>Shows the loop in both views and on the loop button (highlighted while on).</summary>
+    void ApplyLoop()
+    {
+        if (LoopRange == null)
+            loopOn = false;
+        var shown = loopOn ? LoopRange : null;
+        pianoRoll.Loop = shown;
+        sheet.Loop = shown;
+        loopButton.Type = loopOn ? AntdUI.TTypeMini.Primary : AntdUI.TTypeMini.Default;
+    }
+
+    void ToggleLoop()
+    {
+        if (LoopRange is not { } range)
+        {
+            SetStatus(T("Nejdřív označ úsek: táhni přes takty v notách, nebo nastav začátek (A) a konec (B) během přehrávání.",
+                "Pick a section first: drag across bars in the sheet music, or set the start (A) and end (B) while it plays."));
+            return;
+        }
+        loopOn = !loopOn;
+        ApplyLoop();
+        SetStatus(loopOn ? T($"Smyčka zapnutá: {FormatTime(range.Start)}–{FormatTime(range.End)}", $"Loop on: {FormatTime(range.Start)}–{FormatTime(range.End)}")
+            : T("Smyčka vypnutá.", "Loop off."));
+    }
+
+    void SetLoopStart(double seconds)
+    {
+        loopStart = seconds;
+        if (loopEnd <= seconds)
+            loopEnd = null;
+        loopOn = LoopRange != null;
+        ApplyLoop();
+        SetStatus(LoopRange is { } range
+            ? T($"Smyčka: {FormatTime(range.Start)}–{FormatTime(range.End)}", $"Loop: {FormatTime(range.Start)}–{FormatTime(range.End)}")
+            : T($"Začátek smyčky: {FormatTime(seconds)}. Teď na konci úseku stiskni B.", $"Loop start: {FormatTime(seconds)}. Now press B at the end of the section."));
+    }
+
+    void SetLoopEnd(double seconds)
+    {
+        if (loopStart is not { } start || seconds <= start + 0.2)
+        {
+            SetStatus(T("Konec smyčky musí být za začátkem - nejdřív nastav začátek (A).", "The loop end must come after its start - set the start (A) first."));
+            return;
+        }
+        loopEnd = seconds;
+        loopOn = true;
+        ApplyLoop();
+        SetStatus(T($"Smyčka: {FormatTime(start)}–{FormatTime(seconds)}", $"Loop: {FormatTime(start)}–{FormatTime(seconds)}"));
+    }
+
+    void SetLoop(double start, double end)
+    {
+        loopStart = start;
+        loopEnd = end;
+        loopOn = true;
+        ApplyLoop();
+        SetStatus(T($"Smyčka: {FormatTime(start)}–{FormatTime(end)}. Vypneš ji tlačítkem Smyčka.", $"Loop: {FormatTime(start)}–{FormatTime(end)}. Turn it off with the Loop button."));
+    }
+
+    /// <summary>A new song: the old loop's times mean nothing in it.</summary>
+    void ClearLoop()
+    {
+        loopStart = loopEnd = null;
+        loopOn = false;
+        ApplyLoop();
+    }
+
+    static string FormatTime(double seconds) => TimeSpan.FromSeconds(Math.Max(0, seconds)).ToString(@"m\:ss\.f");
+
+    /// <summary>Playback reaching the loop's end goes back to its start (learning mode restarts its own pass instead).</summary>
+    void KeepPlaybackInLoop()
+    {
+        if (!loopOn || LoopRange is not { } range || learning != null || recorder != null || !PlaybackRunning)
+            return;
+        if (PlaybackSeconds >= range.End)
+            PlaybackSeek(range.Start);
     }
 
     /// <summary>A small grey caption above a row of related controls.</summary>
@@ -873,8 +1010,14 @@ sealed class MainForm : AntdUI.Window
     }
 
     /// <param name="showSetup">False when started from a macro key or "Try again": reuse the last settings.</param>
-    void StartLearningMode(bool showSetup)
+    /// <param name="nextPass">Learning a loop: the previous pass just ended, carry on with the next one.</param>
+    void StartLearningMode(bool showSetup, bool nextPass = false)
     {
+        if (!nextPass)
+        {
+            loopPass = 1;
+            lastPassPercent = null;
+        }
         if (currentScore is not { } score)
         {
             ShowModal(this, Text, T("Nejdřív otevři skladbu (MIDI nebo MusicXML).", "Open a song first (MIDI or MusicXML)."), AntdUI.TType.Info);
@@ -929,11 +1072,26 @@ sealed class MainForm : AntdUI.Window
         // Set before reading source.Polyphonic: with chord checking on, a chord needs all its notes.
         if (source is IExpectedNotesListener listener)
             listener.CheckChords = config.LearningCheckChords;
+        var range = loopOn ? LoopRange : null;
         var session = new LearningSession(score, parts, config.LearningMode, speed, source.Polyphonic, source.LatencySeconds,
             tempo ? () => PlaybackSeconds : null,
-            tempo ? PlaybackPlay : null);
+            tempo ? () => { if (range is { } r) PlaybackSeek(r.Start); PlaybackPlay(); } : null,
+            range);
         session.WrongKey += pitch => pianoRoll.FlashKey(pitch, 300, PianoRollControl.WrongColor);
-        session.Finished += () => BeginInvoke(() => { if (learning == session) StopLearningMode(showResult: true); });
+        session.Finished += () => BeginInvoke(() =>
+        {
+            if (learning != session)
+                return;
+            // A loop goes round again by itself; its result shows in the status line instead of a window.
+            if (session.Range != null && loopOn)
+            {
+                lastPassPercent = session.Stop().Percent;
+                loopPass++;
+                StartLearningMode(showSetup: false, nextPass: true);
+                return;
+            }
+            StopLearningMode(showResult: true);
+        });
         learning = session;
         learningStatus = "";
         pianoRoll.Learning = session;
@@ -950,10 +1108,13 @@ sealed class MainForm : AntdUI.Window
         SetViewTime(session.Position);
         // Tell an audio source which notes to listen for now (chord checking).
         (noteSource as IExpectedNotesListener)?.SetExpectedNotes(session.ListenFor());
-        string status = session.Position < 0
+        string status = session.InLeadIn
             ? T("Připrav se...", "Get ready...")
             : T($"Učení: {session.DoneNotes}/{session.TotalNotes} not, správně {session.CorrectNotes}, špatné klávesy {session.WrongPresses}",
                 $"Learning: {session.DoneNotes}/{session.TotalNotes} notes, {session.CorrectNotes} correct, {session.WrongPresses} wrong keys");
+        if (session.Range != null)
+            status = T($"Smyčka, kolo {loopPass}", $"Loop, pass {loopPass}")
+                + (lastPassPercent is { } last ? T($" (minule {last:0} %)", $" (last {last:0} %)") : "") + " - " + status;
         if (session.Paused)
             status = T("Pozastaveno - ", "Paused - ") + status;
         if (status != learningStatus)
@@ -1291,6 +1452,7 @@ sealed class MainForm : AntdUI.Window
         stemPlaybackEngine.Stop();
         currentStems = null;
         currentScore = score;
+        ClearLoop();
 
         playbackEngine.Load(currentScore);
         SetViewScore(currentScore);
@@ -1348,6 +1510,7 @@ sealed class MainForm : AntdUI.Window
         playlistIndex = -1;
         currentScore = null;
         currentStems = stems;
+        ClearLoop();
         SetViewScore(null);
 
         RebuildPartsPanel();
@@ -1411,6 +1574,7 @@ sealed class MainForm : AntdUI.Window
         unsavedRecording = null;
         playlist = [];
         playlistIndex = -1;
+        ClearLoop();
 
         SetViewScore(null);
         RebuildPartsPanel();
@@ -1599,14 +1763,22 @@ sealed class MainForm : AntdUI.Window
             bool pause = !learning.Paused;
             learning.SetPaused(pause);
             // In tempo mode the accompaniment is the clock - but only once the lead-in has started it.
-            if (learning.Mode == LearningMode.InTempo && learning.Position >= 0)
+            if (learning.Mode == LearningMode.InTempo && !learning.InLeadIn)
             {
                 if (pause) PlaybackPause(); else PlaybackPlay();
             }
         }
         else if (currentScore != null || currentStems != null)
         {
-            if (PlaybackRunning) PlaybackPause(); else PlaybackPlay();
+            if (PlaybackRunning)
+                PlaybackPause();
+            else
+            {
+                // With the loop on, playing starts inside it.
+                if (loopOn && LoopRange is { } range && (PlaybackSeconds < range.Start || PlaybackSeconds >= range.End))
+                    PlaybackSeek(range.Start);
+                PlaybackPlay();
+            }
         }
         else
         {

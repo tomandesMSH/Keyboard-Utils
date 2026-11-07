@@ -91,6 +91,31 @@ sealed class SheetMusicControl : Control, IThemed
 
     public event Action<double>? Seek;
 
+    /// <summary>When true, dragging across bars selects them as a loop (<see cref="LoopSelected"/>).</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool LoopSelectable { get; set; }
+
+    /// <summary>Bars were dragged across: the loop's start and end, in seconds (whole bars).</summary>
+    public event Action<double, double>? LoopSelected;
+
+    /// <summary>The loop to show, in seconds; null = none.</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public (double Start, double End)? Loop
+    {
+        get => loop;
+        set
+        {
+            loop = value;
+            Invalidate();
+        }
+    }
+    (double Start, double End)? loop;
+
+    // A press on a bar: a click seeks there, a drag selects bars for a loop.
+    Point? pressPoint;
+    int pressMeasure;
+    int? dragMeasure;
+
     /// <summary>Tempo assumed for songs whose file doesn't say (recordings, converted audio).</summary>
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public int FallbackBpm { get; set; } = 100;
@@ -484,8 +509,13 @@ sealed class SheetMusicControl : Control, IThemed
             Capture = true;
             return;
         }
-        if (SecondsAt(e.Location) is { } seconds)
-            Seek?.Invoke(seconds);
+        if (MeasureAt(e.Location) is { } measure)
+        {
+            pressPoint = e.Location;
+            pressMeasure = measure;
+            dragMeasure = null;
+            Capture = true;
+        }
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
@@ -497,14 +527,52 @@ sealed class SheetMusicControl : Control, IThemed
             ScrollTo((e.Y - grab) / Math.Max(1, ClientSize.Height - thumb.Height) * (contentHeight - ClientSize.Height));
             return;
         }
-        Cursor = SecondsAt(e.Location) != null ? Cursors.Hand : Cursors.Default;
+        if (pressPoint is { } press && LoopSelectable)
+        {
+            // A few pixels of wobble is still a click.
+            if (dragMeasure == null && Math.Abs(e.X - press.X) + Math.Abs(e.Y - press.Y) < 8)
+                return;
+            var to = MeasureAt(e.Location) ?? dragMeasure ?? pressMeasure;
+            if (to != dragMeasure)
+            {
+                dragMeasure = to;
+                Invalidate();
+            }
+            return;
+        }
+        Cursor = MeasureAt(e.Location) != null ? Cursors.Hand : Cursors.Default;
     }
 
     protected override void OnMouseUp(MouseEventArgs e)
     {
         base.OnMouseUp(e);
+        if (pressPoint is { } press && thumbGrab == null)
+        {
+            if (dragMeasure is { } to)
+            {
+                int first = Math.Min(pressMeasure, to), last = Math.Max(pressMeasure, to);
+                LoopSelected?.Invoke(BarSeconds(first), BarSeconds(last + 1));
+            }
+            else if (SecondsAt(press) is { } seconds)
+                Seek?.Invoke(seconds);
+        }
+        pressPoint = null;
+        dragMeasure = null;
         thumbGrab = null;
         Capture = false;
+        Invalidate();
+    }
+
+    double BarSeconds(int measure) => timing.ToSeconds(measure * measureLength / (double)SheetQuantizer.Divisions);
+
+    /// <summary>The bar under <paramref name="p"/>, or null when it's not on one (or nothing can be done with it).</summary>
+    int? MeasureAt(Point p)
+    {
+        if ((!Seekable && !LoopSelectable) || score == null || (!Thumb.IsEmpty && p.X >= Thumb.X - 4))
+            return null;
+        float y = p.Y + scrollY;
+        var line = systems.FirstOrDefault(l => y >= l.TrebleTop - 2 * S && y <= l.BassTop + 6 * S);
+        return line?.Measures.FirstOrDefault(m => p.X >= m.X && p.X < m.X + m.Width)?.Index;
     }
 
     /// <summary>The time of the note column nearest to <paramref name="p"/>, or null when it's not on a bar.</summary>
@@ -565,6 +633,7 @@ sealed class SheetMusicControl : Control, IThemed
         using var staffPen = new Pen(AppTheme.StaffLine, Math.Max(1, 0.1f * s));
         using var barPen = new Pen(AppTheme.Ink, Math.Max(1, 0.14f * s));
 
+        DrawLoop(g, line);
         DrawPlayhead(g, line);
 
         // Staff lines, the bracket line joining the staves, bar lines.
@@ -630,18 +699,20 @@ sealed class SheetMusicControl : Control, IThemed
         DrawTies(g, line, staffTop);
     }
 
-    void DrawPlayhead(Graphics g, SystemLine line)
+    /// <summary>
+    /// Where a moment (in 16ths) is on a line: between the column that started last and the next one (or the bar
+    /// line). <paramref name="barStart"/>: a moment right on a bar line is the bar line itself, not its first note.
+    /// </summary>
+    float XAt(SystemLine line, double units, bool barStart = false)
     {
-        if (score == null || currentSeconds <= 0)
-            return;
-        double units = CurrentUnits;
-        int measureIndex = (int)Math.Floor(units / measureLength);
-        if (measureIndex < line.First || measureIndex >= line.First + line.Count)
-            return;
+        int measureIndex = Math.Clamp((int)Math.Floor(units / measureLength), line.First, line.First + line.Count - 1);
         var measure = line.Measures[measureIndex - line.First];
         double inMeasure = units - measureIndex * measureLength;
+        if (inMeasure >= measureLength)
+            return measure.X + measure.Width;
+        if (barStart && inMeasure <= 0.01)
+            return measure.X;
 
-        // Between the column that started last and the next one (or the bar line).
         float x = measure.X + 1.4f * S;
         var columns = measure.Columns;
         for (int i = 0; i < columns.Count; i++)
@@ -653,6 +724,53 @@ sealed class SheetMusicControl : Control, IThemed
             float t = (float)((inMeasure - columns[i].Offset) / Math.Max(1, nextOffset - columns[i].Offset));
             x = columns[i].X + HeadWidth / 2 + t * (nextX - columns[i].X);
         }
+        return x;
+    }
+
+    /// <summary>The loop (or the bars being dragged across) as a band behind the notes.</summary>
+    void DrawLoop(Graphics g, SystemLine line)
+    {
+        if (score == null)
+            return;
+        double lineStart = line.First * measureLength, lineEnd = (line.First + line.Count) * measureLength;
+        float top = line.TrebleTop - 1.5f * S, bottom = line.BassTop + 5.5f * S;
+        void Band(double from, double to, int alpha, bool edges)
+        {
+            if (to <= lineStart || from >= lineEnd)
+                return;
+            float x1 = from <= lineStart ? line.Measures[0].X : XAt(line, from, barStart: true);
+            float x2 = to >= lineEnd ? line.Right : XAt(line, to, barStart: true);
+            using var brush = new SolidBrush(Color.FromArgb(alpha, PianoRollControl.LoopColor));
+            g.FillRectangle(brush, x1, top, x2 - x1, bottom - top);
+            if (!edges)
+                return;
+            using var pen = new Pen(PianoRollControl.LoopColor, Math.Max(2, 0.22f * S));
+            if (from >= lineStart)
+                g.DrawLine(pen, x1, top, x1, bottom);
+            if (to <= lineEnd)
+                g.DrawLine(pen, x2, top, x2, bottom);
+        }
+
+        if (loop is { } range)
+            Band(timing.ToQuarters(range.Start) * SheetQuantizer.Divisions, timing.ToQuarters(range.End) * SheetQuantizer.Divisions,
+                AppTheme.Dark ? 34 : 40, edges: true);
+        if (dragMeasure is { } dragged)
+        {
+            int first = Math.Min(pressMeasure, dragged), last = Math.Max(pressMeasure, dragged);
+            Band(first * measureLength, (last + 1) * measureLength, AppTheme.Dark ? 60 : 70, edges: false);
+        }
+    }
+
+    void DrawPlayhead(Graphics g, SystemLine line)
+    {
+        if (score == null || currentSeconds <= 0)
+            return;
+        double units = CurrentUnits;
+        int measureIndex = (int)Math.Floor(units / measureLength);
+        if (measureIndex < line.First || measureIndex >= line.First + line.Count)
+            return;
+        var measure = line.Measures[measureIndex - line.First];
+        float x = XAt(line, units);
 
         float top = line.TrebleTop - 1.5f * S, bottom = line.BassTop + 5.5f * S;
         using var band = new SolidBrush(Color.FromArgb(AppTheme.Dark ? 40 : 28, PlayheadColor));

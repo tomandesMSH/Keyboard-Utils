@@ -32,6 +32,10 @@ Makro klávesnice je volitelná a nic dalšího k běhu aplikace nepotřebuje �
   **přehrát / pauza**, **stop** a posuvník **Rychlost přehrávání** (25–200 %). Zvuk jde na MIDI výstup zvolený
   v **Nastavení > MIDI výstup**. Se stopami jde rychlost jen 100 % (originální nahrávka zpomalit nejde).
   Zaškrtávátko **Popisky kláves** napíše název noty na každou bílou klávesu (jinak jen na C).
+- **Smyčka** – opakování úseku. Úsek označíš **tažením přes takty v notách**, nebo během přehrávání tlačítky
+  **A** (začátek = teď) a **B** (konec = teď). Tlačítkem **Smyčka** ji zapneš / vypneš. Přehrávání se na konci
+  úseku vrací na jeho začátek; v **režimu učení** cvičíš jen tenhle úsek a po každém kole začne další – výsledek
+  minulého kola je ve stavovém řádku. Úsek je v notách podbarvený a v padajících notách ohraničený čárkovanou čarou.
 - Panel **Části / nástroje** vpravo: zaškrtávátkem část vypneš, posuvníkem změníš její hlasitost.
 - V piano rollu **tažením nahoru / dolů** posouváš skladbu v čase. Klávesa se při dopadu noty rozsvítí barvou části.
   Kliknutím na klávesu ji zahraješ.

@@ -92,6 +92,21 @@ sealed class PianoRollControl : Control, IThemed
     }
     bool allKeyLabels;
 
+    /// <summary>A loop's start and end, drawn as lines across the falling notes; null = no loop.</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public (double Start, double End)? Loop
+    {
+        get => loop;
+        set
+        {
+            loop = value;
+            Invalidate();
+        }
+    }
+    (double Start, double End)? loop;
+
+    public static Color LoopColor { get; } = Color.FromArgb(255, 179, 0);
+
     public static Color CorrectColor { get; } = Color.FromArgb(52, 199, 89);
     public static Color WrongColor { get; } = Color.FromArgb(234, 67, 53);
     static Color SelectedColor { get; } = Color.FromArgb(66, 133, 244);
@@ -297,6 +312,7 @@ sealed class PianoRollControl : Control, IThemed
         if (!FillKeyboard)
         {
             DrawNotes(g, rollHeight, soundingKeys);
+            DrawLoop(g, rollHeight);
             using var nowPen = new Pen(Color.White, 2);
             g.DrawLine(nowPen, 0, rollHeight, ClientSize.Width, rollHeight);
         }
@@ -450,6 +466,27 @@ sealed class PianoRollControl : Control, IThemed
                 if (lights)
                     soundingKeys[note.Pitch] = ((SolidBrush)noteBrush).Color;
             }
+        }
+    }
+
+    /// <summary>The loop's start and end as lines where those moments are in the falling notes, with a faint band between.</summary>
+    void DrawLoop(Graphics g, float rollHeight)
+    {
+        if (loop is not { } range || RecordingView || score == null)
+            return;
+        float pixelsPerSecond = (float)(rollHeight / SecondsVisible);
+        float Y(double seconds) => rollHeight - (float)((seconds - currentSeconds) * pixelsPerSecond);
+        float top = Math.Max(0, Y(range.End)), bottom = Math.Min(rollHeight, Y(range.Start));
+        if (top >= rollHeight || bottom <= 0)
+            return;
+        using var band = new SolidBrush(Color.FromArgb(12, LoopColor));
+        g.FillRectangle(band, 0, top, ClientSize.Width, bottom - top);
+        using var pen = new Pen(LoopColor, 2) { DashStyle = DashStyle.Dash };
+        foreach (double edge in new[] { range.Start, range.End })
+        {
+            float y = Y(edge);
+            if (y >= 0 && y <= rollHeight)
+                g.DrawLine(pen, 0, y, ClientSize.Width, y);
         }
     }
 
