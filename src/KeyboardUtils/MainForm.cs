@@ -16,6 +16,9 @@ sealed class MainForm : AntdUI.Window
 
     /// <summary>The recording shown as the current song until it's saved - removing it then asks first.</summary>
     Score? unsavedRecording;
+
+    /// <summary>Stems whose notes are being converted right now, so a rebuilt parts panel still shows them as busy.</summary>
+    readonly HashSet<string> convertingTracks = [];
     readonly PlaybackEngine playbackEngine = new();
     readonly StemPlaybackEngine stemPlaybackEngine = new();
     readonly Channel<Binding> actionQueue = Channel.CreateUnbounded<Binding>(new UnboundedChannelOptions { SingleReader = true });
@@ -441,6 +444,8 @@ sealed class MainForm : AntdUI.Window
         UpdateKeyboardLabel();
         UpdateSongLabel();
         UpdatePlayPauseButton();
+        // Its header and the stems' "Notes" buttons are created with the language of the moment.
+        RebuildPartsPanel();
     }
 
     /// <summary>Brings the main window to front, restoring it first if it's minimized.</summary>
@@ -1099,13 +1104,14 @@ sealed class MainForm : AntdUI.Window
             if (currentStems != null)
             {
                 bool hasNotes = currentScore?.Parts.Any(p => p.Name == parts[i].Name) ?? false;
+                bool converting = convertingTracks.Contains(parts[i].Name);
                 var notesButton = new AntdUI.Button
                 {
-                    Text = hasNotes ? T("✓ Noty", "✓ Notes") : T("Noty", "Notes"),
+                    Text = converting ? "..." : hasNotes ? T("✓ Noty", "✓ Notes") : T("Noty", "Notes"),
                     Size = new Size(76, 26),
                     Margin = new Padding(18, 0, 0, 4),
                     Radius = 6,
-                    Enabled = !hasNotes,
+                    Enabled = !hasNotes && !converting,
                 };
                 notesButton.Click += (_, _) => ConvertStemToNotes(index, notesButton);
                 partsPanel.Controls.Add(notesButton);
@@ -1122,6 +1128,7 @@ sealed class MainForm : AntdUI.Window
         if (currentStems is not { } stems || trackIndex >= stems.Tracks.Count)
             return;
         var track = stems.Tracks[trackIndex];
+        convertingTracks.Add(track.Name);
         button.Enabled = false;
         button.Text = "...";
         SetStatus(T($"Převádím stopu {track.Name} na noty...", $"Converting track {track.Name} to notes..."));
@@ -1132,10 +1139,12 @@ sealed class MainForm : AntdUI.Window
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or System.Runtime.InteropServices.COMException or ArgumentException)
         {
+            convertingTracks.Remove(track.Name);
             ShowModal(this, Text, T("Stopu nejde převést: ", "Could not convert the track: ") + ex.Message, AntdUI.TType.Error);
             RebuildPartsPanel();
             return;
         }
+        convertingTracks.Remove(track.Name);
         // Another song may have been opened meanwhile.
         if (currentStems == stems)
             AttachStemNotes(track.Name, converted.Parts[0]);
