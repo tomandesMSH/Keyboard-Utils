@@ -57,6 +57,7 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button openSongButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly AntdUI.Button importStemsButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Button removeSongButton = new() { AutoSize = true, Radius = 8, Visible = false };
+    readonly AntdUI.Button freeScoresButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Button playPauseButton = new() { AutoSize = true, Enabled = false, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly AntdUI.Button stopButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
     readonly AntdUI.Button previousButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
@@ -144,7 +145,7 @@ sealed class MainForm : AntdUI.Window
         var songControlsRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6) };
         songControlsRow.Controls.AddRange(
         [
-            ControlGroup(loadGroupLabel, openSongButton, importStemsButton, removeSongButton),
+            ControlGroup(loadGroupLabel, openSongButton, freeScoresButton, importStemsButton, removeSongButton),
             ControlGroup(playbackGroupLabel, previousButton, playPauseButton, stopButton, nextButton),
             ControlGroup(playingGroupLabel, listenButton, learningButton, createButton),
         ]);
@@ -206,6 +207,7 @@ sealed class MainForm : AntdUI.Window
         openSongButton.Click += (_, _) => OpenSong();
         importStemsButton.Click += (_, _) => ImportStems();
         removeSongButton.Click += (_, _) => RemoveSong();
+        freeScoresButton.Click += (_, _) => FindFreeScores();
         playPauseButton.Click += (_, _) => TogglePlayPause();
         stopButton.Click += (_, _) => DoStop();
         previousButton.Click += (_, _) => DoPreviousTrack();
@@ -411,6 +413,7 @@ sealed class MainForm : AntdUI.Window
         openSongButton.Text = T("Otevřít skladbu...", "Open song...");
         importStemsButton.Text = T("Importovat stopy...", "Import stems...");
         removeSongButton.Text = T("Odebrat skladbu", "Remove song");
+        freeScoresButton.Text = T("Hledat noty zdarma...", "Find free sheet music...");
         loadGroupLabel.Text = T("Načíst", "Load");
         playbackGroupLabel.Text = T("Přehrávání", "Playback");
         playingGroupLabel.Text = T("Nahrávání", "Recording");
@@ -900,6 +903,21 @@ sealed class MainForm : AntdUI.Window
         playlist = dialog.FileNames.ToList();
         playlistIndex = 0;
         LoadCurrentSong();
+    }
+
+    /// <summary>Searches Mutopia and opens the chosen piece; a piece's movements become the playlist.</summary>
+    void FindFreeScores()
+    {
+        FinishCreateMode();
+        using var dialog = new FreeScoresForm();
+        if (dialog.ShowDialog(this) != DialogResult.OK || dialog.Files.Count == 0 || dialog.Piece is not { } piece)
+            return;
+        playlist = dialog.Files;
+        playlistIndex = 0;
+        LoadCurrentSong();
+        // CC BY needs the author credited: keep the source and license in view.
+        SetStatus($"{piece.Title} - {piece.Composer}, {piece.License} (Mutopia Project)"
+            + (dialog.Files.Count > 1 ? T($", {dialog.Files.Count} vět", $", {dialog.Files.Count} movements") : ""));
     }
 
     void LoadCurrentSong()

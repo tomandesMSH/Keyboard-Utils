@@ -24,6 +24,10 @@ Makro klávesnice je volitelná a nic dalšího k běhu aplikace nepotřebuje �
 
 - **Otevřít skladbu...** načte MIDI (`.mid`) nebo MusicXML (`.musicxml`, `.mxl`). Vybrat můžeš víc souborů najednou,
   mezi nimi pak přepínáš **<< Předchozí** / **Další >>**.
+- **Hledat noty zdarma...** prohledá [Mutopia Project](https://www.mutopiaproject.org/) – přes 2000 skladeb (hlavně
+  klasika) jako volné dílo nebo pod licencí Creative Commons. Vybranou skladbu stáhne jako MIDI a otevře; věty
+  skladby jsou v seznamu (**Předchozí** / **Další**). U licencí CC BY uveď při sdílení autora a zdroj.
+  Appka se na internet připojí jen ve chvíli, kdy hledáš.
 - **Přehrát / Pauza**, **Stop**. Zvuk jde na MIDI výstup zvolený v **Nastavení > MIDI výstup**.
 - Panel **Části / nástroje** vpravo: zaškrtávátkem část vypneš, posuvníkem změníš její hlasitost.
 - V piano rollu **tažením nahoru / dolů** posouváš skladbu v čase. Klávesa se při dopadu noty rozsvítí barvou části.
