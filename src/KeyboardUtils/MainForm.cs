@@ -64,12 +64,13 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button stopButton = TransportButton(Icons.Stop);
     readonly Label rewindCaption = TransportCaption("RW");
     readonly Label forwardCaption = TransportCaption("FF");
-    readonly AntdUI.Label speedLabel = new() { AutoSize = true, Margin = new Padding(0, 0, 0, 2) };
-    readonly AntdUI.Slider speedSlider = new() { MinValue = MinSpeed, MaxValue = MaxSpeed, Value = 100, Size = new Size(170, 22), Margin = new Padding(0, 5, 6, 0) };
+    readonly AntdUI.Label speedLabel = new() { AutoSize = true, Margin = new Padding(0, 6, 4, 0) };
+    readonly AntdUI.Slider speedSlider = new() { MinValue = MinSpeed, MaxValue = MaxSpeed, Value = 100, Size = new Size(170, 22), Margin = new Padding(0, 4, 6, 0) };
 
     /// <summary>The exact speed typed in, for when the slider is too fiddly. Takes effect on Enter or leaving the box.</summary>
-    readonly AntdUI.InputNumber speedBox = new() { Minimum = MinSpeed, Maximum = MaxSpeed, Value = 100, Size = new Size(84, 32), Margin = new Padding(0), SuffixText = "%" };
-    readonly AntdUI.Button speedResetButton = new() { IconSvg = Icons.Reset, IconRatio = 1.1f, Size = new Size(38, 32), Radius = 8, Margin = new Padding(4, 0, 0, 0) };
+    readonly AntdUI.InputNumber speedBox = new() { Minimum = MinSpeed, Maximum = MaxSpeed, Value = 100, Size = new Size(84, 30), Margin = new Padding(0), SuffixText = "%", ShowControl = false };
+    readonly SpinArrows speedArrows = new() { Size = new Size(20, 30), Margin = new Padding(1, 0, 0, 0) };
+    readonly AntdUI.Button speedResetButton = new() { IconSvg = Icons.Reset, IconRatio = 1.1f, Size = new Size(30, 28), Radius = 8, Margin = new Padding(0) };
     readonly ToolTip toolTip = new();
     const int MinSpeed = 25, MaxSpeed = 200;
     readonly System.Windows.Forms.Timer seekRepeatTimer = new();
@@ -489,9 +490,12 @@ sealed class MainForm : AntdUI.Window
         }
 
         var speedGroup = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(14, 0, 0, 0) };
+        // Compact: the label with the exact value next to it, the slider and reset button underneath.
+        var speedHeader = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0) };
+        speedHeader.Controls.AddRange([speedLabel, speedBox, speedArrows]);
         var speedControls = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0) };
-        speedControls.Controls.AddRange([speedSlider, speedBox, speedResetButton]);
-        speedGroup.Controls.AddRange([speedLabel, speedControls]);
+        speedControls.Controls.AddRange([speedSlider, speedResetButton]);
+        speedGroup.Controls.AddRange([speedHeader, speedControls]);
         var row = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = false, Padding = new Padding(8, 6, 8, 2) };
         row.Controls.AddRange([WithCaption(rewindButton, rewindCaption), WithCaption(forwardButton, forwardCaption), playPauseButton, stopButton, speedGroup]);
 
@@ -522,6 +526,8 @@ sealed class MainForm : AntdUI.Window
         speedSlider.ValueChanged += (_, _) => SetSpeed(speedSlider.Value);
         speedBox.ValueChanged += (_, _) => SetSpeed((int)Math.Round(speedBox.Value));
         speedResetButton.Click += (_, _) => SetSpeed(100);
+        // Arrows step by 5 % (to the next multiple of 5, so 73 goes to 75 / 70).
+        speedArrows.Step += direction => SetSpeed(direction > 0 ? (speedSlider.Value / 5 + 1) * 5 : (speedSlider.Value + 4) / 5 * 5 - 5);
         return row;
     }
 
@@ -567,7 +573,7 @@ sealed class MainForm : AntdUI.Window
         bool song = currentScore != null || currentStems != null;
         playPauseButton.Enabled = stopButton.Enabled = song;
         rewindButton.Enabled = forwardButton.Enabled = song && learning == null && recorder == null;
-        speedSlider.Enabled = speedBox.Enabled = speedResetButton.Enabled = speedLabel.Enabled = !StemsPlay && learning == null;
+        speedSlider.Enabled = speedBox.Enabled = speedArrows.Enabled = speedResetButton.Enabled = speedLabel.Enabled = !StemsPlay && learning == null;
     }
 
     /// <summary>A small grey caption above a row of related controls.</summary>
