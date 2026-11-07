@@ -584,6 +584,7 @@ sealed class MainForm : AntdUI.Window
             config.LearningMode = setup.SelectedMode;
             config.LearningSpeedPercent = setup.SpeedPercent;
             config.LearningAccompaniment = setup.Accompaniment;
+            config.LearningCheckChords = setup.CheckChords;
             config.LearningPartNames = parts.Select(i => score.Parts[i].Name).ToList();
             config.Save();
         }
@@ -618,6 +619,9 @@ sealed class MainForm : AntdUI.Window
             playbackEngine.Speed = speed;
         }
 
+        // Set before reading source.Polyphonic: with chord checking on, a chord needs all its notes.
+        if (source is IExpectedNotesListener listener)
+            listener.CheckChords = config.LearningCheckChords;
         var session = new LearningSession(score, parts, config.LearningMode, speed, source.Polyphonic, source.LatencySeconds,
             tempo ? () => PlaybackSeconds : null,
             tempo ? PlaybackPlay : null);
@@ -635,6 +639,8 @@ sealed class MainForm : AntdUI.Window
         var session = learning!;
         session.Tick();
         pianoRoll.SetCurrentTime(session.Position);
+        // Tell an audio source which notes to listen for now (chord checking).
+        (noteSource as IExpectedNotesListener)?.SetExpectedNotes(session.ListenFor());
         string status = session.Position < 0
             ? T("Připrav se...", "Get ready...")
             : T($"Učení: {session.DoneNotes}/{session.TotalNotes} not, správně {session.CorrectNotes}, špatné klávesy {session.WrongPresses}",
@@ -652,6 +658,11 @@ sealed class MainForm : AntdUI.Window
         var result = session.Stop();
         learning = null;
         pianoRoll.Learning = null;
+        if (noteSource is IExpectedNotesListener listener)
+        {
+            listener.SetExpectedNotes([]);
+            listener.CheckChords = false;
+        }
         partsPanel.Enabled = true;
 
         playbackEngine.Stop();

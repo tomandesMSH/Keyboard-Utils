@@ -28,6 +28,19 @@ interface INoteSource : IDisposable
 
 sealed class NoteSourceException(string message, Exception? inner = null) : Exception(message, inner);
 
+/// <summary>
+/// An audio source that can check chords: told which notes should be playing (learning mode), it reports each of
+/// them it hears, so all notes of a chord count - not just the one note a pitch tracker can pick out.
+/// </summary>
+interface IExpectedNotesListener
+{
+    /// <summary>When on, the source is <see cref="INoteSource.Polyphonic"/> and <see cref="SetExpectedNotes"/> takes effect.</summary>
+    bool CheckChords { get; set; }
+
+    /// <summary>The notes to listen for now; empty = none. Callable from the UI thread at any time.</summary>
+    void SetExpectedNotes(IEnumerable<int> notes);
+}
+
 enum NoteInputKind
 {
     Microphone,

@@ -6,10 +6,10 @@ namespace KeyboardUtils;
 
 /// <summary>
 /// Notes from whatever the computer is playing (YouTube, Spotify, another program) via WASAPI loopback of the default
-/// output device, mixed down to mono and fed to an <see cref="AudioNoteDetector"/>. Like the microphone it hears one
-/// note at a time, so it works for a solo melody but not for a full mix with chords and drums.
+/// output device, mixed down to mono and fed to an <see cref="AudioNoteDetector"/>. Like the microphone it picks out
+/// one note at a time (chords only when told which notes to expect), so it suits a solo melody, not a full mix.
 /// </summary>
-sealed class SystemAudioNoteSource : INoteSource
+sealed class SystemAudioNoteSource : INoteSource, IExpectedNotesListener
 {
     /// <summary>KSDATAFORMAT_SUBTYPE_IEEE_FLOAT - how a WAVE_FORMAT_EXTENSIBLE mix format says "32-bit float".</summary>
     static readonly Guid IeeeFloatSubFormat = new("00000003-0000-0010-8000-00aa00389b71");
@@ -22,8 +22,19 @@ sealed class SystemAudioNoteSource : INoteSource
     public SystemAudioNoteSource(double thresholdDb) => this.thresholdDb = thresholdDb;
 
     public string Name => T("Zvuk z počítače", "Computer sound");
-    public bool Polyphonic => false;
+    public bool Polyphonic => CheckChords;
     public double LatencySeconds => AudioNoteDetector.LatencySeconds;
+
+    public bool CheckChords { get; set; }
+
+    // Kept here too: the detector is only created when capture starts.
+    int[] expected = [];
+
+    public void SetExpectedNotes(IEnumerable<int> notes)
+    {
+        expected = CheckChords ? notes.ToArray() : [];
+        detector?.SetExpectedNotes(expected);
+    }
 
     public event Action<int>? NoteOn;
     public event Action<int>? NoteOff;
@@ -46,6 +57,7 @@ sealed class SystemAudioNoteSource : INoteSource
         detector = new AudioNoteDetector(format.SampleRate, thresholdDb);
         detector.NoteOn += note => NoteOn?.Invoke(note);
         detector.NoteOff += note => NoteOff?.Invoke(note);
+        detector.SetExpectedNotes(expected);
         capture.DataAvailable += (buffer, _, _, _) => OnData(buffer, format, isFloat);
         try
         {

@@ -100,6 +100,9 @@ sealed class AppConfig
     public int LearningSpeedPercent { get; set; } = 100;
     public bool LearningAccompaniment { get; set; } = true;
 
+    /// <summary>With an audio input (microphone, computer sound): require every note of a chord, checked in the spectrum.</summary>
+    public bool LearningCheckChords { get; set; } = true;
+
     /// <summary>Piano roll key width in px - the "keyboard size" slider.</summary>
     public int KeyboardKeyWidth { get; set; } = PianoRollControl.DefaultKeyWidth;
 

@@ -145,6 +145,15 @@ sealed class LearningSession
         }
     }
 
+    /// <summary>
+    /// Notes worth listening for now (chord checking). Unlike <see cref="ExpectedKeys"/> - a hint that lights up as
+    /// the notes arrive - in wait mode this is the next step straight away, since playing ahead is allowed.
+    /// </summary>
+    public IEnumerable<int> ListenFor() =>
+        Mode == LearningMode.WaitForNote && !IsFinished && currentStep < steps.Count
+            ? steps[currentStep].Notes.Where(n => marks[n] == NoteMark.Pending).Select(n => n.Pitch)
+            : ExpectedKeys();
+
     public void SetPaused(bool paused)
     {
         Paused = paused;

@@ -56,6 +56,10 @@ Tlačítkem **Poslouchat** zapneš poslouchání – znějící klávesy svítí
 - **Čekat na notu** – skladba se zastaví na další notě, dokud ji nezahraješ správně.
 - **V tempu** – skladba jede, nota se počítá, když ji zahraješ včas (±0,25 s). Ostatní části můžou hrát jako doprovod.
 
+S mikrofonem nebo zvukem z počítače je zapnutá volba **U akordů kontrolovat všechny noty**: appka ví, které noty
+mají znít, a ve zvuku ověří každou z nich – akord se počítá, až zazní celý. Kdyby některou notu neslyšela, volbu vypni
+a u akordu pak stačí jedna správná nota.
+
 Klávesy, které máš zahrát, svítí světle modře. Správně zahraná nota zezelená, chyba zčervená.
 Na konci (nebo po **Ukončit učení** / **Stop**) se ukáže hodnocení: procento správných not, špatné klávesy,
 vynechané noty a čas.
@@ -103,7 +107,8 @@ Nastavení se ukládá do `%APPDATA%\KeyboardUtils\config.json`.
 ## Poznámky
 
 - Rozpoznávání ze zvuku (mikrofon, zvuk z počítače, převod stop) slyší **jednu notu naráz**. Nejlíp funguje
-  melodie nebo basa jednoho nástroje; u akordu stačí v režimu učení zahrát jednu jeho notu, celý mix skladby nejde.
+  melodie nebo basa jednoho nástroje; celý mix skladby nejde. Výjimkou je režim učení s kontrolou akordů – tam appka
+  ví, co má znít, a akordy ověří.
 - Nejhlubší noty pod F1 (asi spodních 8 kláves) ze zvuku nerozpozná. Mikrofon má zpoždění kolem 70 ms –
   v režimu v tempu se odečítá.
 - Se stopami jede režim učení v tempu jen na 100 % – originální nahrávka zpomalit nejde.

@@ -4,7 +4,7 @@ using NAudio.Wave;
 namespace KeyboardUtils;
 
 /// <summary>Notes from an acoustic piano via the microphone (16-bit mono at 44.1 kHz into an <see cref="AudioNoteDetector"/>).</summary>
-sealed class MicrophoneNoteSource : INoteSource
+sealed class MicrophoneNoteSource : INoteSource, IExpectedNotesListener
 {
     const int SampleRate = 44100;
 
@@ -25,8 +25,12 @@ sealed class MicrophoneNoteSource : INoteSource
     }
 
     public string Name { get; }
-    public bool Polyphonic => false;
+    public bool Polyphonic => CheckChords;
     public double LatencySeconds => AudioNoteDetector.LatencySeconds;
+
+    public bool CheckChords { get; set; }
+
+    public void SetExpectedNotes(IEnumerable<int> notes) => detector.SetExpectedNotes(CheckChords ? notes : []);
 
     public event Action<int>? NoteOn;
     public event Action<int>? NoteOff;

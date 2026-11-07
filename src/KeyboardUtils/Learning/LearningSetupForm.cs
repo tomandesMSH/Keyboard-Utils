@@ -9,15 +9,18 @@ sealed class LearningSetupForm : AntdUI.Window
     readonly AntdUI.Select modeBox = new() { Size = new Size(480, 36), List = true };
     readonly AntdUI.Select speedBox = new() { Size = new Size(120, 36), List = true };
     readonly AntdUI.Checkbox accompanimentBox = new() { AutoSize = true, Margin = new Padding(0, 6, 0, 0) };
+    readonly AntdUI.Checkbox chordsBox = new() { AutoSize = true, Margin = new Padding(0, 6, 0, 0) };
     readonly AntdUI.Label micHint = new() { AutoSize = false, Size = new Size(470, 40), ForeColor = SystemColors.GrayText };
     readonly AntdUI.Button start = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly bool microphone;
+    readonly bool audioInput;
     readonly bool audioAccompaniment;
 
     public List<int> PracticedParts { get; } = [];
     public LearningMode SelectedMode => modeBox.SelectedIndex == 1 ? LearningMode.InTempo : LearningMode.WaitForNote;
     public int SpeedPercent => Speeds[Math.Max(0, speedBox.SelectedIndex)];
     public bool Accompaniment => accompanimentBox.Checked;
+    public bool CheckChords => chordsBox.Checked;
 
     /// <param name="audioAccompaniment">
     /// The song is loaded stems with notes converted from them: in tempo mode the accompaniment is the original
@@ -77,9 +80,17 @@ sealed class LearningSetupForm : AntdUI.Window
         accompanimentBox.CheckedChanged += (_, _) => UpdateState();
         layout.Controls.Add(accompanimentBox);
 
+        // Only sound-based inputs need it: MIDI and the on-screen keyboard report every key of a chord anyway.
+        microphone = config.NoteInput == NoteInputKind.Microphone;
+        audioInput = microphone || config.NoteInput == NoteInputKind.SystemAudio;
+        chordsBox.Text = T("U akordů kontrolovat všechny noty", "Check every note of a chord");
+        chordsBox.Checked = config.LearningCheckChords;
+        chordsBox.Visible = audioInput;
+        chordsBox.CheckedChanged += (_, _) => UpdateState();
+        layout.Controls.Add(chordsBox);
+
         micHint.Margin = new Padding(0, 4, 0, 0);
         layout.Controls.Add(micHint);
-        microphone = config.NoteInput == NoteInputKind.Microphone;
 
         var cancel = new AntdUI.Button { Text = T("Zrušit", "Cancel"), AutoSize = true, Radius = 8 };
         start.Text = T("Začít", "Start");
@@ -137,9 +148,11 @@ sealed class LearningSetupForm : AntdUI.Window
             : tempo && Accompaniment && microphone
                 ? T("Tip: s mikrofonem hraj doprovod do sluchátek - z reproduktorů by ho mikrofon slyšel jako tvoje noty.",
                     "Tip: with the microphone, play the accompaniment through headphones - from speakers the mic would hear it as your notes.")
-                : !microphone
+                : !audioInput
                     ? ""
-                    : T("Mikrofon slyší jen jednu notu naráz: u akordu stačí zahrát správně jednu z jeho not.",
-                        "The microphone hears one note at a time: for a chord, one right note of it is enough.");
+                    : CheckChords
+                        ? T("Akord se počítá, až zazní všechny jeho noty. Kdyby appka některou neslyšela, vypni kontrolu akordů.",
+                            "A chord counts once all its notes sound. If the app misses one, turn chord checking off.")
+                        : T("U akordu stačí zahrát správně jednu z jeho not.", "For a chord, one right note of it is enough.");
     }
 }
