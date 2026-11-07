@@ -364,6 +364,11 @@ sealed class MainForm : AntdUI.Window
             new AntdUI.ContextMenuStripItem(T("MIDI výstup", "MIDI output")) { Sub = deviceItems.ToArray() },
             new AntdUI.ContextMenuStripItem(T("Vstup not", "Note input")) { Sub = BuildNoteInputItems() },
             new AntdUI.ContextMenuStripItem(T("Mikrofon a citlivost...", "Microphone and sensitivity...")) { Tag = (Action)ShowMicrophoneSetup },
+            new AntdUI.ContextMenuStripItem(T("Rozpoznávání akordů (doplněk)...", "Chord detection (add-on)..."))
+            {
+                Checked = BasicPitchModule.IsInstalled,
+                Tag = (Action)(async () => await ChordAddonPrompt.ManageAsync(this, config, SetStatus)),
+            },
         ];
     }
 
@@ -977,7 +982,7 @@ sealed class MainForm : AntdUI.Window
         FinishCreateMode();
         // Start the pickers in the loaded stems' folder: converting one of them is a likely next step.
         string? stemsFolder = currentStems?.Tracks.FirstOrDefault() is { } track ? Path.GetDirectoryName(track.FilePath) : null;
-        using var dialog = new ImportAudioForm(stemsFolder);
+        using var dialog = new ImportAudioForm(stemsFolder, config);
         if (dialog.ShowDialog(this) != DialogResult.OK)
             return;
         if (dialog.StemsFolder is { } folder)
@@ -1164,7 +1169,9 @@ sealed class MainForm : AntdUI.Window
         Score converted;
         try
         {
-            converted = await Task.Run(() => AudioTranscriber.Transcribe(track.FilePath, null, CancellationToken.None));
+            await ChordAddonPrompt.OfferAsync(this, config, SetStatus);
+            SetStatus(T($"Převádím stopu {track.Name} na noty...", $"Converting track {track.Name} to notes..."));
+            converted = await Task.Run(() => AudioTranscriber.TranscribeBest(track.FilePath, null, CancellationToken.None));
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or System.Runtime.InteropServices.COMException or ArgumentException)
         {

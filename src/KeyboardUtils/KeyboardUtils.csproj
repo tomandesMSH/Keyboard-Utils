@@ -30,6 +30,8 @@
     <!-- Compile-time only: MacroKeyboard.dll is downloaded on demand (see Modules/), never bundled in the
          build - Private=false keeps it (and interception.dll) out of the output directory. -->
     <ProjectReference Include="..\MacroKeyboard\MacroKeyboard.csproj" Private="false" />
+    <!-- Same for the chord detection add-on (Basic Pitch + ONNX Runtime): compile-time only, downloaded on demand. -->
+    <ProjectReference Include="..\BasicPitch\BasicPitch.csproj" Private="false" />
   </ItemGroup>
 
 </Project>

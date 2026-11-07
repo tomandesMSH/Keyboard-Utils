@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <!--
+    The optional "chord detection" add-on of Keyboard Utils. Never shipped with the app itself: it's packed into a
+    zip together with ONNX Runtime and the Basic Pitch model and downloaded on demand (see KeyboardUtils/Modules).
+  -->
+  <ItemGroup>
+    <!-- PrivateAssets: Keyboard Utils references this project only to compile against it; ONNX Runtime (~12 MB)
+         must not flow into the app's output - it comes with the downloaded add-on. -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.20.1" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="model\nmp.onnx" CopyToOutputDirectory="PreserveNewest" Link="nmp.onnx" />
+    <None Include="model\LICENSE" CopyToOutputDirectory="PreserveNewest" Link="BasicPitch-LICENSE.txt" />
+    <None Include="model\NOTICE" CopyToOutputDirectory="PreserveNewest" Link="BasicPitch-NOTICE.txt" />
+  </ItemGroup>
+
+</Project>

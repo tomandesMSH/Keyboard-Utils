@@ -103,6 +103,9 @@ sealed class AppConfig
     /// <summary>With an audio input (microphone, computer sound): require every note of a chord, checked in the spectrum.</summary>
     public bool LearningCheckChords { get; set; } = true;
 
+    /// <summary>"No" to downloading the chord detection add-on: don't offer it again on every conversion.</summary>
+    public bool ChordAddonDeclined { get; set; }
+
     /// <summary>Piano roll key width in px - the "keyboard size" slider.</summary>
     public int KeyboardKeyWidth { get; set; } = PianoRollControl.DefaultKeyWidth;
 

@@ -86,6 +86,16 @@ a nahrávku uložíš jako:
 Stopy z FL Studia: **Export > WAV File > Miscellaneous > "Split mixer tracks"** vyexportuje každou stopu mixéru
 zvlášť. Odkazy, kde sehnat stopy hotových skladeb, jsou přímo v dialogu.
 
+### Doplněk: rozpoznávání akordů
+
+Bez doplňku převod zvuku na noty slyší jednu notu naráz. Volitelný doplněk – neuronová síť
+[Basic Pitch](https://github.com/spotify/basic-pitch) od Spotify (asi 5 MB ke stažení) – pozná i víc not najednou,
+třeba piano s akordy. Appka ho nabídne při prvním převodu; když odmítneš, už se neptá a doplněk stáhneš nebo
+odebereš kdykoli v **Nastavení > Rozpoznávání akordů (doplněk)...**. Ukládá se do
+`%APPDATA%\KeyboardUtils\modules\basic-pitch`.
+
+Balíček doplňku sestavíš skriptem `tools\pack-basic-pitch-module.ps1` (výstup v `artifacts\`).
+
 ### Makro klávesnice
 
 Druhou klávesnici (SayoDevice, starou klávesnici, numerický blok...) můžeš používat jako ovladač appky.
@@ -107,8 +117,8 @@ Nastavení se ukládá do `%APPDATA%\KeyboardUtils\config.json`.
 ## Poznámky
 
 - Rozpoznávání ze zvuku (mikrofon, zvuk z počítače, převod stop) slyší **jednu notu naráz**. Nejlíp funguje
-  melodie nebo basa jednoho nástroje; celý mix skladby nejde. Výjimkou je režim učení s kontrolou akordů – tam appka
-  ví, co má znít, a akordy ověří.
+  melodie nebo basa jednoho nástroje; celý mix skladby nejde. Výjimky: režim učení s kontrolou akordů (appka ví, co
+  má znít) a převod souborů s doplňkem pro akordy.
 - Nejhlubší noty pod F1 (asi spodních 8 kláves) ze zvuku nerozpozná. Mikrofon má zpoždění kolem 70 ms –
   v režimu v tempu se odečítá.
 - Se stopami jede režim učení v tempu jen na 100 % – originální nahrávka zpomalit nejde.
@@ -118,5 +128,7 @@ Nastavení se ukládá do `%APPDATA%\KeyboardUtils\config.json`.
 - Interception má 10 slotů pro klávesnice. Po mnoha odpojeních a připojeních USB přestane nové zařízení
   zachytávat, dokud nerestartuješ počítač.
 - Interception (oblitum) je pro nekomerční použití pod LGPL 3.0, viz `tools/`.
+- Doplněk pro akordy obsahuje Basic Pitch (Spotify, Apache 2.0) a ONNX Runtime (Microsoft, MIT); licence jsou
+  přiložené v balíčku doplňku.
 - Zachytávání makro klávesnice je oddělené do knihovny `src/MacroKeyboard`, kterou sdílí i
   [Soundpad Translator](https://github.com/tomandesMSH/SoundpadTranslator).

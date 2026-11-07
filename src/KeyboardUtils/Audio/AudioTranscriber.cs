@@ -3,15 +3,56 @@ using NAudio.Wave;
 namespace KeyboardUtils;
 
 /// <summary>
-/// Turns an audio file (e.g. one stem exported from FL Studio) into notes, faster than real time: the same
-/// detection as the microphone (<see cref="AudioNoteDetector"/>), fed from the file with time taken from the sample
-/// position. One note at a time, so it suits a melody or bass line, not chords or a full mix.
+/// Turns an audio file (e.g. one stem exported from FL Studio) into notes, faster than real time. With the chord
+/// detection add-on installed (<see cref="BasicPitchModule"/>) it uses Basic Pitch, which hears several notes at once;
+/// otherwise the same detection as the microphone (<see cref="AudioNoteDetector"/>), one note at a time - fine for a
+/// melody or bass line, not for chords.
 /// </summary>
 static class AudioTranscriber
 {
     public static string FileFilter =>
         T("Zvuk", "Audio") + " (*.wav;*.mp3;*.flac;*.aiff;*.aif)|*.wav;*.mp3;*.flac;*.aiff;*.aif|" +
         T("Všechny soubory", "All files") + " (*.*)|*.*";
+
+    /// <summary>
+    /// Several notes at once with the add-on when it's installed, one at a time otherwise. Throws like
+    /// <see cref="Transcribe"/>.
+    /// </summary>
+    public static Score TranscribeBest(string path, IProgress<double>? progress, CancellationToken cancel) =>
+        BasicPitchModule.IsInstalled ? TranscribePolyphonic(path, progress, cancel) : Transcribe(path, progress, cancel);
+
+    /// <summary>Basic Pitch: the file mixed to mono and resampled to its 22 050 Hz. Call only with the add-on installed.</summary>
+    static Score TranscribePolyphonic(string path, IProgress<double>? progress, CancellationToken cancel)
+    {
+        float[] mono;
+        using (var reader = new AudioFileReader(path))
+        {
+            ISampleProvider source = reader.WaveFormat.Channels > 1 ? new NAudio.Wave.SampleProviders.StereoToMonoSampleProvider(ToStereo(reader)) : reader;
+            var resampled = new NAudio.Wave.SampleProviders.WdlResamplingSampleProvider(source, BasicPitchFactory.SampleRate);
+            var all = new List<float>((int)(reader.TotalTime.TotalSeconds * BasicPitchFactory.SampleRate) + 1024);
+            var buffer = new float[16384];
+            int read;
+            while ((read = resampled.Read(buffer)) > 0)
+            {
+                cancel.ThrowIfCancellationRequested();
+                all.AddRange(buffer.AsSpan(0, read));
+                // Reading/resampling is the first fifth of the work, the model the rest.
+                progress?.Report(0.2 * reader.Position / Math.Max(1, reader.Length));
+            }
+            mono = all.ToArray();
+        }
+        var modelProgress = progress == null ? null : new Progress<double>(p => progress.Report(0.2 + 0.8 * p));
+        var notes = BasicPitchFactory.Transcribe(mono, modelProgress, cancel);
+
+        string name = Path.GetFileNameWithoutExtension(path);
+        var part = new ScorePart { Name = name };
+        part.Notes.AddRange(notes.OrderBy(n => n.StartSeconds).ThenBy(n => n.Pitch));
+        return new Score { Title = T($"Noty z {name}", $"Notes from {name}"), Parts = [part] };
+    }
+
+    /// <summary>StereoToMonoSampleProvider takes exactly two channels; more (surround) are cut to the first two.</summary>
+    static ISampleProvider ToStereo(ISampleProvider source) =>
+        source.WaveFormat.Channels == 2 ? source : new NAudio.Wave.SampleProviders.MultiplexingSampleProvider([source], 2);
 
     /// <summary>Samples fed per step - also the time resolution of the detected notes (~10 ms).</summary>
     const int ChunkFrames = 512;

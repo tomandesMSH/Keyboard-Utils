@@ -9,8 +9,9 @@ static class Program
         if (!isFirstInstance)
             return;
 
-        // Must happen before anything might touch MacroKeyboard types - see Modules/MacroKeyboardModule.cs.
+        // Must happen before anything might touch MacroKeyboard / BasicPitch types - see Modules/MacroKeyboardModule.cs.
         MacroKeyboardModule.RegisterAssemblyResolve();
+        BasicPitchModule.RegisterAssemblyResolve();
 
         Application.SetDefaultFont(new Font("Segoe UI", 9.5f));
         ApplicationConfiguration.Initialize();

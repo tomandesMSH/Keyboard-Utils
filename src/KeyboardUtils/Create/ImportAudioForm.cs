@@ -14,6 +14,7 @@ sealed class ImportAudioForm : AntdUI.Window
     readonly AntdUI.Progress progress = new() { Size = new Size(560, 14), Margin = new Padding(0, 10, 0, 0), Visible = false };
     readonly Label statusLabel = new() { AutoSize = true, Margin = new Padding(0, 6, 0, 0), ForeColor = SystemColors.GrayText, Font = new Font("Segoe UI", 9f) };
     readonly string? initialDirectory;
+    readonly AppConfig config;
     CancellationTokenSource? running;
 
     /// <summary>"As accompaniment": the chosen folder of tracks, once the dialog closed with OK.</summary>
@@ -26,9 +27,11 @@ sealed class ImportAudioForm : AntdUI.Window
     public string? FilePath { get; private set; }
 
     /// <param name="initialDirectory">Where the pickers start, e.g. the folder of the loaded stems.</param>
-    public ImportAudioForm(string? initialDirectory)
+    /// <param name="config">For offering the chord detection add-on (and remembering a "no").</param>
+    public ImportAudioForm(string? initialDirectory, AppConfig config)
     {
         this.initialDirectory = initialDirectory;
+        this.config = config;
         Text = T("Importovat stopy", "Import stems");
         Icon = AppIcon.Icon;
         StartPosition = FormStartPosition.CenterParent;
@@ -60,10 +63,10 @@ sealed class ImportAudioForm : AntdUI.Window
             "Pick an audio file and the app finds the notes in it. The result opens as a new song - play it, practise it in "
             + "learning mode or save it as MIDI / MusicXML (File > Save song as...).")));
         layout.Controls.Add(Paragraph(T(
-            "Rozpozná jednu notu naráz: nejlíp funguje stopa s jedním nástrojem a melodií (zpěv, sólo, basa). "
-            + "Akordy jen částečně, celý mix skladby ne.",
-            "It hears one note at a time: a track with a single instrument playing a melody works best (vocals, a solo, "
-            + "bass). Chords only partly, a full song mix not at all."), gray: true));
+            "Bez doplňku rozpozná jednu notu naráz (nejlíp stopa s melodií - zpěv, sólo, basa). S doplňkem pro rozpoznávání "
+            + "akordů (nabídne se ke stažení) pozná i víc not najednou, třeba piano s akordy. Celý mix skladby ale spolehlivě ne.",
+            "Without the add-on it hears one note at a time (best: a track with a melody - vocals, a solo, bass). With the "
+            + "chord detection add-on (offered for download) it hears several notes at once, e.g. piano with chords. A full song mix still not reliably."), gray: true));
         notesButton.Text = T("Vybrat zvukový soubor...", "Choose audio file...");
         notesButton.Margin = new Padding(0, 6, 0, 0);
         layout.Controls.Add(notesButton);
@@ -131,13 +134,14 @@ sealed class ImportAudioForm : AntdUI.Window
         running = new CancellationTokenSource();
         var cancel = running.Token;
         accompanimentButton.Enabled = notesButton.Enabled = false;
+        await ChordAddonPrompt.OfferAsync(this, config, s => statusLabel.Text = s);
         progress.Value = 0;
         progress.Visible = true;
         statusLabel.Text = T($"Převádím {Path.GetFileName(path)}...", $"Converting {Path.GetFileName(path)}...");
         var report = new Progress<double>(p => progress.Value = (float)p);
         try
         {
-            var score = await Task.Run(() => AudioTranscriber.Transcribe(path, report, cancel), cancel);
+            var score = await Task.Run(() => AudioTranscriber.TranscribeBest(path, report, cancel), cancel);
             int count = score.Parts.Sum(p => p.Notes.Count);
             if (count == 0)
             {
