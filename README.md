@@ -36,8 +36,9 @@ Makro klávesnice je volitelná a nic dalšího k běhu aplikace nepotřebuje �
 - Přepínač **Klávesy / Noty / Noty + klávesy** vybere, co se ukáže: padající noty, notový zápis (klavírní dvojosnova),
   nebo obojí vedle sebe (dělítko jde přetáhnout). V notách se modře posouvá aktuální takt, znějící noty mají barvu
   své části a v režimu učení zezelenají / zčervenají. Kliknutím na takt na něj skladbu posuneš, kolečkem myši
-  posouváš noty, **Ctrl + kolečko** je zvětší / zmenší. Noty jsou zarovnané na šestnáctiny (stejně jako export do
-  MusicXML), takže rychlé ozdoby nebo trioly vypadají zjednodušeně.
+  posouváš noty, **Ctrl + kolečko** je zvětší / zmenší. Předznamenání se vezme z MusicXML / MIDI souboru; když
+  v souboru není (nebo MIDI uvádí C dur), appka ho odhadne z not. Noty jsou zarovnané na šestnáctiny (stejně jako
+  export do MusicXML), takže rychlé ozdoby nebo trioly vypadají zjednodušeně.
 - **Odebrat skladbu** ji zavře (soubor na disku zůstane).
 - **Soubor > Uložit skladbu jako...** uloží skladbu jako MIDI nebo MusicXML.
 

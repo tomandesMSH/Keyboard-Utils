@@ -16,8 +16,15 @@ sealed class SheetMusicControl : Control, IThemed
 
     static Color PlayheadColor => Color.FromArgb(66, 133, 244);
 
-    /// <summary>Letter (C = 0 ... B = 6) of each pitch class, spelled with sharps.</summary>
-    static readonly int[] LetterOf = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
+    /// <summary>Accidental signs, as stored in <see cref="StaffEvent.Accidentals"/>.</summary>
+    const int Sharp = 1, Natural = 2, Flat = 3;
+
+    /// <summary>
+    /// Where the key signature's sharps and flats sit on the treble staff (staff steps, 0 = bottom line), in the
+    /// order they're added; the bass staff has them two steps lower.
+    /// </summary>
+    static readonly int[] SharpSteps = [8, 5, 9, 6, 3, 7, 4];
+    static readonly int[] FlatSteps = [4, 7, 3, 6, 2, 5, 1];
 
     /// <summary>The note on the bottom line of each staff, as a diatonic step: E4 (treble) and G2 (bass).</summary>
     static readonly int[] BottomLine = [4 * 7 + 2, 2 * 7 + 4];
@@ -29,7 +36,7 @@ sealed class SheetMusicControl : Control, IThemed
         public readonly IReadOnlyList<SheetNote> Notes = notes;
         public bool TiedFromPrevious, TiedToNext, WholeMeasureRest;
 
-        /// <summary>Per note: 0 = none, 1 = sharp, 2 = natural.</summary>
+        /// <summary>Per note: 0 = none, or <see cref="Sharp"/>, <see cref="Natural"/>, <see cref="Flat"/>.</summary>
         public readonly int[] Accidentals = new int[notes.Count];
 
         /// <summary>Notes beamed together share a group; null = on its own (flag or no flag).</summary>
@@ -59,6 +66,11 @@ sealed class SheetMusicControl : Control, IThemed
     Score? score;
     ScoreTiming timing = ScoreTiming.Constant(100);
     int measureLength = 16, measureCount;
+
+    /// <summary>The key signature (fifths), how it spells each pitch class, and what it does to each letter.</summary>
+    int keyFifths;
+    (int Letter, int Alter)[] spelling = KeySignature.Spelling(0);
+    int[] keyAlters = KeySignature.LetterAlters(0);
     readonly List<StaffEvent>[] staffEvents = [[], []];
     List<StaffEvent>[] eventsByMeasure = [];
     List<SystemLine> systems = [];
@@ -176,6 +188,7 @@ sealed class SheetMusicControl : Control, IThemed
     {
         staffEvents[0].Clear();
         staffEvents[1].Clear();
+        SetKey(score == null ? 0 : score.KeyFifths ?? KeySignature.Estimate(score.Parts.SelectMany(p => p.Notes)));
         if (score == null)
         {
             measureCount = 0;
@@ -203,10 +216,17 @@ sealed class SheetMusicControl : Control, IThemed
     /// <summary>Muting a part or starting learning changes which notes are written.</summary>
     public void NotesChanged() => Rebuild();
 
-    static int Diatonic(int pitch) => (pitch / 12 - 1) * 7 + LetterOf[pitch % 12];
+    void SetKey(int fifths)
+    {
+        keyFifths = Math.Clamp(fifths, -7, 7);
+        spelling = KeySignature.Spelling(keyFifths);
+        keyAlters = KeySignature.LetterAlters(keyFifths);
+    }
+
+    int Diatonic(int pitch) => KeySignature.Diatonic(pitch, spelling[pitch % 12]);
 
     /// <summary>Staff position: 0 = bottom line, 1 = the space above it, ..., 8 = top line.</summary>
-    static int StepOf(int pitch, int staff) => Diatonic(pitch) - BottomLine[staff];
+    int StepOf(int pitch, int staff) => Diatonic(pitch) - BottomLine[staff];
 
     void BuildEvents(int staff, List<Segment> segments)
     {
@@ -220,7 +240,7 @@ sealed class SheetMusicControl : Control, IThemed
                 continue;
             }
 
-            // An accidental holds until the bar line; a later natural note on that line needs a natural sign.
+            // The key signature applies to every octave; an accidental overrides it on its own line until the bar line.
             var accidentals = new Dictionary<int, int>();
             foreach (var (segment, index) in inMeasure)
             {
@@ -237,10 +257,11 @@ sealed class SheetMusicControl : Control, IThemed
                     for (int k = 0; k < e.Notes.Count; k++)
                     {
                         int pitch = e.Notes[k].Pitch;
-                        int alter = SheetQuantizer.Spelling[pitch % 12].Alter;
+                        var (letter, alter) = spelling[pitch % 12];
                         int line = Diatonic(pitch);
-                        if (!e.TiedFromPrevious && alter != accidentals.GetValueOrDefault(line))
-                            e.Accidentals[k] = alter == 1 ? 1 : 2;
+                        int current = accidentals.TryGetValue(line, out int set) ? set : keyAlters[letter];
+                        if (!e.TiedFromPrevious && alter != current)
+                            e.Accidentals[k] = alter > 0 ? Sharp : alter < 0 ? Flat : Natural;
                         accidentals[line] = alter;
                     }
                     events.Add(e);
@@ -356,7 +377,11 @@ sealed class SheetMusicControl : Control, IThemed
         Invalidate();
     }
 
-    float Header(bool timeSignature) => S * (0.8f + 3.4f + (timeSignature ? 2.6f : 0) + 0.6f);
+    /// <summary>Clefs, key signature (on every line) and time signature (first line only).</summary>
+    float Header(bool timeSignature) => S * (0.8f + 3.4f + KeyWidth + (timeSignature ? 2.6f : 0) + 0.6f);
+
+    /// <summary>The key signature's width in staff spaces.</summary>
+    float KeyWidth => keyFifths == 0 ? 0 : Math.Abs(keyFifths) * 1.0f + 0.4f;
 
     /// <summary>
     /// The moments in a bar where something starts on either staff, each with room before it (accidentals,
@@ -391,7 +416,7 @@ sealed class SheetMusicControl : Control, IThemed
         return result;
     }
 
-    static bool HasSecond(StaffEvent e)
+    bool HasSecond(StaffEvent e)
     {
         var steps = e.Notes.Select(n => Diatonic(n.Pitch)).Order().ToList();
         return steps.Zip(steps.Skip(1)).Any(p => p.Second - p.First == 1);
@@ -573,9 +598,19 @@ sealed class SheetMusicControl : Control, IThemed
         float clefX = line.Left + 0.8f * s;
         DrawGlyph(g, ink, "\U0001D11E", 7.2f * s, clefX, line.TrebleTop - 1.55f * s, fallback: "G");
         DrawGlyph(g, ink, "\U0001D122", 3.3f * s, clefX + 0.2f * s, line.BassTop - 0.05f * s, fallback: "F");
+        float keyX = clefX + 3.6f * s;
+        for (int i = 0; i < Math.Abs(keyFifths); i++)
+        {
+            int step = keyFifths > 0 ? SharpSteps[i] : FlatSteps[i];
+            for (int staff = 0; staff < 2; staff++)
+            {
+                float y = staffTop[staff] + 4 * s - (step - 2 * staff) * s / 2;
+                DrawAccidental(g, ink, keyFifths > 0 ? Sharp : Flat, keyX + (i + 1) * 1.0f * s, y);
+            }
+        }
         if (line.ShowTimeSignature)
         {
-            float timeX = clefX + 3.6f * s;
+            float timeX = keyX + KeyWidth * s;
             foreach (float top in staffTop)
             {
                 DrawNumber(g, ink, timing.Beats, timeX, top, 2 * s);
@@ -850,7 +885,18 @@ sealed class SheetMusicControl : Control, IThemed
         float s = S;
         using var pen = new Pen(brush, Math.Max(1, 0.12f * s));
         using var thick = new Pen(brush, 0.3f * s);
-        if (kind == 1)
+        if (kind == Flat)
+        {
+            // Flat: a tall stem with a rounded belly on the right, sitting on the note's line or space.
+            float left = right - 0.8f * s;
+            g.DrawLine(pen, left, y - 1.9f * s, left, y + 0.55f * s);
+            using var belly = new System.Drawing.Drawing2D.GraphicsPath();
+            belly.AddBezier(left, y + 0.55f * s, left + 0.5f * s, y + 0.2f * s, left + 1.05f * s, y - 0.35f * s, left + 0.5f * s, y - 0.55f * s);
+            belly.AddBezier(left + 0.5f * s, y - 0.55f * s, left + 0.25f * s, y - 0.65f * s, left + 0.05f * s, y - 0.45f * s, left, y - 0.2f * s);
+            using var bellyPen = new Pen(brush, 0.22f * s);
+            g.DrawPath(bellyPen, belly);
+        }
+        else if (kind == Sharp)
         {
             // Sharp: two upright strokes crossed by two thick rising bars.
             float left = right - 0.95f * s;

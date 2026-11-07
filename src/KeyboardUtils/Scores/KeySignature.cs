@@ -1,0 +1,92 @@
+namespace KeyboardUtils;
+
+/// <summary>
+/// Key signatures as a number of fifths: 0 = C major / A minor, 1 = one sharp (G major), -1 = one flat (F major)...
+/// Decides how each key on the piano is written (A♯ or B♭?) and guesses the key of music whose file doesn't say.
+/// </summary>
+static class KeySignature
+{
+    /// <summary>Pitch class of each letter without accidentals: C D E F G A B.</summary>
+    static readonly int[] NaturalPitch = [0, 2, 4, 5, 7, 9, 11];
+
+    /// <summary>The order sharps (F C G D A E B) and flats (B E A D G C F) are added in, as letters (C = 0).</summary>
+    public static readonly int[] SharpOrder = [3, 0, 4, 1, 5, 2, 6];
+    public static readonly int[] FlatOrder = [6, 2, 5, 1, 4, 0, 3];
+
+    /// <summary>What the key does to each letter: +1 sharp, -1 flat, 0 nothing.</summary>
+    public static int[] LetterAlters(int fifths)
+    {
+        var alters = new int[7];
+        for (int i = 0; i < Math.Min(7, Math.Abs(fifths)); i++)
+        {
+            if (fifths > 0)
+                alters[SharpOrder[i]] = 1;
+            else
+                alters[FlatOrder[i]] = -1;
+        }
+        return alters;
+    }
+
+    /// <summary>
+    /// How each pitch class (0 = C ... 11 = B) is written in the key: the key's own notes as the key spells them,
+    /// other white keys as naturals, the remaining black keys as sharps (sharp keys and C) or flats (flat keys).
+    /// </summary>
+    public static (int Letter, int Alter)[] Spelling(int fifths)
+    {
+        var alters = LetterAlters(fifths);
+        var spelling = new (int Letter, int Alter)?[12];
+        for (int letter = 0; letter < 7; letter++)
+            spelling[Mod12(NaturalPitch[letter] + alters[letter])] = (letter, alters[letter]);
+        for (int letter = 0; letter < 7; letter++)
+            spelling[NaturalPitch[letter]] ??= (letter, 0);
+        for (int pitch = 0; pitch < 12; pitch++)
+        {
+            if (spelling[pitch] != null)
+                continue;
+            // A black key: its white neighbour below plus a sharp, or above minus a flat.
+            spelling[pitch] = fifths >= 0
+                ? (Array.IndexOf(NaturalPitch, Mod12(pitch - 1)), 1)
+                : (Array.IndexOf(NaturalPitch, Mod12(pitch + 1)), -1);
+        }
+        return spelling.Select(s => s!.Value).ToArray();
+    }
+
+    /// <summary>The written line/space of a note: octave * 7 + letter (C4 = 28), with B♯ and C♭ in the right octave.</summary>
+    public static int Diatonic(int pitch, (int Letter, int Alter) spelled)
+    {
+        int octave = (pitch - spelled.Alter - NaturalPitch[spelled.Letter]) / 12 - 1;
+        return octave * 7 + spelled.Letter;
+    }
+
+    /// <summary>
+    /// The major key (or its relative minor) that leaves the fewest notes needing accidentals, weighted by how long
+    /// they sound. Ties go to the key with fewer sharps or flats, so music that fits C stays in C.
+    /// </summary>
+    public static int Estimate(IEnumerable<ScoreNote> notes)
+    {
+        var weight = new double[12];
+        foreach (var note in notes)
+            weight[Mod12(note.Pitch)] += Math.Min(note.DurationSeconds, 2) + 0.1;
+        double total = weight.Sum();
+        if (total <= 0)
+            return 0;
+
+        int best = 0;
+        double bestCost = double.MaxValue;
+        for (int fifths = -6; fifths <= 6; fifths++)
+        {
+            var alters = LetterAlters(fifths);
+            var inKey = Enumerable.Range(0, 7).Select(l => Mod12(NaturalPitch[l] + alters[l])).ToHashSet();
+            double cost = Enumerable.Range(0, 12).Where(p => !inKey.Contains(p)).Sum(p => weight[p])
+                + total * 0.01 * Math.Abs(fifths);
+            if (cost < bestCost)
+            {
+                bestCost = cost;
+                best = fifths;
+            }
+        }
+        return best;
+    }
+
+    static int Mod12(int value) => ((value % 12) + 12) % 12;
+}

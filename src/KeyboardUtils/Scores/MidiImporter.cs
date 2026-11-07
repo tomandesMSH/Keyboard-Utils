@@ -9,7 +9,12 @@ static class MidiImporter
     {
         var midiFile = MidiFile.Read(path);
         var tempoMap = midiFile.GetTempoMap();
-        var score = new Score { Title = Path.GetFileNameWithoutExtension(path), Timing = ReadTiming(midiFile, tempoMap) };
+        var score = new Score
+        {
+            Title = Path.GetFileNameWithoutExtension(path),
+            Timing = ReadTiming(midiFile, tempoMap),
+            KeyFifths = ReadKey(midiFile),
+        };
 
         foreach (var trackChunk in midiFile.GetTrackChunks())
         {
@@ -39,6 +44,21 @@ static class MidiImporter
         }
 
         return score;
+    }
+
+    /// <summary>
+    /// The opening key signature. "C major" is treated as unknown: many programs write it whatever the music is,
+    /// and the guess from the notes comes out as C anyway when the music really is in C.
+    /// </summary>
+    static int? ReadKey(MidiFile midiFile)
+    {
+        var key = midiFile.GetTrackChunks()
+            .SelectMany(chunk => chunk.GetTimedEvents())
+            .Where(e => e.Event is KeySignatureEvent)
+            .OrderBy(e => e.Time)
+            .Select(e => (int)((KeySignatureEvent)e.Event).Key)
+            .FirstOrDefault();
+        return key is not 0 and >= -7 and <= 7 ? key : null;
     }
 
     /// <summary>Tempo changes and the opening time signature; null for SMPTE-timed files, which have no beats.</summary>

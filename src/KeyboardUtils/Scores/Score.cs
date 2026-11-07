@@ -32,6 +32,9 @@ sealed class Score
     /// <summary>Tempo and time signature from the file, for the sheet music view. Null when unknown (recordings).</summary>
     public ScoreTiming? Timing { get; set; }
 
+    /// <summary>Key signature from the file (-7 = seven flats ... 7 = seven sharps); null = unknown, guessed from the notes.</summary>
+    public int? KeyFifths { get; set; }
+
     public double DurationSeconds => Parts.SelectMany(p => p.Notes)
         .Select(n => n.StartSeconds + n.DurationSeconds)
         .DefaultIfEmpty(0)

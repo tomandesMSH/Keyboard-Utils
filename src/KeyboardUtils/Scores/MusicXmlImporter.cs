@@ -44,6 +44,7 @@ static class MusicXmlImporter
             if (timing != null)
             {
                 score.Timing = new ScoreTiming(timing.Tempo, timing.Beats, timing.BeatType);
+                score.KeyFifths = timing.KeyFifths;
                 timing = null;
             }
             if (part.Notes.Count > 0)
@@ -60,6 +61,7 @@ static class MusicXmlImporter
         public int Beats { get; set; } = 4;
         public int BeatType { get; set; } = 4;
         public bool HasTimeSignature { get; set; }
+        public int? KeyFifths { get; set; }
     }
 
     static void ImportPart(XElement partElement, ScorePart part, TimingReader? timing)
@@ -93,6 +95,8 @@ static class MusicXmlImporter
                     case "attributes":
                         if (element.Element("divisions") is { } div)
                             divisions = (int)ParseDouble(div.Value);
+                        if (timing is { KeyFifths: null } && int.TryParse((string?)element.Element("key")?.Element("fifths"), out int fifths))
+                            timing.KeyFifths = Math.Clamp(fifths, -7, 7);
                         if (timing is { HasTimeSignature: false } && element.Element("time") is { } time
                             && int.TryParse((string?)time.Element("beats"), out int beats)
                             && int.TryParse((string?)time.Element("beat-type"), out int beatType))
