@@ -117,6 +117,9 @@ sealed class AppConfig
     /// <summary>Piano roll key width in px - the "keyboard size" slider.</summary>
     public int KeyboardKeyWidth { get; set; } = PianoRollControl.DefaultKeyWidth;
 
+    /// <summary>Note names on every white key (C, D, E...), not just on the Cs.</summary>
+    public bool AllKeyLabels { get; set; }
+
     public SongView SongView { get; set; } = SongView.Keyboard;
 
     /// <summary>Share of the width the keyboard takes when shown next to the sheet music (0-1).</summary>

@@ -79,6 +79,19 @@ sealed class PianoRollControl : Control, IThemed
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public bool RecordingView { get; set; }
 
+    /// <summary>When true, every white key shows its note name (C, D, E...), not just the Cs.</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool AllKeyLabels
+    {
+        get => allKeyLabels;
+        set
+        {
+            allKeyLabels = value;
+            Invalidate();
+        }
+    }
+    bool allKeyLabels;
+
     public static Color CorrectColor { get; } = Color.FromArgb(52, 199, 89);
     public static Color WrongColor { get; } = Color.FromArgb(234, 67, 53);
     static Color SelectedColor { get; } = Color.FromArgb(66, 133, 244);
@@ -459,11 +472,16 @@ sealed class PianoRollControl : Control, IThemed
             : soundingKeys.TryGetValue(note, out var color) ? soundingBrushes[color]
             : rest;
 
-        // "C4" etc. on every C, so you can find your way on a wide keyboard. Skipped when keys are too narrow to fit it.
+        // "C4" etc. on every C, so you can find your way on a wide keyboard - or, with AllKeyLabels, the letter on
+        // every white key too. Skipped when keys are too narrow to fit them (a letter fits narrower keys than "C4").
         using var labelFont = new Font("Segoe UI", Math.Clamp(whiteKeyWidth * 0.32f, 6.5f, 9f));
         using var labelBrush = new SolidBrush(Color.FromArgb(140, 140, 140));
         using var labelFormat = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Far };
-        bool showLabels = whiteKeyWidth >= 16 && height >= 40;
+        bool showOctaves = whiteKeyWidth >= 16 && height >= 40;
+        bool showLetters = allKeyLabels && whiteKeyWidth >= 10 && height >= 40;
+        string? LabelOf(int note) => note % 12 == 0 && showOctaves ? NoteNames.Describe(note)
+            : showLetters ? NoteNames.Describe(note)[..1]
+            : null;
 
         foreach (var (note, layout) in keyLayout.Where(k => !k.Value.Black))
         {
@@ -471,8 +489,8 @@ sealed class PianoRollControl : Control, IThemed
             var fill = BrushFor(note, whiteBrush);
             g.FillRectangle(fill, rect);
             g.DrawRectangle(borderPen, rect.X, rect.Y, rect.Width, rect.Height);
-            if (showLabels && note % 12 == 0)
-                g.DrawString(NoteNames.Describe(note), labelFont, fill == whiteBrush ? labelBrush : Brushes.White,
+            if (LabelOf(note) is { } label)
+                g.DrawString(label, labelFont, fill == whiteBrush ? labelBrush : Brushes.White,
                     new RectangleF(rect.X, rect.Y, rect.Width, rect.Height - 3), labelFormat);
         }
         foreach (var (note, layout) in keyLayout.Where(k => k.Value.Black))

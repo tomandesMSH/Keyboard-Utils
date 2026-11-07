@@ -73,6 +73,7 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button speedResetButton = new() { IconSvg = Icons.Reset, IconRatio = 1.1f, Size = new Size(30, 28), Radius = 8, Margin = new Padding(0) };
     readonly ToolTip toolTip = new();
     const int MinSpeed = 25, MaxSpeed = 200;
+    readonly AntdUI.Checkbox keyLabelsBox = new() { AutoSize = true, Margin = new Padding(24, 6, 0, 0) };
     readonly System.Windows.Forms.Timer seekRepeatTimer = new();
     double seekRepeatStep;
 
@@ -81,6 +82,9 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button listenButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Button learningButton = new() { AutoSize = true, Enabled = false, Type = AntdUI.TTypeMini.Success, Radius = 8 };
     readonly AntdUI.Button createButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Error, Radius = 8 };
+
+    /// <summary>Shown while the open song is an unsaved recording (or converted audio): saving it is the next step.</summary>
+    readonly AntdUI.Button saveRecordingButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8, Visible = false };
     // Plain WinForms labels: AntdUI.Label's AutoSize measures a bit short and clipped the last letter
     // ("Přehrávání" showed as "Přehrávan|"); Label measures and draws with the same GDI text renderer.
     readonly Label loadGroupLabel = CaptionLabel();
@@ -148,6 +152,7 @@ sealed class MainForm : AntdUI.Window
             else if (currentScore != null)
                 SetViewTime(PlaybackSeconds);
             UpdatePlayPauseButton();
+            UpdateSaveRecordingButton();
         };
         playbackTimer.Start();
         _ = Task.Run(ActionLoop);
@@ -168,7 +173,7 @@ sealed class MainForm : AntdUI.Window
         songControlsRow.Controls.AddRange(
         [
             ControlGroup(loadGroupLabel, openSongButton, importStemsButton, removeSongButton),
-            ControlGroup(playingGroupLabel, listenButton, learningButton, createButton),
+            ControlGroup(playingGroupLabel, listenButton, learningButton, createButton, saveRecordingButton),
         ]);
         // Song title on the left, the view switch on the right of the same row (Fill first, then Right).
         var viewSwitchGroup = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false, Padding = new Padding(0, 0, 6, 0) };
@@ -243,6 +248,7 @@ sealed class MainForm : AntdUI.Window
         listenButton.Click += (_, _) => ToggleListening();
         learningButton.Click += (_, _) => ToggleLearningMode(showSetup: true);
         createButton.Click += (_, _) => ToggleCreateMode();
+        saveRecordingButton.Click += (_, _) => SaveCurrentSong();
 
         // --- Bindings tab: macro keyboard mapping (same shape as step 1) ---
         var keyboardRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6, 6, 6, 0), WrapContents = false };
@@ -497,7 +503,16 @@ sealed class MainForm : AntdUI.Window
         speedControls.Controls.AddRange([speedSlider, speedResetButton]);
         speedGroup.Controls.AddRange([speedHeader, speedControls]);
         var row = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = false, Padding = new Padding(8, 6, 8, 2) };
-        row.Controls.AddRange([WithCaption(rewindButton, rewindCaption), WithCaption(forwardButton, forwardCaption), playPauseButton, stopButton, speedGroup]);
+        row.Controls.AddRange([WithCaption(rewindButton, rewindCaption), WithCaption(forwardButton, forwardCaption), playPauseButton, stopButton, speedGroup, keyLabelsBox]);
+
+        keyLabelsBox.Checked = pianoRoll.AllKeyLabels = config.AllKeyLabels;
+        keyLabelsBox.CheckedChanged += (_, _) =>
+        {
+            if (keyLabelsBox.Checked == config.AllKeyLabels)
+                return;
+            pianoRoll.AllKeyLabels = config.AllKeyLabels = keyLabelsBox.Checked;
+            config.Save();
+        };
 
         // Seek once on press, then keep seeking while the button is held.
         seekRepeatTimer.Tick += (_, _) =>
@@ -561,6 +576,7 @@ sealed class MainForm : AntdUI.Window
     void UpdateSpeedLabel()
     {
         speedLabel.Text = T("Rychlost přehrávání:", "Playback speed:");
+        keyLabelsBox.Text = T("Popisky kláves", "Key labels");
         toolTip.SetToolTip(speedResetButton, T("Vrátit na 100 %", "Reset to 100 %"));
     }
 
@@ -1061,20 +1077,23 @@ sealed class MainForm : AntdUI.Window
             SetStatus(T("Nic se nezapsalo - nebyla slyšet žádná nota.", "Nothing was recorded - no notes were heard."));
             return;
         }
-        SetStatus(T($"Nahráno: {recording.Parts[0].Notes.Count} not.", $"Recorded: {recording.Parts[0].Notes.Count} notes."));
+        // No dialog: listen to it first (Play), then save it with the Save button if it's worth keeping.
+        SetStatus(T($"Nahráno: {recording.Parts[0].Notes.Count} not. Poslechni si to (Přehrát) a když se ti to líbí, ulož to tlačítkem Uložit.",
+            $"Recorded: {recording.Parts[0].Notes.Count} notes. Listen to it (Play) and if you like it, save it with the Save button."));
+    }
 
-        using var dialog = new CreateResultForm(recording, config.CreateTempoBpm, bpm => SaveScore(recording, bpm));
-        dialog.ShowDialog(this);
-        if (dialog.Bpm != config.CreateTempoBpm)
-        {
-            config.CreateTempoBpm = dialog.Bpm;
-            config.Save();
-        }
+    /// <summary>Called on every playback tick, so it can't miss a change of the open song or of its saved state.</summary>
+    void UpdateSaveRecordingButton()
+    {
+        bool show = recorder == null && currentScore != null && currentScore == unsavedRecording;
+        if (saveRecordingButton.Visible != show)
+            saveRecordingButton.Visible = show;
     }
 
     void UpdateCreateButton()
     {
         createButton.Text = recorder != null ? T("Ukončit nahrávání", "Stop recording") : T("Zapisovat noty", "Write down notes");
+        saveRecordingButton.Text = T("Uložit", "Save");
         removeSongButton.Enabled = recorder == null;
     }
 
@@ -1085,11 +1104,14 @@ sealed class MainForm : AntdUI.Window
             ShowModal(this, Text, T("Není otevřená žádná skladba (MIDI, MusicXML nebo nahrávka).", "No song is open (MIDI, MusicXML or a recording)."), AntdUI.TType.Info);
             return;
         }
-        SaveScore(currentScore, config.CreateTempoBpm);
+        SaveScore(currentScore);
     }
 
-    /// <summary>Asks where and saves; true if the file was written.</summary>
-    bool SaveScore(Score score, int bpm)
+    /// <summary>
+    /// Asks where and saves; true if the file was written. A song without its own tempo (a recording) saved as
+    /// MusicXML also asks for the tempo to write it in.
+    /// </summary>
+    bool SaveScore(Score score)
     {
         string fileName = string.Concat(score.Title.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
         using var dialog = new SaveFileDialog
@@ -1100,6 +1122,20 @@ sealed class MainForm : AntdUI.Window
         };
         if (dialog.ShowDialog(this) != DialogResult.OK)
             return false;
+        int bpm = config.CreateTempoBpm;
+        bool midi = Path.GetExtension(dialog.FileName).ToLowerInvariant() is ".mid" or ".midi";
+        if (!midi && score.Timing == null)
+        {
+            using var tempo = new SaveTempoForm(bpm);
+            if (tempo.ShowDialog(this) != DialogResult.OK)
+                return false;
+            bpm = tempo.Bpm;
+            if (bpm != config.CreateTempoBpm)
+            {
+                config.CreateTempoBpm = bpm;
+                config.Save();
+            }
+        }
         try
         {
             ScoreExporter.Save(score, dialog.FileName, bpm);

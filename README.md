@@ -31,6 +31,7 @@ Makro klávesnice je volitelná a nic dalšího k běhu aplikace nepotřebuje �
 - Ovládání nad klávesami / notami: **RW** a **FF** posunou skladbu o 5 s zpět / vpřed (podržením se posouvá dál),
   **přehrát / pauza**, **stop** a posuvník **Rychlost přehrávání** (25–200 %). Zvuk jde na MIDI výstup zvolený
   v **Nastavení > MIDI výstup**. Se stopami jde rychlost jen 100 % (originální nahrávka zpomalit nejde).
+  Zaškrtávátko **Popisky kláves** napíše název noty na každou bílou klávesu (jinak jen na C).
 - Panel **Části / nástroje** vpravo: zaškrtávátkem část vypneš, posuvníkem změníš její hlasitost.
 - V piano rollu **tažením nahoru / dolů** posouváš skladbu v čase. Klávesa se při dopadu noty rozsvítí barvou části.
   Kliknutím na klávesu ji zahraješ.
@@ -75,12 +76,12 @@ vynechané noty a čas.
 
 ### Zapisování not
 
-**Zapisovat noty** – hraj a appka zapisuje rozpoznané noty. Po **Ukončit nahrávání** nastavíš tempo zápisu (BPM)
-a nahrávku uložíš jako:
+**Zapisovat noty** – hraj a appka zapisuje rozpoznané noty. Po **Ukončit nahrávání** se nahrávka otevře jako
+skladba: přehraj si ji, a když se ti líbí, ulož ji tlačítkem **Uložit** (objeví se vedle Zapisovat noty) jako:
 
 - **MIDI** – přesně to, co jsi zahrál,
-- **MusicXML** (pro MuseScore) – noty zarovnané na šestnáctiny v nastaveném tempu, klavírní dvojosnova.
-  Tempo nastav zhruba na to, ve kterém jsi hrál.
+- **MusicXML** (pro MuseScore) – noty zarovnané na šestnáctiny, klavírní dvojosnova. Appka se zeptá na tempo
+  zápisu (BPM) – nastav ho zhruba na to, ve kterém jsi hrál.
 
 ### Stopy a převod zvuku na noty
 
