@@ -57,17 +57,32 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Button openSongButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly AntdUI.Button importStemsButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Button removeSongButton = new() { AutoSize = true, Radius = 8, Visible = false };
-    readonly AntdUI.Button playPauseButton = new() { AutoSize = true, Enabled = false, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
-    readonly AntdUI.Button stopButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
-    readonly AntdUI.Button previousButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
-    readonly AntdUI.Button nextButton = new() { AutoSize = true, Enabled = false, Radius = 8 };
+    // Transport row above the song: rewind, fast forward, play/pause, stop, playback speed.
+    readonly AntdUI.Button rewindButton = TransportButton(Icons.Rewind);
+    readonly AntdUI.Button forwardButton = TransportButton(Icons.FastForward);
+    readonly AntdUI.Button playPauseButton = TransportButton(Icons.Play);
+    readonly AntdUI.Button stopButton = TransportButton(Icons.Stop);
+    readonly Label rewindCaption = TransportCaption("RW");
+    readonly Label forwardCaption = TransportCaption("FF");
+    readonly AntdUI.Label speedLabel = new() { AutoSize = true, Margin = new Padding(0, 0, 0, 2) };
+    readonly AntdUI.Slider speedSlider = new() { MinValue = MinSpeed, MaxValue = MaxSpeed, Value = 100, Size = new Size(170, 22), Margin = new Padding(0, 5, 6, 0) };
+
+    /// <summary>The exact speed typed in, for when the slider is too fiddly. Takes effect on Enter or leaving the box.</summary>
+    readonly AntdUI.InputNumber speedBox = new() { Minimum = MinSpeed, Maximum = MaxSpeed, Value = 100, Size = new Size(84, 32), Margin = new Padding(0), SuffixText = "%" };
+    readonly AntdUI.Button speedResetButton = new() { IconSvg = Icons.Reset, IconRatio = 1.1f, Size = new Size(38, 32), Radius = 8, Margin = new Padding(4, 0, 0, 0) };
+    readonly ToolTip toolTip = new();
+    const int MinSpeed = 25, MaxSpeed = 200;
+    readonly System.Windows.Forms.Timer seekRepeatTimer = new();
+    double seekRepeatStep;
+
+    /// <summary>Playback speed from the slider (1 = as written). Learning mode in tempo uses its own speed meanwhile.</summary>
+    double playbackSpeed = 1;
     readonly AntdUI.Button listenButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Button learningButton = new() { AutoSize = true, Enabled = false, Type = AntdUI.TTypeMini.Success, Radius = 8 };
     readonly AntdUI.Button createButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Error, Radius = 8 };
     // Plain WinForms labels: AntdUI.Label's AutoSize measures a bit short and clipped the last letter
     // ("Přehrávání" showed as "Přehrávan|"); Label measures and draws with the same GDI text renderer.
     readonly Label loadGroupLabel = CaptionLabel();
-    readonly Label playbackGroupLabel = CaptionLabel();
     readonly Label playingGroupLabel = CaptionLabel();
     readonly AntdUI.Checkbox enabledBox = new() { AutoSize = true, Margin = new Padding(12, 6, 3, 3) };
     readonly AntdUI.Label languageLabel = new() { AutoSize = true, Margin = new Padding(12, 8, 3, 3) };
@@ -152,7 +167,6 @@ sealed class MainForm : AntdUI.Window
         songControlsRow.Controls.AddRange(
         [
             ControlGroup(loadGroupLabel, openSongButton, importStemsButton, removeSongButton),
-            ControlGroup(playbackGroupLabel, previousButton, playPauseButton, stopButton, nextButton),
             ControlGroup(playingGroupLabel, listenButton, learningButton, createButton),
         ]);
         // Song title on the left, the view switch on the right of the same row (Fill first, then Right).
@@ -165,6 +179,8 @@ sealed class MainForm : AntdUI.Window
         songViews.Panel1.Controls.Add(pianoRoll);
         songViews.Panel2.Controls.Add(sheet);
         songTab.Controls.Add(songViews);
+        // Added before the parts panel, so it spans only the song views' width.
+        songTab.Controls.Add(BuildTransportRow());
         songTab.Controls.Add(partsPanel);
         // A thick line between the toolbar and the song, added after the parts panel so it spans the full width.
         songTab.Controls.Add(new SeparatorLine { Dock = DockStyle.Top, Height = 3 });
@@ -223,8 +239,6 @@ sealed class MainForm : AntdUI.Window
         removeSongButton.Click += (_, _) => RemoveSong();
         playPauseButton.Click += (_, _) => TogglePlayPause();
         stopButton.Click += (_, _) => DoStop();
-        previousButton.Click += (_, _) => DoPreviousTrack();
-        nextButton.Click += (_, _) => DoNextTrack();
         listenButton.Click += (_, _) => ToggleListening();
         learningButton.Click += (_, _) => ToggleLearningMode(showSetup: true);
         createButton.Click += (_, _) => ToggleCreateMode();
@@ -267,6 +281,9 @@ sealed class MainForm : AntdUI.Window
             MenuItem(T("Hledat noty zdarma...", "Find free sheet music..."), FindFreeScores),
             MenuItem(T("Importovat stopy...", "Import stems..."), ImportStems),
             MenuItem(T("Uložit skladbu jako...", "Save song as..."), SaveCurrentSong),
+            new AntdUI.ContextMenuStripItemDivider(),
+            new AntdUI.ContextMenuStripItem(T("Předchozí skladba", "Previous song")) { Enabled = playlist.Count > 1, Tag = (Action)DoPreviousTrack },
+            new AntdUI.ContextMenuStripItem(T("Další skladba", "Next song")) { Enabled = playlist.Count > 1, Tag = (Action)DoNextTrack },
             new AntdUI.ContextMenuStripItemDivider(),
             MenuItem(T("Exportovat klávesy...", "Export keys..."), ExportBindings),
             MenuItem(T("Importovat klávesy...", "Import keys..."), ImportBindings),
@@ -417,6 +434,142 @@ sealed class MainForm : AntdUI.Window
         SetStatus(config.DarkMode ? T("Tmavý režim zapnutý.", "Dark mode on.") : T("Světlý režim zapnutý.", "Light mode on."));
     }
 
+    /// <summary>
+    /// Transport icons as SVG (AntdUI draws them in the button's text colour). Text characters like ▶ come out as
+    /// boxed emoji.
+    /// </summary>
+    static class Icons
+    {
+        const string Head = "<svg viewBox=\"0 0 1024 1024\"><path d=\"";
+        const string Tail = "\"/></svg>";
+        public const string Play = Head + "M336 208v608l480-304z" + Tail;
+        public const string Pause = Head + "M296 208h144v608H296zM584 208h144v608H584z" + Tail;
+        public const string Stop = Head + "M288 288h448v448H288z" + Tail;
+        public const string Rewind = Head + "M512 272v480L208 512zM816 272v480L512 512z" + Tail;
+        public const string FastForward = Head + "M208 272v480l304-240zM512 272v480l304-240z" + Tail;
+
+        /// <summary>A circular arrow (↺): back to the default.</summary>
+        public const string Reset = Head + "M455 187L399 202L347 226L300 259L259 300L226 347L202 399L187 455L182 512L187 569L202 625L226 677L259 724L300 765L347 798L399 822L455 837L512 842L569 837L625 822L677 798L724 765L765 724L798 677L822 625L837 569L842 512L837 455L822 399L798 347L765 300L688 364L711 397L728 433L739 472L742 512L739 552L728 591L711 627L688 660L660 688L627 711L591 728L552 739L512 742L472 739L433 728L397 711L364 688L336 660L313 627L296 591L285 552L282 512L285 472L296 433L313 397L336 364L364 336L397 313L433 296L472 285z"
+            + "M818 255L630 217L635 409z" + Tail;
+    }
+
+    static AntdUI.Button TransportButton(string icon) => new()
+    {
+        IconSvg = icon,
+        IconRatio = 1.2f,
+        Size = new Size(38, 32),
+        Radius = 8,
+        Enabled = false,
+        Margin = new Padding(0, 0, 4, 0),
+    };
+
+    static Label TransportCaption(string text) => new()
+    {
+        Text = text,
+        AutoSize = false,
+        Size = new Size(38, 18),
+        TextAlign = ContentAlignment.TopCenter,
+        Margin = new Padding(0, 1, 4, 0),
+        ForeColor = SystemColors.GrayText,
+        BackColor = Color.Transparent,
+        Font = new Font("Segoe UI", 8.5f),
+    };
+
+    /// <summary>
+    /// Above the keyboard / sheet music: rewind and fast forward (click for 5 s, hold to keep going), play/pause,
+    /// stop and the playback speed.
+    /// </summary>
+    Control BuildTransportRow()
+    {
+        Control WithCaption(Control button, Control caption)
+        {
+            var column = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(0) };
+            column.Controls.AddRange([button, caption]);
+            return column;
+        }
+
+        var speedGroup = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(14, 0, 0, 0) };
+        var speedControls = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0) };
+        speedControls.Controls.AddRange([speedSlider, speedBox, speedResetButton]);
+        speedGroup.Controls.AddRange([speedLabel, speedControls]);
+        var row = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = false, Padding = new Padding(8, 6, 8, 2) };
+        row.Controls.AddRange([WithCaption(rewindButton, rewindCaption), WithCaption(forwardButton, forwardCaption), playPauseButton, stopButton, speedGroup]);
+
+        // Seek once on press, then keep seeking while the button is held.
+        seekRepeatTimer.Tick += (_, _) =>
+        {
+            seekRepeatTimer.Interval = 150;
+            SeekBy(seekRepeatStep);
+        };
+        void HoldToSeek(AntdUI.Button button, double step)
+        {
+            button.MouseDown += (_, e) =>
+            {
+                if (e.Button != MouseButtons.Left || !button.Enabled)
+                    return;
+                seekRepeatStep = step;
+                SeekBy(step);
+                seekRepeatTimer.Interval = 450;
+                seekRepeatTimer.Start();
+            };
+            button.MouseUp += (_, _) => seekRepeatTimer.Stop();
+            button.MouseLeave += (_, _) => seekRepeatTimer.Stop();
+        }
+        HoldToSeek(rewindButton, -5);
+        HoldToSeek(forwardButton, 5);
+
+        // Slider, box and reset button all set the same speed; SetSpeed keeps the other two in step.
+        speedSlider.ValueChanged += (_, _) => SetSpeed(speedSlider.Value);
+        speedBox.ValueChanged += (_, _) => SetSpeed((int)Math.Round(speedBox.Value));
+        speedResetButton.Click += (_, _) => SetSpeed(100);
+        return row;
+    }
+
+    /// <summary>Moves the song by <paramref name="seconds"/> (negative = back); not while learning or recording.</summary>
+    void SeekBy(double seconds)
+    {
+        if ((currentScore == null && currentStems == null) || learning != null || recorder != null)
+        {
+            seekRepeatTimer.Stop();
+            return;
+        }
+        double duration = StemsPlay ? stemPlaybackEngine.DurationSeconds : currentScore!.DurationSeconds;
+        double target = Math.Clamp(PlaybackSeconds + seconds, 0, duration);
+        PlaybackSeek(target);
+        SetViewTime(target);
+    }
+
+    void SetSpeed(int percent)
+    {
+        percent = Math.Clamp(percent, MinSpeed, MaxSpeed);
+        // Setting the other control raises its ValueChanged again; the same value then changes nothing.
+        if (speedSlider.Value != percent)
+            speedSlider.Value = percent;
+        if (speedBox.Value != percent)
+            speedBox.Value = percent;
+        playbackSpeed = percent / 100.0;
+        if (learning == null)
+            playbackEngine.Speed = playbackSpeed;
+    }
+
+    void UpdateSpeedLabel()
+    {
+        speedLabel.Text = T("Rychlost přehrávání:", "Playback speed:");
+        toolTip.SetToolTip(speedResetButton, T("Vrátit na 100 %", "Reset to 100 %"));
+    }
+
+    /// <summary>
+    /// What the transport row can do right now. The stems' audio can't be slowed down without changing its pitch,
+    /// and learning mode sets its own speed - so the speed slider is off then.
+    /// </summary>
+    void UpdateTransport()
+    {
+        bool song = currentScore != null || currentStems != null;
+        playPauseButton.Enabled = stopButton.Enabled = song;
+        rewindButton.Enabled = forwardButton.Enabled = song && learning == null && recorder == null;
+        speedSlider.Enabled = speedBox.Enabled = speedResetButton.Enabled = speedLabel.Enabled = !StemsPlay && learning == null;
+    }
+
     /// <summary>A small grey caption above a row of related controls.</summary>
     static Label CaptionLabel() => new()
     {
@@ -524,7 +677,10 @@ sealed class MainForm : AntdUI.Window
         config.Save();
         playbackEngine.SetOutputDevice(name);
         if (currentScore != null)
+        {
             playbackEngine.Load(currentScore);
+            playbackEngine.Speed = playbackSpeed;
+        }
         SetStatus(T("MIDI výstup: ", "MIDI output: ") + (name ?? T("systémový výchozí", "system default")));
     }
 
@@ -541,7 +697,6 @@ sealed class MainForm : AntdUI.Window
         importStemsButton.Text = T("Importovat stopy...", "Import stems...");
         removeSongButton.Text = T("Odebrat skladbu", "Remove song");
         loadGroupLabel.Text = T("Načíst", "Load");
-        playbackGroupLabel.Text = T("Přehrávání", "Playback");
         playingGroupLabel.Text = T("Nahrávání", "Recording");
         keyboardSizeLabel.Text = T("Velikost klávesnice", "Keyboard size");
         string[] viewNames = [T("Klávesy", "Keyboard"), T("Noty", "Sheet"), T("Noty + klávesy", "Sheet + keyboard")];
@@ -551,10 +706,7 @@ sealed class MainForm : AntdUI.Window
         // edge. (AntdUI's AutoSize shrinks it to nothing.)
         viewSwitch.Width = viewNames.Sum(name => TextRenderer.MeasureText(name, viewSwitch.Font).Width + LogicalToDeviceUnits(12));
         viewSwitch.Invalidate();
-        playPauseButton.Text = T("Přehrát", "Play");
-        stopButton.Text = T("Stop", "Stop");
-        previousButton.Text = T("<< Předchozí", "<< Previous");
-        nextButton.Text = T("Další >>", "Next >>");
+        UpdateSpeedLabel();
         listenButton.Text = noteSource != null ? T("Přestat poslouchat", "Stop listening") : T("Poslouchat", "Listen");
         UpdateLearningButton();
         UpdateCreateButton();
@@ -803,7 +955,7 @@ sealed class MainForm : AntdUI.Window
         partsPanel.Enabled = true;
 
         playbackEngine.Stop();
-        playbackEngine.Speed = 1;
+        playbackEngine.Speed = playbackSpeed;
         if (currentScore != null)
             for (int i = 0; i < currentScore.Parts.Count; i++)
                 playbackEngine.SetPartMuted(i, currentScore.Parts[i].Muted);
@@ -824,6 +976,7 @@ sealed class MainForm : AntdUI.Window
 
     void UpdateLearningButton()
     {
+        UpdateTransport();
         learningButton.Enabled = currentScore != null && recorder == null;
         // Moving the time would break a learning session's scoring.
         pianoRoll.Seekable = learning == null;
@@ -1100,8 +1253,8 @@ sealed class MainForm : AntdUI.Window
         playbackEngine.Load(currentScore);
         SetViewScore(currentScore);
         RebuildPartsPanel();
-        playPauseButton.Enabled = stopButton.Enabled = true;
-        previousButton.Enabled = nextButton.Enabled = playlist.Count > 1;
+        playbackEngine.Speed = playbackSpeed;
+        UpdateTransport();
         UpdateSongLabel();
         UpdateLearningButton();
     }
@@ -1156,8 +1309,7 @@ sealed class MainForm : AntdUI.Window
         SetViewScore(null);
 
         RebuildPartsPanel();
-        playPauseButton.Enabled = stopButton.Enabled = true;
-        previousButton.Enabled = nextButton.Enabled = false;
+        UpdateTransport();
         UpdateSongLabel();
         UpdateLearningButton();
         SetStatus(T($"Načteny stopy: {stems.Title} ({stems.Tracks.Count})", $"Loaded stems: {stems.Title} ({stems.Tracks.Count})"));
@@ -1220,7 +1372,7 @@ sealed class MainForm : AntdUI.Window
 
         SetViewScore(null);
         RebuildPartsPanel();
-        playPauseButton.Enabled = stopButton.Enabled = previousButton.Enabled = nextButton.Enabled = false;
+        UpdateTransport();
         UpdateSongLabel();
         UpdateLearningButton();
         UpdatePlayPauseButton();
@@ -1424,7 +1576,10 @@ sealed class MainForm : AntdUI.Window
     void UpdatePlayPauseButton()
     {
         bool running = learning != null ? !learning.Paused : (currentScore != null || currentStems != null) && PlaybackRunning;
-        playPauseButton.Text = running ? T("Pauza", "Pause") : T("Přehrát", "Play");
+        // Called every playback tick: only touch the icon when it changes (setting it re-renders the SVG).
+        string icon = running ? Icons.Pause : Icons.Play;
+        if (playPauseButton.IconSvg != icon)
+            playPauseButton.IconSvg = icon;
     }
 
     void DoStop()
@@ -1710,6 +1865,8 @@ sealed class MainForm : AntdUI.Window
         if (disposing)
         {
             playbackTimer.Dispose();
+            seekRepeatTimer.Dispose();
+            toolTip.Dispose();
             playbackEngine.Dispose();
             stemPlaybackEngine.Dispose();
             noteSource?.Dispose();
