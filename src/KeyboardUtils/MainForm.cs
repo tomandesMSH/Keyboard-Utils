@@ -112,8 +112,35 @@ sealed partial class MainForm : AntdUI.Window
 
     /// <summary>The count-in running before playback (or a learning pass) starts; null when none is.</summary>
     CancellationTokenSource? countIn;
-    readonly System.Windows.Forms.Timer seekRepeatTimer = new();
-    double seekRepeatStep;
+    // RW / FF held down: the song winds faster the longer it's held.
+    readonly System.Windows.Forms.Timer seekRepeatTimer = new() { Interval = 40 };
+    readonly System.Diagnostics.Stopwatch scrubClock = new();
+    int scrubDirection;
+    double scrubLastSeconds;
+
+    /// <summary>FF over a playing song speeds the playback up (heard); this says it's to be set back.</summary>
+    bool scrubSpedUp;
+
+    // The metronome on its own ("without accompaniment"), shown under the Metronome box while it's checked.
+    readonly AntdUI.Checkbox standaloneBox = new() { AutoSize = true, Margin = new Padding(0, 2, 0, 0) };
+    readonly AntdUI.InputNumber bpmBox = new()
+    {
+        Minimum = StandaloneMetronome.MinBpm, Maximum = StandaloneMetronome.MaxBpm, Value = 100,
+        Size = new Size(92, 30), Margin = new Padding(6, 0, 0, 0), SuffixText = "BPM", ShowControl = false,
+    };
+    readonly SpinArrows bpmArrows = new() { Size = new Size(20, 30), Margin = new Padding(1, 0, 0, 0) };
+    readonly FlowLayoutPanel metronomeOptions = new() { AutoSize = true, WrapContents = false, Margin = new Padding(0) };
+    StandaloneMetronome? standaloneMetronome;
+
+    StandaloneMetronome Clicker => standaloneMetronome ??= new StandaloneMetronome(playbackEngine.PlayClick)
+    {
+        Bpm = config.MetronomeBpm,
+    };
+
+    /// <summary>"Without accompaniment" is on: Play runs the metronome alone, the song doesn't play.</summary>
+    bool StandaloneOn => config.Metronome && config.MetronomeStandalone;
+
+    bool StandaloneRunning => standaloneMetronome?.IsRunning ?? false;
 
     /// <summary>Playback speed from the slider (1 = as written). Learning mode in tempo uses its own speed meanwhile.</summary>
     double playbackSpeed = 1;
@@ -573,7 +600,16 @@ sealed partial class MainForm : AntdUI.Window
         var row = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = false, Padding = new Padding(8, 6, 8, 2) };
         var loopGroup = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(14, 0, 0, 0) };
         loopGroup.Controls.AddRange([WithCaption(loopButton, loopCaption), WithCaption(loopStartButton, loopStartCaption), WithCaption(loopEndButton, loopEndCaption)]);
-        row.Controls.AddRange([WithCaption(rewindButton, rewindCaption), WithCaption(forwardButton, forwardCaption), playPauseButton, stopButton, loopGroup, speedGroup, metronomeBox, keyLabelsBox]);
+        // Metronome and key labels side by side; under them, while the metronome is checked: "without accompaniment"
+        // and its tempo.
+        var metronomeGroup = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(24, 0, 0, 0) };
+        var checkboxRow = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0) };
+        metronomeBox.Margin = new Padding(0, 6, 0, 0);
+        keyLabelsBox.Margin = new Padding(24, 6, 0, 0);
+        checkboxRow.Controls.AddRange([metronomeBox, keyLabelsBox]);
+        metronomeOptions.Controls.AddRange([standaloneBox, bpmBox, bpmArrows]);
+        metronomeGroup.Controls.AddRange([checkboxRow, metronomeOptions]);
+        row.Controls.AddRange([WithCaption(rewindButton, rewindCaption), WithCaption(forwardButton, forwardCaption), playPauseButton, stopButton, loopGroup, speedGroup, metronomeGroup]);
 
         metronomeBox.Checked = playbackEngine.Metronome = config.Metronome;
         metronomeBox.CheckedChanged += (_, _) =>
@@ -582,7 +618,25 @@ sealed partial class MainForm : AntdUI.Window
                 return;
             playbackEngine.Metronome = config.Metronome = metronomeBox.Checked;
             config.Save();
+            if (!config.Metronome)
+                StopStandalone();
+            UpdateMetronomeOptions();
         };
+        standaloneBox.Checked = config.MetronomeStandalone;
+        standaloneBox.CheckedChanged += (_, _) =>
+        {
+            if (standaloneBox.Checked == config.MetronomeStandalone)
+                return;
+            config.MetronomeStandalone = standaloneBox.Checked;
+            config.Save();
+            if (!config.MetronomeStandalone)
+                StopStandalone();
+            UpdateMetronomeOptions();
+        };
+        bpmBox.Value = Math.Clamp(config.MetronomeBpm, StandaloneMetronome.MinBpm, StandaloneMetronome.MaxBpm);
+        bpmBox.ValueChanged += (_, _) => SetMetronomeBpm((int)Math.Round(bpmBox.Value));
+        bpmArrows.Step += direction => SetMetronomeBpm(config.MetronomeBpm + direction);
+        UpdateMetronomeOptions();
 
         loopButton.Margin = new Padding((loopCaption.Width - loopButton.Width) / 2, 0, 4 + (loopCaption.Width - loopButton.Width) / 2, 0);
         loopButton.Click += (_, _) => ToggleLoop();
@@ -598,28 +652,20 @@ sealed partial class MainForm : AntdUI.Window
             config.Save();
         };
 
-        // Seek once on press, then keep seeking while the button is held.
-        seekRepeatTimer.Tick += (_, _) =>
-        {
-            seekRepeatTimer.Interval = 150;
-            SeekBy(seekRepeatStep);
-        };
-        void HoldToSeek(AntdUI.Button button, double step)
+        // Held down, RW / FF wind the song faster and faster; released, it carries on as before.
+        seekRepeatTimer.Tick += (_, _) => ScrubTick();
+        void HoldToScrub(AntdUI.Button button, int direction)
         {
             button.MouseDown += (_, e) =>
             {
-                if (e.Button != MouseButtons.Left || !button.Enabled)
-                    return;
-                seekRepeatStep = step;
-                SeekBy(step);
-                seekRepeatTimer.Interval = 450;
-                seekRepeatTimer.Start();
+                if (e.Button == MouseButtons.Left && button.Enabled)
+                    StartScrub(direction);
             };
-            button.MouseUp += (_, _) => seekRepeatTimer.Stop();
-            button.MouseLeave += (_, _) => seekRepeatTimer.Stop();
+            button.MouseUp += (_, _) => StopScrub();
+            button.MouseLeave += (_, _) => StopScrub();
         }
-        HoldToSeek(rewindButton, -5);
-        HoldToSeek(forwardButton, 5);
+        HoldToScrub(rewindButton, -1);
+        HoldToScrub(forwardButton, 1);
 
         // Slider, box and reset button all set the same speed; SetSpeed keeps the other two in step.
         speedSlider.ValueChanged += (_, _) => SetSpeed(speedSlider.Value);
@@ -630,14 +676,64 @@ sealed partial class MainForm : AntdUI.Window
         return row;
     }
 
+    /// <summary>How many times faster than playing RW / FF wind after being held <paramref name="heldSeconds"/>: 2× doubling every second, up to 16×.</summary>
+    static double ScrubRate(double heldSeconds) => Math.Min(16, 2 * Math.Pow(2, heldSeconds));
+
+    void StartScrub(int direction)
+    {
+        StopScrub();
+        scrubDirection = direction;
+        scrubLastSeconds = 0;
+        scrubClock.Restart();
+        seekRepeatTimer.Start();
+        ScrubTick();
+    }
+
+    /// <summary>
+    /// FF over a playing song plays it faster (you hear it wind); otherwise - RW, paused, stems (audio can't be
+    /// sped up) - the position moves at that rate.
+    /// </summary>
+    void ScrubTick()
+    {
+        if ((currentScore == null && currentStems == null) || learning != null || recorder != null)
+        {
+            StopScrub();
+            return;
+        }
+        double held = scrubClock.Elapsed.TotalSeconds;
+        double rate = ScrubRate(held);
+        double elapsed = held - scrubLastSeconds;
+        scrubLastSeconds = held;
+        if (scrubDirection > 0 && PlaybackRunning && !StemsPlay)
+        {
+            playbackEngine.Speed = playbackSpeed * rate;
+            scrubSpedUp = true;
+        }
+        else
+        {
+            // Playing on meanwhile moves it 1× forward: make up for that, so RW goes back at the full rate.
+            double playing = PlaybackRunning ? 1 : 0;
+            SeekBy(scrubDirection > 0 ? (rate - playing) * elapsed : -(rate + playing) * elapsed);
+        }
+        SetStatus((scrubDirection > 0 ? T("Přetáčení vpřed ", "Fast forward ") : T("Přetáčení zpět ", "Rewind ")) + $"{rate:0}×  {FormatTime(PlaybackSeconds)}");
+    }
+
+    void StopScrub()
+    {
+        seekRepeatTimer.Stop();
+        scrubClock.Reset();
+        if (scrubSpedUp)
+        {
+            scrubSpedUp = false;
+            playbackEngine.Speed = playbackSpeed;
+        }
+    }
+
     /// <summary>Moves the song by <paramref name="seconds"/> (negative = back); not while learning or recording.</summary>
     void SeekBy(double seconds)
     {
         if ((currentScore == null && currentStems == null) || learning != null || recorder != null)
-        {
-            seekRepeatTimer.Stop();
             return;
-        }
         double duration = StemsPlay ? stemPlaybackEngine.DurationSeconds : currentScore!.DurationSeconds;
         double target = Math.Clamp(PlaybackSeconds + seconds, 0, duration);
         PlaybackSeek(target);
@@ -662,6 +758,10 @@ sealed partial class MainForm : AntdUI.Window
         speedLabel.Text = T("Rychlost přehrávání:", "Playback speed:");
         keyLabelsBox.Text = T("Popisky kláves", "Key labels");
         metronomeBox.Text = T("Metronom", "Metronome");
+        standaloneBox.Text = T("Bez podkladu", "Without a song");
+        toolTip.SetToolTip(standaloneBox, T("Jen metronom: Přehrát ho spustí v tempu vedle, i když není otevřená žádná skladba. ↑ / ↓ mění tempo o 5.",
+            "The metronome alone: Play starts it at the tempo next to it, even with no song open. ↑ / ↓ change the tempo by 5."));
+        toolTip.SetToolTip(bpmBox, T("Tempo metronomu bez podkladu (doby za minutu)", "Tempo of the metronome on its own (beats per minute)"));
         toolTip.SetToolTip(metronomeBox, T("Klikání na každou dobu a takt předehry před začátkem (ne u stop). (M)",
             "A click on every beat and a bar of count-in before starting (not with stems). (M)"));
         loopCaption.Text = T("Smyčka", "Loop");
@@ -672,8 +772,8 @@ sealed partial class MainForm : AntdUI.Window
         toolTip.SetToolTip(loopStartButton, T("Začátek smyčky = aktuální místo (A)", "Loop start = current position (A)"));
         toolTip.SetToolTip(loopEndButton, T("Konec smyčky = aktuální místo (B)", "Loop end = current position (B)"));
         toolTip.SetToolTip(speedResetButton, T("Vrátit na 100 % (R)", "Reset to 100 % (R)"));
-        toolTip.SetToolTip(rewindButton, T("O 5 s zpět, držením dál (←)", "Back 5 s, hold to keep going (←)"));
-        toolTip.SetToolTip(forwardButton, T("O 5 s dopředu, držením dál (→)", "Forward 5 s, hold to keep going (→)"));
+        toolTip.SetToolTip(rewindButton, T("Přetáčet zpět - čím déle držíš, tím rychleji (← skočí o 5 s)", "Rewind - the longer you hold it, the faster (← jumps 5 s)"));
+        toolTip.SetToolTip(forwardButton, T("Přetáčet vpřed - čím déle držíš, tím rychleji (→ skočí o 5 s)", "Fast forward - the longer you hold it, the faster (→ jumps 5 s)"));
         toolTip.SetToolTip(playPauseButton, T("Přehrát / pauza (mezerník)", "Play / pause (Space)"));
         toolTip.SetToolTip(stopButton, T("Zastavit (Home)", "Stop (Home)"));
         toolTip.SetToolTip(speedSlider, T("Rychlost přehrávání (↑ / ↓)", "Playback speed (↑ / ↓)"));
@@ -687,12 +787,10 @@ sealed partial class MainForm : AntdUI.Window
     void UpdateTransport()
     {
         bool song = currentScore != null || currentStems != null;
-        playPauseButton.Enabled = stopButton.Enabled = song;
+        playPauseButton.Enabled = stopButton.Enabled = song || (StandaloneOn && learning == null && recorder == null);
         rewindButton.Enabled = forwardButton.Enabled = song && learning == null && recorder == null;
         // The loop is set up before learning starts; a running session keeps the one it started with.
         loopButton.Enabled = loopStartButton.Enabled = loopEndButton.Enabled = sheet.LoopSelectable = song && learning == null && recorder == null;
-        // The stems are audio, the clicks are MIDI: they can't be kept together.
-        metronomeBox.Enabled = !StemsPlay;
         speedSlider.Enabled = speedBox.Enabled = speedArrows.Enabled = speedResetButton.Enabled = speedLabel.Enabled = !StemsPlay && learning == null;
     }
 
@@ -1139,6 +1237,7 @@ sealed partial class MainForm : AntdUI.Window
             return; // the error was already shown
 
         StopLearningMode(showResult: false);
+        StopStandalone();
         playbackEngine.Stop();
         stemPlaybackEngine.Stop();
         bool tempo = config.LearningMode == LearningMode.InTempo;
@@ -1864,6 +1963,11 @@ sealed partial class MainForm : AntdUI.Window
         // Playing the song over a recording would be heard (by the mic) and written down.
         if (recorder != null)
             return;
+        if (learning == null && StandaloneOn)
+        {
+            ToggleStandalone();
+            return;
+        }
         if (learning != null)
         {
             bool pause = !learning.Paused;
@@ -1905,7 +2009,8 @@ sealed partial class MainForm : AntdUI.Window
 
     void UpdatePlayPauseButton()
     {
-        bool running = learning != null ? !learning.Paused : countIn != null || ((currentScore != null || currentStems != null) && PlaybackRunning);
+        bool running = learning != null ? !learning.Paused
+            : StandaloneRunning || countIn != null || ((currentScore != null || currentStems != null) && PlaybackRunning);
         // Called every playback tick: only touch the icon when it changes (setting it re-renders the SVG).
         string icon = running ? Icons.Pause : Icons.Play;
         if (playPauseButton.IconSvg != icon)
@@ -1925,6 +2030,7 @@ sealed partial class MainForm : AntdUI.Window
             return;
         }
         CancelCountIn();
+        StopStandalone();
         PlaybackStop();
         SetViewTime(0);
         UpdatePlayPauseButton();
@@ -2317,6 +2423,7 @@ sealed partial class MainForm : AntdUI.Window
         {
             playbackTimer.Dispose();
             seekRepeatTimer.Dispose();
+            standaloneMetronome?.Stop();
             toolTip.Dispose();
             playbackEngine.Dispose();
             stemPlaybackEngine.Dispose();

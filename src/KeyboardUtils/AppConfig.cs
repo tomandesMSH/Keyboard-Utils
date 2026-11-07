@@ -256,6 +256,11 @@ sealed class AppConfig
     /// <summary>Clicks on every beat during playback and learning in tempo, with a bar of count-in.</summary>
     public bool Metronome { get; set; }
 
+    /// <summary>The metronome on its own: Play runs just the clicks, at <see cref="MetronomeBpm"/>.</summary>
+    public bool MetronomeStandalone { get; set; }
+
+    public int MetronomeBpm { get; set; } = 100;
+
     public SongView SongView { get; set; } = SongView.Keyboard;
 
     /// <summary>Share of the width the keyboard takes when shown next to the sheet music (0-1).</summary>

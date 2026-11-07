@@ -101,6 +101,13 @@ sealed partial class MainForm
     /// </summary>
     void StepSpeed(int steps)
     {
+        // The metronome on its own: the tempo is its BPM.
+        if (StandaloneOn && learning == null)
+        {
+            SetMetronomeBpm(config.MetronomeBpm + 5 * steps);
+            SetStatus(T($"Metronom: {config.MetronomeBpm} BPM", $"Metronome: {config.MetronomeBpm} BPM"));
+            return;
+        }
         if (!speedSlider.Enabled)
             return;
         int value = speedSlider.Value;
@@ -142,6 +149,58 @@ sealed partial class MainForm
             return;
         metronomeBox.Checked = !metronomeBox.Checked;
         SetStatus(metronomeBox.Checked ? T("Metronom zapnutý.", "Metronome on.") : T("Metronom vypnutý.", "Metronome off."));
+    }
+
+    // --- The metronome on its own ---------------------------------------------------------------------
+
+    void UpdateMetronomeOptions()
+    {
+        // Only its contents hide: the row keeps its height, so the transport row - and the keyboard under it - don't
+        // change size when the metronome is switched on.
+        foreach (Control control in metronomeOptions.Controls)
+            control.Visible = config.Metronome;
+        metronomeOptions.MinimumSize = new Size(0, metronomeOptions.Controls.Cast<Control>().Max(c => c.Height + c.Margin.Vertical));
+        bpmBox.Enabled = bpmArrows.Enabled = config.MetronomeStandalone;
+        UpdateTransport();
+        UpdatePlayPauseButton();
+    }
+
+    void SetMetronomeBpm(int bpm)
+    {
+        bpm = Math.Clamp(bpm, StandaloneMetronome.MinBpm, StandaloneMetronome.MaxBpm);
+        if ((int)Math.Round(bpmBox.Value) != bpm)
+            bpmBox.Value = bpm; // raises ValueChanged, which comes back here with the same value
+        if (config.MetronomeBpm == bpm)
+            return;
+        config.MetronomeBpm = bpm;
+        Clicker.Bpm = bpm;
+        config.Save();
+    }
+
+    void ToggleStandalone()
+    {
+        if (StandaloneRunning)
+        {
+            StopStandalone();
+            SetStatus(T("Metronom zastaven.", "Metronome stopped."));
+            return;
+        }
+        // Not over the song: "without accompaniment" means just the clicks.
+        CancelCountIn();
+        if (PlaybackRunning)
+            PlaybackPause();
+        Clicker.Bpm = config.MetronomeBpm;
+        Clicker.Start();
+        UpdatePlayPauseButton();
+        SetStatus(T($"Metronom: {config.MetronomeBpm} BPM", $"Metronome: {config.MetronomeBpm} BPM"));
+    }
+
+    void StopStandalone()
+    {
+        if (!StandaloneRunning)
+            return;
+        standaloneMetronome!.Stop();
+        UpdatePlayPauseButton();
     }
 
     void ToggleKeyLabels()

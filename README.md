@@ -31,14 +31,16 @@ Makro klávesnice je volitelná a nic dalšího k běhu aplikace nepotřebuje �
   klasika) jako volné dílo nebo pod licencí Creative Commons. Vybranou skladbu stáhne jako MIDI a otevře; věty
   skladby jsou v seznamu (**Soubor > Předchozí / Další skladba**). U licencí CC BY uveď při sdílení autora a zdroj.
   Appka se na internet připojí jen ve chvíli, kdy hledáš.
-- Ovládání nad klávesami / notami: **RW** a **FF** posunou skladbu o 5 s zpět / vpřed (podržením se posouvá dál),
-  **přehrát / pauza**, **stop** a posuvník **Rychlost přehrávání** (25–200 %). Zvuk jde na MIDI výstup zvolený
+- Ovládání nad klávesami / notami: **RW** a **FF** přetáčí, dokud je držíš, a čím déle, tím rychleji (2× až 16×;
+  FF při přehrávání skladbu opravdu zrychlí, takže ji slyšíš), **přehrát / pauza**, **stop** a posuvník **Rychlost přehrávání** (25–200 %). Zvuk jde na MIDI výstup zvolený
   v **Nastavení > MIDI výstup**. Se stopami jde rychlost jen 100 % (originální nahrávka zpomalit nejde).
   Zaškrtávátko **Popisky kláves** napíše název noty na každou bílou klávesu (jinak jen na C).
 - **Metronom** – klikání na každou dobu (první doba taktu je zvýrazněná), podle tempa a taktu skladby, i při
   změnách tempa, zpomalení a ve smyčce. Před spuštěním přehrávání nejdřív odpočítá jeden takt; v režimu učení
   v tempu je tenhle takt předehrou, takže nastoupíš včas. Opětovným stiskem Přehrát během odpočítávání ho zrušíš.
   Se stopami nejde (jsou to zvukové nahrávky, metronom hraje přes MIDI).
+  Když je metronom zaškrtnutý, objeví se pod ním **Bez podkladu** a tempo v **BPM**: Přehrát pak spustí jen
+  metronom v tomhle tempu (i bez otevřené skladby), Stop ho zastaví a ↑ / ↓ (i z makro klávesnice) mění tempo o 5.
 - **Smyčka** – opakování úseku. Úsek označíš **tažením přes takty v notách**, nebo během přehrávání tlačítky
   **A** (začátek = teď) a **B** (konec = teď). Tlačítkem **Smyčka** ji zapneš / vypneš. Přehrávání se na konci
   úseku vrací na jeho začátek; v **režimu učení** cvičíš jen tenhle úsek a po každém kole začne další – výsledek
