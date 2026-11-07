@@ -3,13 +3,16 @@ using System.Drawing.Drawing2D;
 namespace KeyboardUtils;
 
 /// <summary>Vertical "falling notes" piano roll (Synthesia-style): notes scroll down toward a keyboard strip at the bottom.</summary>
-sealed class PianoRollControl : Control
+sealed class PianoRollControl : Control, IThemed
 {
     static readonly Color[] PartColors =
     [
         Color.FromArgb(66, 133, 244), Color.FromArgb(219, 68, 55), Color.FromArgb(244, 180, 0),
         Color.FromArgb(15, 157, 88), Color.FromArgb(171, 71, 188), Color.FromArgb(255, 112, 67),
     ];
+
+    /// <summary>The colour a part's notes are drawn in - the same in the piano roll and the sheet music.</summary>
+    public static Color PartColor(int partIndex) => PartColors[partIndex % PartColors.Length];
 
     const double SecondsVisible = 4.0;
 

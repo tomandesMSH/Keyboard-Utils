@@ -19,6 +19,14 @@ enum MacroAction
     PlayNote,
 }
 
+/// <summary>What the song area shows: the falling-notes keyboard, sheet music, or both side by side.</summary>
+enum SongView
+{
+    Keyboard,
+    Sheet,
+    SheetAndKeyboard,
+}
+
 sealed class Binding
 {
     public int Key { get; set; }
@@ -108,6 +116,13 @@ sealed class AppConfig
 
     /// <summary>Piano roll key width in px - the "keyboard size" slider.</summary>
     public int KeyboardKeyWidth { get; set; } = PianoRollControl.DefaultKeyWidth;
+
+    public SongView SongView { get; set; } = SongView.Keyboard;
+
+    /// <summary>Share of the width the keyboard takes when shown next to the sheet music (0-1).</summary>
+    public double SplitRatio { get; set; } = 0.47;
+
+    public bool DarkMode { get; set; }
 
     /// <summary>Tempo the recording is written in when saved - MusicXML snaps notes to 16ths at this speed.</summary>
     public int CreateTempoBpm { get; set; } = 100;

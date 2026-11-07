@@ -30,6 +30,7 @@ static class Program
             }
         }
         Lang.Current = config.Language ?? AppLanguage.Czech;
+        AppTheme.SetDark(config.DarkMode);
 
         // The macro keyboard (second keyboard controlling the app) is an optional extra: not everyone has a
         // spare keyboard, or wants to use one. If the module isn't downloaded yet, or the Interception driver

@@ -6,11 +6,9 @@ namespace KeyboardUtils;
 /// Flat text button for the top menu bar (Soubor/Úpravy/Nastavení/...) - invisible at rest, rounded highlight
 /// on hover/press. Plain WinForms Button + FlatAppearance can't round its hover rectangle, so this is custom-drawn.
 /// </summary>
-sealed class MenuBarButton : Control
+sealed class MenuBarButton : Control, IThemed
 {
     const int CornerRadius = 6;
-    static readonly Color HoverBack = Color.FromArgb(232, 232, 232);
-    static readonly Color PressBack = Color.FromArgb(218, 218, 218);
 
     bool hovered;
     bool pressed;
@@ -20,12 +18,26 @@ sealed class MenuBarButton : Control
         SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer
             | ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor, true);
         BackColor = Color.Transparent;
-        ForeColor = Color.FromArgb(40, 40, 40);
+        ForeColor = AppTheme.Text;
+        AppTheme.Changed += OnThemeChanged;
         Font = new Font("Segoe UI", 9.5f);
         Padding = new Padding(6, 2, 6, 2);
         Margin = new Padding(1, 0, 1, 0);
         Cursor = Cursors.Hand;
         TabStop = false;
+    }
+
+    void OnThemeChanged()
+    {
+        ForeColor = AppTheme.Text;
+        Invalidate();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+            AppTheme.Changed -= OnThemeChanged;
+        base.Dispose(disposing);
     }
 
     public override Size GetPreferredSize(Size proposedSize)
@@ -79,7 +91,7 @@ sealed class MenuBarButton : Control
         if (hovered || pressed)
         {
             using var path = RoundedRect(new Rectangle(0, 0, Width, Height), CornerRadius);
-            using var brush = new SolidBrush(pressed ? PressBack : HoverBack);
+            using var brush = new SolidBrush(pressed ? AppTheme.Pressed : AppTheme.Hover);
             g.FillPath(brush, path);
         }
 

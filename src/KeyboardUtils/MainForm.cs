@@ -39,7 +39,7 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Label keyboardLabel = new() { AutoSize = true };
     readonly AntdUI.Button forgetButton = new() { AutoSize = true, Radius = 8 };
     readonly AntdUI.Label songLabel = new() { AutoSize = false, Dock = DockStyle.Fill, Padding = new Padding(8, 0, 6, 0), Text = "" };
-    readonly AntdUI.Label keyboardSizeLabel = new() { AutoSize = true, Margin = new Padding(0, 8, 6, 0), ForeColor = SystemColors.GrayText };
+    readonly AntdUI.Label keyboardSizeLabel = new() { AutoSize = true, Margin = new Padding(0, 7, 6, 0), ForeColor = SystemColors.GrayText };
     readonly AntdUI.Slider keyboardSizeSlider = new()
     {
         MinValue = PianoRollControl.MinKeyWidth,
@@ -47,7 +47,7 @@ sealed class MainForm : AntdUI.Window
         Size = new Size(160, 28),
         Margin = new Padding(0, 2, 0, 0),
     };
-    readonly AntdUI.Label statusLabel = new() { Dock = DockStyle.Bottom, Height = 28, Padding = new Padding(6) };
+    readonly AntdUI.Label statusLabel = new() { Dock = DockStyle.Fill, Padding = new Padding(6) };
     readonly AntdUI.Button learnButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly AntdUI.Button addButton = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly AntdUI.Button editButton = new() { AutoSize = true, Radius = 8 };
@@ -75,6 +75,13 @@ sealed class MainForm : AntdUI.Window
     readonly AntdUI.Select languageBox = new() { Size = new Size(110, 36), Margin = new Padding(3, 0, 3, 3), List = true };
     readonly FlowLayoutPanel partsPanel = new() { Dock = DockStyle.Right, Width = 180, AutoScroll = true, Padding = new Padding(6), FlowDirection = FlowDirection.TopDown, WrapContents = false, Visible = false };
     readonly PianoRollControl pianoRoll = new() { Dock = DockStyle.Fill };
+    readonly SheetMusicControl sheet = new() { Dock = DockStyle.Fill };
+
+    /// <summary>Keyboard on the left, sheet music on the right; one side is collapsed for the single views.</summary>
+    readonly ThemedSplitContainer songViews = new() { Dock = DockStyle.Fill, SplitterWidth = 4 };
+    readonly AntdUI.Segmented viewSwitch = new() { Size = new Size(240, 30), Margin = new Padding(0, 1, 0, 0) };
+    bool applyingSplit;
+    int liveNoteCount = -1;
     readonly System.Windows.Forms.Timer playbackTimer = new() { Interval = 33 };
     readonly AntdUI.Tabs tabs = new() { Dock = DockStyle.Fill };
     readonly AntdUI.TabPage songTab = new();
@@ -123,7 +130,7 @@ sealed class MainForm : AntdUI.Window
             else if (recorder != null)
                 TickCreateMode();
             else if (currentScore != null)
-                pianoRoll.SetCurrentTime(PlaybackSeconds);
+                SetViewTime(PlaybackSeconds);
             UpdatePlayPauseButton();
         };
         playbackTimer.Start();
@@ -148,15 +155,19 @@ sealed class MainForm : AntdUI.Window
             ControlGroup(playbackGroupLabel, previousButton, playPauseButton, stopButton, nextButton),
             ControlGroup(playingGroupLabel, listenButton, learningButton, createButton),
         ]);
-        // Song title on the left, the keyboard size slider on the right of the same row (Fill first, then Right).
-        var keyboardSizeGroup = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false, Padding = new Padding(0, 0, 12, 0) };
-        keyboardSizeGroup.Controls.AddRange([keyboardSizeLabel, keyboardSizeSlider]);
+        // Song title on the left, the view switch on the right of the same row (Fill first, then Right).
+        var viewSwitchGroup = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false, Padding = new Padding(0, 0, 6, 0) };
+        viewSwitchGroup.Controls.Add(viewSwitch);
         var songInfoRow = new Panel { Dock = DockStyle.Top, Height = 34 };
         songInfoRow.Controls.Add(songLabel);
-        songInfoRow.Controls.Add(keyboardSizeGroup);
+        songInfoRow.Controls.Add(viewSwitchGroup);
 
-        songTab.Controls.Add(pianoRoll);
+        songViews.Panel1.Controls.Add(pianoRoll);
+        songViews.Panel2.Controls.Add(sheet);
+        songTab.Controls.Add(songViews);
         songTab.Controls.Add(partsPanel);
+        // A thick line between the toolbar and the song, added after the parts panel so it spans the full width.
+        songTab.Controls.Add(new SeparatorLine { Dock = DockStyle.Top, Height = 3 });
         songTab.Controls.Add(songInfoRow);
 
         keyboardSizeSlider.Value = Math.Clamp(config.KeyboardKeyWidth, PianoRollControl.MinKeyWidth, PianoRollControl.MaxKeyWidth);
@@ -168,6 +179,7 @@ sealed class MainForm : AntdUI.Window
             config.Save();
         };
         songTab.Controls.Add(songControlsRow);
+        BuildSongViews();
 
         pianoRoll.Clickable = true;
         pianoRoll.KeySelected += pitch =>
@@ -194,7 +206,7 @@ sealed class MainForm : AntdUI.Window
             if (currentScore == null || learning != null || recorder != null)
                 return;
             PlaybackSeek(seconds);
-            pianoRoll.SetCurrentTime(seconds);
+            SetViewTime(seconds);
         };
         pianoRoll.SeekEnded += () =>
         {
@@ -233,7 +245,14 @@ sealed class MainForm : AntdUI.Window
         tabs.Pages.Add(songTab);
         tabs.Pages.Add(bindingsTab);
         Controls.Add(tabs);
-        Controls.Add(statusLabel);
+        // Bottom bar: status text on the left, the keyboard size slider on the right (only on the song tab).
+        var keyboardSizeGroup = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false, Padding = new Padding(0, 0, 12, 0) };
+        keyboardSizeGroup.Controls.AddRange([keyboardSizeLabel, keyboardSizeSlider]);
+        var statusRow = new Panel { Dock = DockStyle.Bottom, Height = 32 };
+        statusRow.Controls.Add(statusLabel);
+        statusRow.Controls.Add(keyboardSizeGroup);
+        tabs.SelectedIndexChanged += (_, _) => keyboardSizeGroup.Visible = tabs.SelectedTab == songTab;
+        Controls.Add(statusRow);
 
         menuBar.Controls.AddRange([fileMenuButton, editMenuButton, settingsMenuButton, macroSetupMenuButton]);
         Controls.Add(menuBar);
@@ -296,6 +315,106 @@ sealed class MainForm : AntdUI.Window
             ApplyTexts();
             SetStatus(T("Jazyk změněn.", "Language changed."));
         };
+    }
+
+    void BuildSongViews()
+    {
+        foreach (var _ in Enum.GetValues<SongView>())
+            viewSwitch.Items.Add(new AntdUI.SegmentedItem());
+        viewSwitch.SelectIndex = (int)config.SongView;
+        viewSwitch.SelectIndexChanged += (_, _) =>
+        {
+            var view = (SongView)viewSwitch.SelectIndex;
+            if (view == config.SongView)
+                return;
+            config.SongView = view;
+            config.Save();
+            ApplySongView();
+        };
+
+        // The keyboard keeps its share of the width when the window is resized; dragging the divider changes it.
+        songViews.SizeChanged += (_, _) => ApplySplitRatio();
+        songViews.SplitterMoved += (_, _) =>
+        {
+            if (applyingSplit || songViews.Panel1Collapsed || songViews.Panel2Collapsed || songViews.Width <= 0)
+                return;
+            config.SplitRatio = Math.Clamp(songViews.SplitterDistance / (double)songViews.Width, 0.15, 0.85);
+            config.Save();
+        };
+
+        sheet.FallbackBpm = config.CreateTempoBpm;
+        sheet.Seekable = true;
+        sheet.Seek += seconds =>
+        {
+            if (currentScore == null || learning != null || recorder != null)
+                return;
+            PlaybackSeek(seconds);
+            SetViewTime(seconds);
+        };
+        ApplySongView();
+    }
+
+    void ApplySongView()
+    {
+        var view = config.SongView;
+        songViews.Panel1Collapsed = view == SongView.Sheet;
+        songViews.Panel2Collapsed = view == SongView.Keyboard;
+        // The key width only matters while the keyboard is shown (disabled, not hidden, so the switch doesn't jump).
+        keyboardSizeLabel.Enabled = keyboardSizeSlider.Enabled = view != SongView.Sheet;
+        ApplySplitRatio();
+    }
+
+    void ApplySplitRatio()
+    {
+        if (songViews.Panel1Collapsed || songViews.Panel2Collapsed || songViews.Width <= 0)
+            return;
+        applyingSplit = true;
+        try
+        {
+            int max = Math.Max(songViews.Panel1MinSize, songViews.Width - songViews.Panel2MinSize - songViews.SplitterWidth);
+            songViews.SplitterDistance = Math.Clamp((int)Math.Round(songViews.Width * config.SplitRatio), songViews.Panel1MinSize, max);
+        }
+        finally
+        {
+            applyingSplit = false;
+        }
+    }
+
+    /// <summary>The song shown in the piano roll and the sheet music.</summary>
+    void SetViewScore(Score? score)
+    {
+        pianoRoll.SetScore(score);
+        sheet.FallbackBpm = config.CreateTempoBpm;
+        sheet.SetScore(score);
+    }
+
+    void SetViewTime(double seconds)
+    {
+        pianoRoll.SetCurrentTime(seconds);
+        sheet.SetCurrentTime(seconds);
+    }
+
+    /// <summary>
+    /// Create mode: the piano roll follows the recording every frame; the sheet music, which has to be laid out
+    /// again, only when a note was added (or <paramref name="force"/>).
+    /// </summary>
+    void UpdateLiveViews(Score recording, bool force)
+    {
+        pianoRoll.UpdateLiveScore(recording);
+        int count = recording.Parts.Sum(p => p.Notes.Count);
+        if (!force && (count == liveNoteCount || songViews.Panel2Collapsed))
+            return;
+        liveNoteCount = count;
+        sheet.FallbackBpm = config.CreateTempoBpm;
+        sheet.UpdateLiveScore(recording);
+    }
+
+    void ToggleDarkMode()
+    {
+        config.DarkMode = !config.DarkMode;
+        config.Save();
+        AppTheme.SetDark(config.DarkMode);
+        SetStatus(config.DarkMode ? T("Tmavý režim zapnutý.", "Dark mode on.") : T("Světlý režim zapnutý.", "Light mode on."));
     }
 
     /// <summary>A small grey caption above a row of related controls.</summary>
@@ -363,6 +482,7 @@ sealed class MainForm : AntdUI.Window
             new AntdUI.ContextMenuStripItem(T("Ovládání zapnuté", "Controls on")) { Checked = enabledBox.Checked, Tag = (Action)(() => enabledBox.Checked = !enabledBox.Checked) },
             new AntdUI.ContextMenuStripItemDivider(),
             new AntdUI.ContextMenuStripItem(T("Jazyk", "Language")) { Sub = languageItems },
+            new AntdUI.ContextMenuStripItem(T("Tmavý režim", "Dark mode")) { Checked = config.DarkMode, Tag = (Action)ToggleDarkMode },
             new AntdUI.ContextMenuStripItem(T("MIDI výstup", "MIDI output")) { Sub = deviceItems.ToArray() },
             new AntdUI.ContextMenuStripItem(T("Vstup not", "Note input")) { Sub = BuildNoteInputItems() },
             new AntdUI.ContextMenuStripItem(T("Mikrofon a citlivost...", "Microphone and sensitivity...")) { Tag = (Action)ShowMicrophoneSetup },
@@ -424,6 +544,13 @@ sealed class MainForm : AntdUI.Window
         playbackGroupLabel.Text = T("Přehrávání", "Playback");
         playingGroupLabel.Text = T("Nahrávání", "Recording");
         keyboardSizeLabel.Text = T("Velikost klávesnice", "Keyboard size");
+        string[] viewNames = [T("Klávesy", "Keyboard"), T("Noty", "Sheet"), T("Noty + klávesy", "Sheet + keyboard")];
+        for (int i = 0; i < viewSwitch.Items.Count && i < viewNames.Length; i++)
+            viewSwitch.Items[i].Text = viewNames[i];
+        // As wide as its items: extra width stays empty after the last one, so the switch wouldn't reach the right
+        // edge. (AntdUI's AutoSize shrinks it to nothing.)
+        viewSwitch.Width = viewNames.Sum(name => TextRenderer.MeasureText(name, viewSwitch.Font).Width + LogicalToDeviceUnits(12));
+        viewSwitch.Invalidate();
         playPauseButton.Text = T("Přehrát", "Play");
         stopButton.Text = T("Stop", "Stop");
         previousButton.Text = T("<< Předchozí", "<< Previous");
@@ -636,6 +763,8 @@ sealed class MainForm : AntdUI.Window
         learning = session;
         learningStatus = "";
         pianoRoll.Learning = session;
+        sheet.Learning = session;
+        sheet.NotesChanged();
         partsPanel.Enabled = false;
         UpdateLearningButton();
     }
@@ -644,7 +773,7 @@ sealed class MainForm : AntdUI.Window
     {
         var session = learning!;
         session.Tick();
-        pianoRoll.SetCurrentTime(session.Position);
+        SetViewTime(session.Position);
         // Tell an audio source which notes to listen for now (chord checking).
         (noteSource as IExpectedNotesListener)?.SetExpectedNotes(session.ListenFor());
         string status = session.Position < 0
@@ -664,6 +793,8 @@ sealed class MainForm : AntdUI.Window
         var result = session.Stop();
         learning = null;
         pianoRoll.Learning = null;
+        sheet.Learning = null;
+        sheet.NotesChanged();
         if (noteSource is IExpectedNotesListener listener)
         {
             listener.SetExpectedNotes([]);
@@ -678,7 +809,7 @@ sealed class MainForm : AntdUI.Window
                 playbackEngine.SetPartMuted(i, currentScore.Parts[i].Muted);
         stemPlaybackEngine.Stop();
         stemPlaybackEngine.SetSilenced([]);
-        pianoRoll.SetCurrentTime(0);
+        SetViewTime(0);
         UpdateLearningButton();
         UpdateCreateButton();
         SetStatus(T("Režim učení ukončen.", "Learning mode ended."));
@@ -696,6 +827,7 @@ sealed class MainForm : AntdUI.Window
         learningButton.Enabled = currentScore != null && recorder == null;
         // Moving the time would break a learning session's scoring.
         pianoRoll.Seekable = learning == null;
+        sheet.Seekable = learning == null && recorder == null;
         learningButton.Text = learning != null ? T("Ukončit učení", "End learning") : T("Režim učení...", "Learning mode...");
     }
 
@@ -722,8 +854,8 @@ sealed class MainForm : AntdUI.Window
         recorder = new NoteRecorder(source.LatencySeconds);
         recordingTitle = T("Nahrávka ", "Recording ") + DateTime.Now.ToString("yyyy-MM-dd HH-mm");
         pianoRoll.RecordingView = true;
-        pianoRoll.UpdateLiveScore(recorder.Snapshot(recordingTitle));
-        pianoRoll.SetCurrentTime(0);
+        UpdateLiveViews(recorder.Snapshot(recordingTitle), force: true);
+        SetViewTime(0);
         UpdateCreateButton();
         UpdateLearningButton();
         SetStatus(T("Nahrávám - hraj. Noty se zapisují od první zahrané.", "Recording - play. Notes are written from the first one you play."));
@@ -732,8 +864,8 @@ sealed class MainForm : AntdUI.Window
     void TickCreateMode()
     {
         var active = recorder!;
-        pianoRoll.UpdateLiveScore(active.Snapshot(recordingTitle));
-        pianoRoll.SetCurrentTime(active.CurrentSeconds);
+        UpdateLiveViews(active.Snapshot(recordingTitle), force: false);
+        SetViewTime(active.CurrentSeconds);
         if (active.NoteCount > 0)
             SetStatus(T($"Nahrávám: {active.NoteCount} not", $"Recording: {active.NoteCount} notes"));
     }
@@ -755,7 +887,7 @@ sealed class MainForm : AntdUI.Window
             unsavedRecording = recording;
         }
         else
-            pianoRoll.SetScore(currentScore);
+            SetViewScore(currentScore);
         UpdateCreateButton();
         UpdateLearningButton();
     }
@@ -966,7 +1098,7 @@ sealed class MainForm : AntdUI.Window
         currentScore = score;
 
         playbackEngine.Load(currentScore);
-        pianoRoll.SetScore(currentScore);
+        SetViewScore(currentScore);
         RebuildPartsPanel();
         playPauseButton.Enabled = stopButton.Enabled = true;
         previousButton.Enabled = nextButton.Enabled = playlist.Count > 1;
@@ -1021,7 +1153,7 @@ sealed class MainForm : AntdUI.Window
         playlistIndex = -1;
         currentScore = null;
         currentStems = stems;
-        pianoRoll.SetScore(null);
+        SetViewScore(null);
 
         RebuildPartsPanel();
         playPauseButton.Enabled = stopButton.Enabled = true;
@@ -1086,7 +1218,7 @@ sealed class MainForm : AntdUI.Window
         playlist = [];
         playlistIndex = -1;
 
-        pianoRoll.SetScore(null);
+        SetViewScore(null);
         RebuildPartsPanel();
         playPauseButton.Enabled = stopButton.Enabled = previousButton.Enabled = nextButton.Enabled = false;
         UpdateSongLabel();
@@ -1202,8 +1334,8 @@ sealed class MainForm : AntdUI.Window
         currentScore.Parts.Add(notes);
         unsavedRecording = currentScore;
 
-        pianoRoll.SetScore(currentScore);
-        pianoRoll.SetCurrentTime(PlaybackSeconds);
+        SetViewScore(currentScore);
+        SetViewTime(PlaybackSeconds);
         RebuildPartsPanel();
         UpdateSongLabel();
         UpdateLearningButton();
@@ -1249,6 +1381,7 @@ sealed class MainForm : AntdUI.Window
             playbackEngine.SetPartMuted(partIndex, muted);
         }
         pianoRoll.Invalidate();
+        sheet.NotesChanged();
     }
 
     // --- Playback: the stems' audio when stems are loaded (even with notes converted from them - those are
@@ -1307,7 +1440,7 @@ sealed class MainForm : AntdUI.Window
             return;
         }
         PlaybackStop();
-        pianoRoll.SetCurrentTime(0);
+        SetViewTime(0);
         UpdatePlayPauseButton();
         SetStatus(T("Zastaveno.", "Stopped."));
     }

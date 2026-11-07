@@ -8,10 +8,11 @@ namespace KeyboardUtils;
 /// closest to the edge (outermost/topmost). Do NOT call BringToFront() afterwards: that resets z-index to 0,
 /// which for Dock layout means innermost, undoing the correct order.
 /// </summary>
-sealed class TitleBar : Panel
+sealed class TitleBar : Panel, IThemed
 {
-    static Color HoverBack => Color.FromArgb(235, 235, 235);
-    static Color PressBack => Color.FromArgb(220, 220, 220);
+    static Color HoverBack => AppTheme.Hover;
+    static Color PressBack => AppTheme.Pressed;
+    static Color ButtonFore => AppTheme.Dark ? Color.FromArgb(200, 200, 205) : Color.FromArgb(70, 70, 70);
     static Color CloseHoverBack => Color.FromArgb(232, 17, 35);
     static Color ClosePressBack => Color.FromArgb(200, 15, 30);
 
@@ -19,7 +20,7 @@ sealed class TitleBar : Panel
     {
         Dock = DockStyle.Top;
         Height = 40;
-        BackColor = Color.White;
+        BackColor = AppTheme.Window;
 
         // The window's icon at 20 px (the .ico has that size, so it isn't scaled).
         var icon = new PictureBox
@@ -38,7 +39,7 @@ sealed class TitleBar : Panel
             TextAlign = ContentAlignment.MiddleLeft,
             Padding = new Padding(0),
             Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-            ForeColor = Color.FromArgb(31, 31, 31),
+            ForeColor = AppTheme.Text,
             BackColor = Color.Transparent,
         };
         owner.TextChanged += (_, _) => title.Text = owner.Text;
@@ -48,10 +49,10 @@ sealed class TitleBar : Panel
         void ToggleMax() { if (owner.IsMax) owner.MaxRestore(); else owner.Max(); }
 
         if (showMinimize)
-            buttons.Controls.Add(ChromeButton("-", HoverBack, PressBack, (_, _) => owner.Min()));
+            buttons.Controls.Add(new ChromeButton("-", close: false, (_, _) => owner.Min()));
         if (showMaximize)
-            buttons.Controls.Add(ChromeButton("□", HoverBack, PressBack, (_, _) => ToggleMax()));
-        buttons.Controls.Add(ChromeButton("×", CloseHoverBack, ClosePressBack, (_, _) => owner.Close(), hoverForeWhite: true));
+            buttons.Controls.Add(new ChromeButton("□", close: false, (_, _) => ToggleMax()));
+        buttons.Controls.Add(new ChromeButton("×", close: true, (_, _) => owner.Close()));
 
         // Fill first: the docked-last controls (icon left, buttons right) are laid out before it.
         Controls.Add(title);
@@ -73,31 +74,55 @@ sealed class TitleBar : Panel
         MouseDown += HandleMouseDown;
         title.MouseDown += HandleMouseDown;
         icon.MouseDown += HandleMouseDown;
+
+        // Every window has one of these, so it's where windows get themed (and re-themed when the mode changes).
+        AppTheme.Attach(owner);
+        void ApplyTheme()
+        {
+            BackColor = AppTheme.Window;
+            title.ForeColor = AppTheme.Text;
+            foreach (var button in buttons.Controls.OfType<ChromeButton>())
+                button.Invalidate();
+        }
+        AppTheme.Changed += ApplyTheme;
+        Disposed += (_, _) => AppTheme.Changed -= ApplyTheme;
     }
 
-    static Button ChromeButton(string text, Color hoverBack, Color pressBack, EventHandler onClick, bool hoverForeWhite = false)
+    /// <summary>
+    /// Minimize / maximize / close. Custom-drawn: a flat WinForms Button gets a light border in dark mode
+    /// (WinForms' own dark rendering ignores BorderSize = 0).
+    /// </summary>
+    sealed class ChromeButton : Control
     {
-        var fore = Color.FromArgb(70, 70, 70);
-        var button = new Button
+        readonly bool close;
+        bool hovered, pressed;
+
+        public ChromeButton(string text, bool close, EventHandler onClick)
         {
-            Text = text,
-            FlatStyle = FlatStyle.Flat,
-            Size = new Size(44, 40),
-            Font = new Font("Segoe UI", 10f),
-            ForeColor = fore,
-            BackColor = Color.White,
-            TabStop = false,
-            Margin = new Padding(0),
-        };
-        button.FlatAppearance.BorderSize = 0;
-        button.FlatAppearance.MouseOverBackColor = hoverBack;
-        button.FlatAppearance.MouseDownBackColor = pressBack;
-        if (hoverForeWhite)
-        {
-            button.MouseEnter += (_, _) => button.ForeColor = Color.White;
-            button.MouseLeave += (_, _) => button.ForeColor = fore;
+            SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer, true);
+            this.close = close;
+            Text = text;
+            Size = new Size(44, 40);
+            Font = new Font("Segoe UI", 10f);
+            Margin = new Padding(0);
+            TabStop = false;
+            Click += onClick;
         }
-        button.Click += onClick;
-        return button;
+
+        protected override void OnMouseEnter(EventArgs e) { hovered = true; Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { hovered = pressed = false; Invalidate(); base.OnMouseLeave(e); }
+        protected override void OnMouseDown(MouseEventArgs e) { if (e.Button == MouseButtons.Left) { pressed = true; Invalidate(); } base.OnMouseDown(e); }
+        protected override void OnMouseUp(MouseEventArgs e) { pressed = false; Invalidate(); base.OnMouseUp(e); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var back = pressed ? (close ? ClosePressBack : PressBack)
+                : hovered ? (close ? CloseHoverBack : HoverBack)
+                : AppTheme.Window;
+            e.Graphics.Clear(back);
+            var fore = close && (hovered || pressed) ? Color.White : ButtonFore;
+            TextRenderer.DrawText(e.Graphics, Text, Font, ClientRectangle, fore,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+        }
     }
 }

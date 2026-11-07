@@ -221,7 +221,7 @@ sealed class MicrophoneSetupForm : AntdUI.Window
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
-            g.Clear(Color.FromArgb(230, 230, 230));
+            g.Clear(AppTheme.Dark ? Color.FromArgb(52, 52, 58) : Color.FromArgb(230, 230, 230));
             using var fill = new SolidBrush(levelDb >= thresholdDb ? Color.FromArgb(15, 157, 88) : Color.FromArgb(160, 160, 160));
             g.FillRectangle(fill, 0, 0, XFor(levelDb), ClientSize.Height);
             using var line = new Pen(Color.FromArgb(219, 68, 55), 2);

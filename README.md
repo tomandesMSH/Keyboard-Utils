@@ -33,6 +33,11 @@ Makro klávesnice je volitelná a nic dalšího k běhu aplikace nepotřebuje �
 - V piano rollu **tažením nahoru / dolů** posouváš skladbu v čase. Klávesa se při dopadu noty rozsvítí barvou části.
   Kliknutím na klávesu ji zahraješ.
 - **Velikost klávesnice** mění šířku kláves – ve větším okně se ukáže víc oktáv, až celá klaviatura.
+- Přepínač **Klávesy / Noty / Noty + klávesy** vybere, co se ukáže: padající noty, notový zápis (klavírní dvojosnova),
+  nebo obojí vedle sebe (dělítko jde přetáhnout). V notách se modře posouvá aktuální takt, znějící noty mají barvu
+  své části a v režimu učení zezelenají / zčervenají. Kliknutím na takt na něj skladbu posuneš, kolečkem myši
+  posouváš noty, **Ctrl + kolečko** je zvětší / zmenší. Noty jsou zarovnané na šestnáctiny (stejně jako export do
+  MusicXML), takže rychlé ozdoby nebo trioly vypadají zjednodušeně.
 - **Odebrat skladbu** ji zavře (soubor na disku zůstane).
 - **Soubor > Uložit skladbu jako...** uloží skladbu jako MIDI nebo MusicXML.
 
@@ -111,6 +116,8 @@ Klávesy z ní se nedostanou do Windows, hlavní klávesnice funguje normálně.
 Přiřazení kláves uložíš do souboru tlačítkem **Exportovat...** a načteš tlačítkem **Importovat...**
 (nahradit současné, nebo přidat ke stávajícím). Volba klávesnice se neexportuje, platí jen pro daný počítač.
 **Ovládání zapnuté** dočasně vypne zachytávání – makro klávesnice pak píše normálně.
+
+**Nastavení > Tmavý režim** přepne celou appku do tmavých barev.
 
 Nastavení se ukládá do `%APPDATA%\KeyboardUtils\config.json`.
 

@@ -9,7 +9,7 @@ static class MidiImporter
     {
         var midiFile = MidiFile.Read(path);
         var tempoMap = midiFile.GetTempoMap();
-        var score = new Score { Title = Path.GetFileNameWithoutExtension(path) };
+        var score = new Score { Title = Path.GetFileNameWithoutExtension(path), Timing = ReadTiming(midiFile, tempoMap) };
 
         foreach (var trackChunk in midiFile.GetTrackChunks())
         {
@@ -39,5 +39,25 @@ static class MidiImporter
         }
 
         return score;
+    }
+
+    /// <summary>Tempo changes and the opening time signature; null for SMPTE-timed files, which have no beats.</summary>
+    static ScoreTiming? ReadTiming(MidiFile midiFile, TempoMap tempoMap)
+    {
+        if (midiFile.TimeDivision is not TicksPerQuarterNoteTimeDivision division)
+            return null;
+        double ticksPerQuarter = division.TicksPerQuarterNote;
+        var tempo = new List<TempoPoint>();
+        void Add(long time, Tempo value) => tempo.Add(new TempoPoint(
+            TimeConverter.ConvertTo<MetricTimeSpan>(time, tempoMap).TotalSeconds,
+            time / ticksPerQuarter,
+            1_000_000.0 / value.MicrosecondsPerQuarterNote));
+
+        Add(0, tempoMap.GetTempoAtTime(new MidiTimeSpan(0)));
+        foreach (var change in tempoMap.GetTempoChanges().Where(c => c.Time > 0))
+            Add(change.Time, change.Value);
+
+        var signature = tempoMap.GetTimeSignatureAtTime(new MidiTimeSpan(0));
+        return new ScoreTiming(tempo, signature.Numerator, signature.Denominator);
     }
 }

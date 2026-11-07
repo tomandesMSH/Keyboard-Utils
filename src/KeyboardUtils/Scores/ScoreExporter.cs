@@ -60,44 +60,16 @@ static class ScoreExporter
 
     // --- MusicXML --------------------------------------------------------------------------------
 
-    /// <summary>Grid units per quarter note: 4 = 16th notes, the finest value written.</summary>
-    const int Divisions = 4;
+    const int Divisions = SheetQuantizer.Divisions;
 
     /// <summary>4/4 time.</summary>
     const int MeasureLength = 4 * Divisions;
 
-    /// <summary>Notes from middle C up go to the treble staff, the rest to the bass staff (a piano grand staff).</summary>
-    const int SplitPitch = 60;
-
-    static readonly (string Step, int Alter)[] Spelling =
-        [("C", 0), ("C", 1), ("D", 0), ("D", 1), ("E", 0), ("F", 0), ("F", 1), ("G", 0), ("G", 1), ("A", 0), ("A", 1), ("B", 0)];
-
-    /// <summary>Written durations, longest first: whole, dotted half, half, dotted quarter, quarter, dotted 8th, 8th, 16th.</summary>
-    static readonly (int Length, string Type, bool Dotted)[] NoteValues =
-        [(16, "whole", false), (12, "half", true), (8, "half", false), (6, "quarter", true), (4, "quarter", false), (3, "eighth", true), (2, "eighth", false), (1, "16th", false)];
-
-    /// <summary>
-    /// What sounds during one stretch of a staff: a chord (one or more pitches) or a rest (none).
-    /// <paramref name="TiedFromPrevious"/>: the continuation of a note split at a bar line.
-    /// </summary>
-    sealed record Segment(int Start, int Length, IReadOnlyList<int> Pitches, bool TiedFromPrevious = false);
-
     public static void SaveMusicXml(Score score, string path, int bpm)
     {
         double unitsPerSecond = bpm / 60.0 * Divisions;
-        var notes = score.Parts.SelectMany(p => p.Notes)
-            .Select(n =>
-            {
-                int start = (int)Math.Round(n.StartSeconds * unitsPerSecond);
-                int end = Math.Max(start + 1, (int)Math.Round((n.StartSeconds + n.DurationSeconds) * unitsPerSecond));
-                return (n.Pitch, Start: start, End: end);
-            })
-            .ToList();
-
-        int totalLength = notes.Count > 0 ? notes.Max(n => n.End) : MeasureLength;
-        int measures = Math.Max(1, (totalLength + MeasureLength - 1) / MeasureLength);
-        var treble = BuildStaff(notes.Where(n => n.Pitch >= SplitPitch), measures);
-        var bass = BuildStaff(notes.Where(n => n.Pitch < SplitPitch), measures);
+        var notes = score.Parts.SelectMany((p, index) => p.Notes.Select(n => (n, index)));
+        var (treble, bass, measures, _) = SheetQuantizer.Quantize(notes, seconds => seconds * unitsPerSecond, MeasureLength);
 
         var part = new XElement("part", new XAttribute("id", "P1"));
         for (int m = 0; m < measures; m++)
@@ -133,54 +105,11 @@ static class ScoreExporter
         document.Save(path);
     }
 
-    /// <summary>
-    /// Flattens one staff into back-to-back segments covering whole measures. One voice per staff keeps it
-    /// simple: notes starting together form a chord, and each chord lasts until its shortest note ends or the
-    /// next chord starts, whichever is first; gaps become rests.
-    /// </summary>
-    static List<Segment> BuildStaff(IEnumerable<(int Pitch, int Start, int End)> notes, int measures)
-    {
-        var segments = new List<Segment>();
-        var onsets = notes.GroupBy(n => n.Start).OrderBy(g => g.Key).ToList();
-        int time = 0;
-        for (int i = 0; i < onsets.Count; i++)
-        {
-            int start = onsets[i].Key;
-            if (start > time)
-                segments.Add(new Segment(time, start - time, []));
-            int end = onsets[i].Min(n => n.End);
-            if (i + 1 < onsets.Count)
-                end = Math.Min(end, onsets[i + 1].Key);
-            segments.Add(new Segment(start, end - start, onsets[i].Select(n => n.Pitch).Distinct().Order().ToList()));
-            time = end;
-        }
-        int total = measures * MeasureLength;
-        if (time < total)
-            segments.Add(new Segment(time, total - time, []));
-
-        // Nothing may cross a bar line: split there (a note's halves get tied in WriteMeasure).
-        var split = new List<Segment>();
-        foreach (var segment in segments)
-        {
-            int start = segment.Start, remaining = segment.Length;
-            while (remaining > 0)
-            {
-                int room = MeasureLength - start % MeasureLength;
-                int length = Math.Min(room, remaining);
-                split.Add(segment with { Start = start, Length = length, TiedFromPrevious = start != segment.Start && segment.Pitches.Count > 0 });
-                start += length;
-                remaining -= length;
-            }
-        }
-        return split;
-    }
-
     static void WriteMeasure(XElement measure, List<Segment> staffSegments, int measureIndex, int staff, int voice)
     {
-        int from = measureIndex * MeasureLength, to = from + MeasureLength;
-        var indices = Enumerable.Range(0, staffSegments.Count).Where(i => staffSegments[i].Start >= from && staffSegments[i].Start < to).ToList();
+        var indices = SheetQuantizer.InMeasure(staffSegments, measureIndex, MeasureLength).Select(s => s.Index).ToList();
 
-        if (indices.All(i => staffSegments[i].Pitches.Count == 0))
+        if (indices.All(i => staffSegments[i].IsRest))
         {
             measure.Add(new XElement("note", new XElement("rest", new XAttribute("measure", "yes")),
                 new XElement("duration", MeasureLength), new XElement("voice", voice), new XElement("staff", staff)));
@@ -191,38 +120,26 @@ static class ScoreExporter
         {
             var segment = staffSegments[index];
             // Lengths like 5 or 7 sixteenths have no single symbol: write them as tied pieces (4 + 1, 6 + 1...).
-            var pieces = Decompose(segment.Length);
+            var pieces = SheetQuantizer.Decompose(segment.Length);
             bool continuesFromBefore = segment.TiedFromPrevious;
             bool continuesAfter = index + 1 < staffSegments.Count && staffSegments[index + 1].TiedFromPrevious;
             for (int p = 0; p < pieces.Count; p++)
             {
                 var value = pieces[p];
-                if (segment.Pitches.Count == 0)
+                if (segment.IsRest)
                 {
                     measure.Add(NoteElement(null, chord: false, value, tieStart: false, tieStop: false, staff, voice));
                     continue;
                 }
                 bool tieStop = p > 0 || continuesFromBefore;
                 bool tieStart = p < pieces.Count - 1 || continuesAfter;
-                for (int k = 0; k < segment.Pitches.Count; k++)
-                    measure.Add(NoteElement(segment.Pitches[k], chord: k > 0, value, tieStart, tieStop, staff, voice));
+                for (int k = 0; k < segment.Notes.Count; k++)
+                    measure.Add(NoteElement(segment.Notes[k].Pitch, chord: k > 0, value, tieStart, tieStop, staff, voice));
             }
         }
     }
 
-    static List<(int Length, string Type, bool Dotted)> Decompose(int length)
-    {
-        var pieces = new List<(int, string, bool)>();
-        foreach (var value in NoteValues)
-            while (length >= value.Length)
-            {
-                pieces.Add(value);
-                length -= value.Length;
-            }
-        return pieces;
-    }
-
-    static XElement NoteElement(int? pitch, bool chord, (int Length, string Type, bool Dotted) value, bool tieStart, bool tieStop, int staff, int voice)
+    static XElement NoteElement(int? pitch, bool chord, NoteValue value, bool tieStart, bool tieStop, int staff, int voice)
     {
         // Element order is fixed by the MusicXML schema.
         var note = new XElement("note");
@@ -230,7 +147,7 @@ static class ScoreExporter
             note.Add(new XElement("chord"));
         if (pitch is { } p)
         {
-            var (step, alter) = Spelling[p % 12];
+            var (step, alter) = SheetQuantizer.Spelling[p % 12];
             var pitchElement = new XElement("pitch", new XElement("step", step));
             if (alter != 0)
                 pitchElement.Add(new XElement("alter", alter));
@@ -248,7 +165,7 @@ static class ScoreExporter
         note.Add(new XElement("type", value.Type));
         if (value.Dotted)
             note.Add(new XElement("dot"));
-        if (pitch is { } q && Spelling[q % 12].Alter != 0)
+        if (pitch is { } q && SheetQuantizer.Spelling[q % 12].Alter != 0)
             note.Add(new XElement("accidental", "sharp"));
         note.Add(new XElement("staff", staff));
         if (tieStart || tieStop)

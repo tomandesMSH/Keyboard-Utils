@@ -29,6 +29,9 @@ sealed class Score
     public required string Title { get; set; }
     public List<ScorePart> Parts { get; set; } = [];
 
+    /// <summary>Tempo and time signature from the file, for the sheet music view. Null when unknown (recordings).</summary>
+    public ScoreTiming? Timing { get; set; }
+
     public double DurationSeconds => Parts.SelectMany(p => p.Notes)
         .Select(n => n.StartSeconds + n.DurationSeconds)
         .DefaultIfEmpty(0)

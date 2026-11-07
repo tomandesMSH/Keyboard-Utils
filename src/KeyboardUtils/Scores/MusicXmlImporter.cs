@@ -29,6 +29,8 @@ static class MusicXmlImporter
             ?? [];
 
         var score = new Score { Title = Path.GetFileNameWithoutExtension(path) };
+        // Every part repeats the tempo and time signature; the first one's are the score's.
+        TimingReader? timing = new();
 
         foreach (var partElement in root.Elements("part"))
         {
@@ -38,7 +40,12 @@ static class MusicXmlImporter
             {
                 Name = string.IsNullOrWhiteSpace(name) ? T($"Část {score.Parts.Count + 1}", $"Part {score.Parts.Count + 1}") : name,
             };
-            ImportPart(partElement, part);
+            ImportPart(partElement, part, timing);
+            if (timing != null)
+            {
+                score.Timing = new ScoreTiming(timing.Tempo, timing.Beats, timing.BeatType);
+                timing = null;
+            }
             if (part.Notes.Count > 0)
                 score.Parts.Add(part);
         }
@@ -46,15 +53,36 @@ static class MusicXmlImporter
         return score;
     }
 
-    static void ImportPart(XElement partElement, ScorePart part)
+    /// <summary>Collects tempo changes and the first time signature while a part is read.</summary>
+    sealed class TimingReader
+    {
+        public List<TempoPoint> Tempo { get; } = [];
+        public int Beats { get; set; } = 4;
+        public int BeatType { get; set; } = 4;
+        public bool HasTimeSignature { get; set; }
+    }
+
+    static void ImportPart(XElement partElement, ScorePart part, TimingReader? timing)
     {
         int divisions = 1;
         double microsecondsPerQuarter = 500_000; // 120 BPM default, used until a <sound tempo="..."/> says otherwise.
         double currentSeconds = 0;
+        double currentQuarters = 0;
         double lastNoteStartSeconds = 0;
         var tiedNotes = new Dictionary<int, int>(); // pitch -> index in part.Notes of a note whose tie hasn't stopped yet
 
         double SecondsPerDivision() => microsecondsPerQuarter / 1_000_000.0 / divisions;
+        void Advance(double durationDivisions)
+        {
+            currentSeconds += durationDivisions * SecondsPerDivision();
+            currentQuarters += durationDivisions / divisions;
+        }
+        void SetTempo(string bpm)
+        {
+            microsecondsPerQuarter = 60_000_000.0 / ParseDouble(bpm);
+            timing?.Tempo.Add(new TempoPoint(currentSeconds, currentQuarters, 1_000_000.0 / microsecondsPerQuarter));
+        }
+        timing?.Tempo.Add(new TempoPoint(0, 0, 2));
 
         foreach (var measure in partElement.Elements("measure"))
         {
@@ -65,30 +93,39 @@ static class MusicXmlImporter
                     case "attributes":
                         if (element.Element("divisions") is { } div)
                             divisions = (int)ParseDouble(div.Value);
+                        if (timing is { HasTimeSignature: false } && element.Element("time") is { } time
+                            && int.TryParse((string?)time.Element("beats"), out int beats)
+                            && int.TryParse((string?)time.Element("beat-type"), out int beatType))
+                        {
+                            timing.Beats = beats;
+                            timing.BeatType = beatType;
+                            timing.HasTimeSignature = true;
+                        }
                         break;
 
                     case "direction":
                         if (element.Element("sound")?.Attribute("tempo") is { } dirTempo)
-                            microsecondsPerQuarter = 60_000_000.0 / ParseDouble(dirTempo.Value);
+                            SetTempo(dirTempo.Value);
                         break;
 
                     case "sound":
                         if (element.Attribute("tempo") is { } tempo)
-                            microsecondsPerQuarter = 60_000_000.0 / ParseDouble(tempo.Value);
+                            SetTempo(tempo.Value);
                         break;
 
                     case "backup":
-                        currentSeconds -= ParseDouble(element.Element("duration")?.Value ?? "0") * SecondsPerDivision();
+                        Advance(-ParseDouble(element.Element("duration")?.Value ?? "0"));
                         break;
 
                     case "forward":
-                        currentSeconds += ParseDouble(element.Element("duration")?.Value ?? "0") * SecondsPerDivision();
+                        Advance(ParseDouble(element.Element("duration")?.Value ?? "0"));
                         break;
 
                     case "note":
                         bool isChordNote = element.Element("chord") != null;
                         bool isRest = element.Element("rest") != null;
-                        double durationSeconds = ParseDouble(element.Element("duration")?.Value ?? "0") * SecondsPerDivision();
+                        double durationDivisions = ParseDouble(element.Element("duration")?.Value ?? "0");
+                        double durationSeconds = durationDivisions * SecondsPerDivision();
                         double startSeconds = isChordNote ? lastNoteStartSeconds : currentSeconds;
 
                         if (!isRest && element.Element("pitch") is { } pitch)
@@ -126,7 +163,7 @@ static class MusicXmlImporter
                         if (!isChordNote)
                         {
                             lastNoteStartSeconds = currentSeconds;
-                            currentSeconds += durationSeconds;
+                            Advance(durationDivisions);
                         }
                         break;
                 }
