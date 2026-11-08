@@ -234,7 +234,7 @@ s vyplněnou verzí – GitHub účet není potřeba, hlášení se objeví mezi
 
 ## Licence
 
-[MIT](LICENSE) © 2026 tomandesMSH. Ovladač Interception a doplněk pro akordy mají své vlastní licence (viz níže).
+[MIT](LICENSE) © 2026 [tomandesMSH](https://tomandes.eu/). Ovladač Interception a doplněk pro akordy mají své vlastní licence (viz níže).
 
 ## Poznámky
 
