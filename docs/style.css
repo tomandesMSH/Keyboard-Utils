@@ -1,0 +1,292 @@
+/* Keyboard Utils - the colours of a piano: ivory keys, black keys, the grey of the key edges. */
+:root {
+  --ivory: #f7f4ec;
+  --ivory-deep: #ece7da;
+  --white: #ffffff;
+  --black: #121212;
+  --black-soft: #1e1e20;
+  --edge: #6e6e6e;
+  --line: #d8d2c4;
+  --text: #121212;
+  --muted: #5d584f;
+  --muzio: #e14432;
+  --radius: 14px;
+  --max: 1080px;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--ivory);
+  color: var(--text);
+  font: 16px/1.6 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+
+a { color: inherit; }
+
+h1, h2, h3 {
+  font-family: 'Fraunces', Georgia, serif;
+  line-height: 1.15;
+  margin: 0 0 .5em;
+}
+
+h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); letter-spacing: -.01em; }
+h2 { font-size: clamp(1.7rem, 3.4vw, 2.4rem); }
+h3 { font-size: 1.2rem; }
+
+code {
+  font: .9em ui-monospace, 'Cascadia Code', Consolas, monospace;
+  background: var(--ivory-deep);
+  padding: .1em .35em;
+  border-radius: 4px;
+}
+
+/* --- Header ------------------------------------------------------------------------------- */
+
+.top {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+nav { display: flex; gap: 22px; flex-wrap: wrap; }
+nav a { text-decoration: none; color: var(--muted); font-weight: 500; }
+nav a:hover { color: var(--black); }
+
+/* --- Hero --------------------------------------------------------------------------------- */
+
+.hero {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 56px 20px 48px;
+}
+
+.hero-text { max-width: 720px; }
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+
+.lead { font-size: 1.15rem; color: #2b2925; margin: 0 0 28px; }
+
+.actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+.btn {
+  display: inline-block;
+  padding: 13px 22px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(1px); }
+
+/* Black key and white key. */
+.btn-dark { background: var(--black); color: var(--white); box-shadow: 0 3px 0 #000; }
+.btn-light { background: var(--white); color: var(--black); border: 2px solid var(--edge); box-shadow: 0 3px 0 var(--line); }
+.btn-red { background: var(--muzio); color: var(--white); box-shadow: 0 3px 0 #b8331f; }
+
+.fine { margin: 18px 0 0; font-size: .88rem; color: var(--muted); }
+
+/* --- A row of piano keys ---------------------------------------------------------------- */
+
+/* White keys 40 px wide; black keys sit over the gaps after C, D, F, G and A (an octave = 7 white keys). */
+.keys {
+  --w: 40px;
+  height: 90px;
+  background:
+    repeating-linear-gradient(to right,
+      var(--white) 0 calc(var(--w) - 2px),
+      var(--line) calc(var(--w) - 2px) var(--w));
+  position: relative;
+  border-top: 4px solid var(--black);
+  border-bottom: 4px solid var(--black);
+  overflow: hidden;
+}
+
+.keys::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 38% 0;
+  /* One octave of black keys, as a mask-free gradient: 7 white keys long. */
+  background: repeating-linear-gradient(to right,
+    transparent 0 calc(var(--w) * .7),
+    var(--black) calc(var(--w) * .7) calc(var(--w) * 1.3),     /* C# */
+    transparent calc(var(--w) * 1.3) calc(var(--w) * 1.7),
+    var(--black) calc(var(--w) * 1.7) calc(var(--w) * 2.3),     /* D# */
+    transparent calc(var(--w) * 2.3) calc(var(--w) * 3.7),
+    var(--black) calc(var(--w) * 3.7) calc(var(--w) * 4.3),     /* F# */
+    transparent calc(var(--w) * 4.3) calc(var(--w) * 4.7),
+    var(--black) calc(var(--w) * 4.7) calc(var(--w) * 5.3),     /* G# */
+    transparent calc(var(--w) * 5.3) calc(var(--w) * 5.7),
+    var(--black) calc(var(--w) * 5.7) calc(var(--w) * 6.3),     /* A# */
+    transparent calc(var(--w) * 6.3) calc(var(--w) * 7));
+  border-radius: 0 0 3px 3px;
+}
+
+.keys-small { --w: 24px; height: 46px; border-width: 3px; }
+
+/* --- Screenshot --------------------------------------------------------------------------- */
+
+.shots {
+  background: var(--black);
+  color: var(--ivory);
+  padding: 48px 20px 56px;
+  text-align: center;
+}
+
+.shot-switch {
+  display: inline-flex;
+  background: var(--black-soft);
+  border: 1px solid #333;
+  border-radius: 999px;
+  padding: 4px;
+  margin-bottom: 24px;
+}
+
+.shot-switch button {
+  font: inherit;
+  font-size: .92rem;
+  font-weight: 500;
+  color: #bdb8ad;
+  background: none;
+  border: 0;
+  padding: 8px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.shot-switch button[aria-selected="true"] { background: var(--ivory); color: var(--black); }
+
+.shot { margin: 0 auto; max-width: var(--max); }
+
+.shot img {
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid #333;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .5);
+  display: block;
+}
+
+.shot figcaption { margin-top: 16px; color: #bdb8ad; font-size: .92rem; }
+
+/* --- Features ----------------------------------------------------------------------------- */
+
+.features, .steps {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 72px 20px 24px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+  margin-top: 28px;
+}
+
+/* Each card is a white key: a black band along its top edge. */
+.grid article {
+  background: var(--white);
+  border: 2px solid var(--edge);
+  border-top: 10px solid var(--black);
+  border-radius: 6px 6px var(--radius) var(--radius);
+  padding: 22px 22px 20px;
+  box-shadow: 0 4px 0 var(--line);
+}
+
+.grid p { margin: 0; color: var(--muted); }
+
+/* --- Steps -------------------------------------------------------------------------------- */
+
+.steps ol {
+  list-style: none;
+  padding: 0;
+  margin: 28px 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.steps li {
+  border-left: 4px solid var(--black);
+  padding: 4px 0 4px 18px;
+}
+
+.steps p { margin: 0; color: var(--muted); }
+
+.num {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  background: var(--black);
+  color: var(--white);
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+/* --- Muzio -------------------------------------------------------------------------------- */
+
+.muzio {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 64px 20px 80px;
+}
+
+.muzio-card {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  background: var(--black);
+  color: var(--ivory);
+  border-radius: var(--radius);
+  padding: 32px;
+}
+
+.muzio-card img { flex: none; border-radius: 14px; }
+.muzio-card p { color: #d6d1c5; margin: 0 0 22px; max-width: 640px; }
+
+/* --- Footer ------------------------------------------------------------------------------- */
+
+footer { text-align: center; color: var(--muted); font-size: .9rem; }
+footer p { padding: 18px 20px 28px; margin: 0; }
+
+/* --- Phones ------------------------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .hero { padding: 32px 16px 36px; }
+  .top { padding: 14px 16px; }
+  nav { gap: 14px; font-size: .95rem; }
+  .features, .steps { padding: 52px 16px 16px; }
+  .muzio { padding: 48px 16px 60px; }
+  .muzio-card { flex-direction: column; padding: 24px; }
+  .shots { padding: 36px 16px 44px; }
+  .keys { --w: 30px; height: 64px; }
+}

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- The Keyboard Utils piano icon... -->
+  <rect x="3" y="3" width="58" height="58" rx="10" fill="#fff" stroke="#6e6e6e" stroke-width="3"/>
+  <g stroke="#9a9a9a" stroke-width="1.5">
+    <line x1="17.5" y1="36" x2="17.5" y2="59.5"/>
+    <line x1="32" y1="36" x2="32" y2="59.5"/>
+    <line x1="46.5" y1="36" x2="46.5" y2="59.5"/>
+  </g>
+  <g fill="#121212">
+    <rect x="12.5" y="4.5" width="10" height="33"/>
+    <rect x="27" y="4.5" width="10" height="33"/>
+    <rect x="41.5" y="4.5" width="10" height="33"/>
+  </g>
+  <!-- ...with Muzio's M over it, the red of its buttons (coral-dark), outlined white to stand out on the black keys. -->
+  <path d="M12 54V16h9.5L32 31.5 42.5 16H52v38h-8.5V31L32 47.5 20.5 31v23z" fill="#e14432" stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"/>
+</svg>

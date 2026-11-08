@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keyboard Utils</title>
+  <meta name="description" content="Keyboard Utils přehraje skladbu jako padající noty i notový zápis, v režimu učení poslouchá, co hraješ, a celá jde ovládat z makro klávesnice. Zdarma pro Windows.">
+  <meta property="og:title" content="Keyboard Utils">
+  <meta property="og:description" content="Cvičení klavíru na Windows: padající noty, notový zápis, režim učení s hodnocením, metronom, smyčka a ovládání z makro klávesnice.">
+  <meta property="og:image" content="https://tomandesmsh.github.io/Keyboard-Utils/img/app-light.png">
+  <meta property="og:url" content="https://tomandesmsh.github.io/Keyboard-Utils/">
+  <link rel="icon" type="image/png" href="img/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="#">
+    <img src="img/logo.png" alt="" width="36" height="36">
+    <span>Keyboard Utils</span>
+  </a>
+  <nav>
+    <a href="#funkce">Funkce</a>
+    <a href="#zacit">Jak začít</a>
+    <a href="#muzio">Muzio</a>
+    <a href="https://github.com/tomandesMSH/Keyboard-Utils">GitHub</a>
+  </nav>
+</header>
+
+<main>
+
+  <section class="hero">
+    <div class="hero-text">
+      <p class="eyebrow">Aplikace pro Windows · zdarma</p>
+      <h1>Cvič klavír s&nbsp;notami, které tě poslouchají.</h1>
+      <p class="lead">
+        Keyboard Utils přehraje skladbu jako padající noty i&nbsp;jako notový zápis. <br> 
+        V&nbsp;režimu učení poslouchá, co hraješ, a&nbsp;ukáže, kde ses trefil a kde zas ne. <br>
+        Funguje s&nbsp;MIDI klávesami, s&nbsp;mikrofonem u&nbsp;akustického piana i&nbsp;bez piana.
+      </p>
+      <div class="actions">
+        <!-- Straight to the file of the latest release (GitHub's /releases/latest/download/<name>), no GitHub page in between. -->
+        <a class="btn btn-dark" href="https://github.com/tomandesMSH/Keyboard-Utils/releases/latest/download/KeyboardUtils.exe" download>Stáhnout pro Windows</a>
+        <a class="btn btn-light" href="https://github.com/tomandesMSH/Keyboard-Utils">Zdrojový kód</a>
+      </div>
+      <p class="fine">KeyboardUtils.exe, 7&nbsp;MB · Windows 10 a 11 · vyžaduje <a href="https://dotnet.microsoft.com/download/dotnet/10.0">.NET 10 Desktop Runtime</a></p>
+    </div>
+  </section>
+
+  <div class="keys" aria-hidden="true"></div>
+
+  <section class="shots">
+    <div class="shot-switch" role="tablist" aria-label="Vzhled">
+      <button role="tab" aria-selected="true" data-shot="light">Světlý režim</button>
+      <button role="tab" aria-selected="false" data-shot="dark">Tmavý režim</button>
+    </div>
+    <figure class="shot">
+      <img id="shot" src="img/app-light.png" width="1360" height="820"
+           alt="Keyboard Utils: Óda na radost jako padající noty na klaviatuře vlevo a jako notový zápis vpravo, s ovládáním přehrávání nahoře.">
+      <figcaption>Padající noty a notový zápis vedle sebe - aktuální takt je zvýrazněný, znějící noty mají barvu své ruky.</figcaption>
+    </figure>
+  </section>
+
+  <section class="features" id="funkce">
+    <h2>Co umí</h2>
+    <div class="grid">
+      <article>
+        <h3>Klaviatura i noty</h3>
+        <p>Padající noty, notový zápis na dvojosnově s&nbsp;předznamenáním, nebo obojí vedle sebe. Klikem na takt skočíš na to místo.</p>
+      </article>
+      <article>
+        <h3>Režim učení</h3>
+        <p>Skladba počká, než zahraješ správnou notu, nebo jede v&nbsp;tempu. Na konci hodnocení, výsledek z&nbsp;minula a&nbsp;graf pokroku u&nbsp;každé skladby.</p>
+      </article>
+      <article>
+        <h3>Smyčka, rychlost, metronom</h3>
+        <p>Opakuj těžký úsek, zpomal na 25&nbsp;%, zapni metronom s&nbsp;odpočítáním - nebo jen metronom bez skladby, s&nbsp;taktem a&nbsp;naťukaným tempem.</p>
+      </article>
+      <article>
+        <h3>Zapisování not</h3>
+        <p>Zahraj melodii a&nbsp;appka ji zapíše. Poslechneš si ji a&nbsp;uložíš jako MIDI nebo MusicXML pro MuseScore.</p>
+      </article>
+      <article>
+        <h3>Skladby odkudkoli</h3>
+        <p>MIDI a&nbsp;MusicXML ze souboru nebo ze složky, přes 2000 volných skladeb z&nbsp;Mutopia Project, stopy z&nbsp;FL Studia a&nbsp;převod zvuku na noty.</p>
+      </article>
+      <article>
+        <h3>Bez myši</h3>
+        <p>Klávesové zkratky a&nbsp;ovládání celé appky z&nbsp;druhé (makro) klávesnice, včetně otočného kolečka – ruce zůstanou u&nbsp;piana.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="steps" id="zacit">
+    <h2>Jak začít</h2>
+    <ol>
+      <li>
+        <span class="num">1</span>
+        <h3>Stáhni a spusť</h3>
+        <p>
+          Tlačítkem <a href="https://github.com/tomandesMSH/Keyboard-Utils/releases/latest/download/KeyboardUtils.exe" download>Stáhnout pro Windows</a> stáhneš <code>KeyboardUtils.exe</code>
+          a&nbsp;rovnou ho spustíš &ndash; nic se neinstaluje ani nerozbaluje. Kdyby Windows napsaly
+          „Systém Windows ochránil počítač“, klikni na <b>Další informace</b> a&nbsp;<b>Přesto spustit</b>.
+          Bez .NET 10 tě appka napoprvé pošle ho stáhnout.
+        </p>
+      </li>
+      <li>
+        <span class="num">2</span>
+        <h3>Otevři skladbu</h3>
+        <p>Vlastní MIDI nebo MusicXML, nebo si vyhledej volné noty přímo v&nbsp;appce.</p>
+      </li>
+      <li>
+        <span class="num">3</span>
+        <h3>Hraj</h3>
+        <p>Připoj MIDI klávesy nebo nech appku poslouchat mikrofonem a&nbsp;spusť režim učení.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section class="muzio" id="muzio">
+    <div class="muzio-card">
+      <img src="img/muzio.svg" alt="" width="72" height="72">
+      <div>
+        <h2>Patří k&nbsp;Muzio</h2>
+        <p>
+          Muzio (Keyboard Hero) je webová aplikace pro žáky ZUŠ Moravský Krumlov: nahráváš cvičení
+          přímo z&nbsp;prohlížeče, sbíráš hvězdy, držíš si cvičební řadu a&nbsp;učitel tvé nahrávky
+          poslouchá a&nbsp;hodnotí. Keyboard Utils je jeho parťák na cvičení u&nbsp;počítače.
+        </p>
+        <a class="btn btn-red" href="https://keyboardheromuzio.vercel.app/">Otevřít Muzio</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="keys keys-small" aria-hidden="true"></div>
+  <p>
+    Keyboard Utils · <a href="https://github.com/tomandesMSH">tomandesMSH</a> ·
+    <a href="https://github.com/tomandesMSH/Keyboard-Utils">GitHub</a> ·
+    <a href="https://github.com/tomandesMSH/Keyboard-Utils/releases">Všechny verze</a>
+  </p>
+</footer>
+
+<script>
+  // Light / dark screenshot.
+  const shot = document.getElementById('shot');
+  document.querySelectorAll('.shot-switch button').forEach(button => {
+    button.addEventListener('click', () => {
+      document.querySelectorAll('.shot-switch button').forEach(b => b.setAttribute('aria-selected', String(b === button)));
+      shot.src = `img/app-${button.dataset.shot}.png`;
+    });
+  });
+</script>
+</body>
+</html>
