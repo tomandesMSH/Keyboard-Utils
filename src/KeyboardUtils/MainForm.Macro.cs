@@ -42,6 +42,9 @@ sealed partial class MainForm
             case MacroAction.RecentSongs: OpenRecentSongs(0); break;
             case MacroAction.SaveRecording: SaveRecordingQuick(); break;
             case MacroAction.ShowPracticeHistory: ShowPracticeHistory(); break;
+            case MacroAction.MetronomeTap: TapMetronome(); break;
+            case MacroAction.MetronomeMeterNext: CycleMetronomeMeter(); break;
+            case MacroAction.ToggleStandaloneMetronome: ToggleStandaloneOption(); break;
             case MacroAction.LearningModeNext: CycleLearningMode(); break;
             case MacroAction.LearningPartsNext: CycleLearningParts(); break;
             case MacroAction.LearningSpeedNext: CycleLearningSpeed(); break;

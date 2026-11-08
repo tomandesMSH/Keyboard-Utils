@@ -59,6 +59,9 @@ enum MacroAction
     KeyRight,
     KeySpace,
     ShowPracticeHistory,
+    MetronomeTap,
+    MetronomeMeterNext,
+    ToggleStandaloneMetronome,
 }
 
 /// <summary>How the actions behave when a key repeats fast - a knob (rotary encoder) sends a burst of one key.</summary>
@@ -180,6 +183,9 @@ sealed class Binding
         MacroAction.KeyRight => T("Šipka doprava", "Arrow right"),
         MacroAction.KeySpace => T("Zaškrtnout / stisknout (mezerník)", "Check / press (Space)"),
         MacroAction.ShowPracticeHistory => T("Historie cvičení této skladby", "Practice history of this song"),
+        MacroAction.MetronomeTap => T("Metronom: naťukat tempo", "Metronome: tap the tempo"),
+        MacroAction.MetronomeMeterNext => T("Metronom: další takt (2/4, 3/4, 4/4, 5/4, 6/8)", "Metronome: next time signature (2/4, 3/4, 4/4, 5/4, 6/8)"),
+        MacroAction.ToggleStandaloneMetronome => T("Metronom bez podkladu zapnout / vypnout", "Metronome without a song on / off"),
         _ => Action.ToString(),
     };
 }
@@ -260,6 +266,17 @@ sealed class AppConfig
     public bool MetronomeStandalone { get; set; }
 
     public int MetronomeBpm { get; set; } = 100;
+
+    /// <summary>Time signature of the metronome on its own, one of <see cref="StandaloneMetronome.Meters"/>.</summary>
+    public string MetronomeMeter { get; set; } = "4/4";
+
+    /// <summary>The metronome's options (without a song, tempo, detection, time signature) unfolded under it.</summary>
+    public bool MetronomeOptionsShown { get; set; } = true;
+
+    /// <summary>Ask GitHub for a newer release at start (at most once a day).</summary>
+    public bool CheckForUpdates { get; set; } = true;
+
+    public DateTime? LastUpdateCheck { get; set; }
 
     public SongView SongView { get; set; } = SongView.Keyboard;
 

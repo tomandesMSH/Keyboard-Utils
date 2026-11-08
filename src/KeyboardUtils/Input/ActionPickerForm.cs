@@ -14,10 +14,12 @@ sealed class ActionPickerForm : AntdUI.Window
         public override string ToString() => Text;
     }
 
-    static (string Heading, MacroAction[] Actions)[] Groups =>
+    internal static (string Heading, MacroAction[] Actions)[] Groups =>
     [
         (T("Přehrávání", "Playback"), [MacroAction.PlayPause, MacroAction.Stop, MacroAction.SeekBack, MacroAction.SeekForward,
-            MacroAction.SeekBackFine, MacroAction.SeekForwardFine, MacroAction.ToggleMetronome, MacroAction.VolumeDown, MacroAction.VolumeUp]),
+            MacroAction.SeekBackFine, MacroAction.SeekForwardFine, MacroAction.VolumeDown, MacroAction.VolumeUp]),
+        (T("Metronom", "Metronome"), [MacroAction.ToggleMetronome, MacroAction.ToggleStandaloneMetronome, MacroAction.MetronomeTap,
+            MacroAction.MetronomeMeterNext]),
         (T("Smyčka a rychlost", "Loop and speed"), [MacroAction.ToggleLoop, MacroAction.LoopStart, MacroAction.LoopEnd,
             MacroAction.SpeedDown, MacroAction.SpeedUp, MacroAction.SpeedReset]),
         (T("Skladby", "Songs"), [MacroAction.NextTrack, MacroAction.PreviousTrack, MacroAction.SongsFromFolder,

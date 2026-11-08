@@ -52,12 +52,15 @@ sealed class PracticeHistory
             entries.RemoveRange(0, entries.Count - MaxPerSong);
     }
 
-    public static PracticeHistory Load()
+    public static PracticeHistory Load() => Load(FilePath);
+
+    /// <param name="path">Where the history is; the app uses <see cref="FilePath"/>, the tests a temporary file.</param>
+    public static PracticeHistory Load(string path)
     {
         try
         {
-            if (File.Exists(FilePath)
-                && JsonSerializer.Deserialize<PracticeHistory>(File.ReadAllText(FilePath), JsonOptions) is { } history)
+            if (File.Exists(path)
+                && JsonSerializer.Deserialize<PracticeHistory>(File.ReadAllText(path), JsonOptions) is { } history)
             {
                 // The deserialized dictionary compares keys exactly; paths differ only in case on Windows.
                 history.Songs = new Dictionary<string, List<PracticeEntry>>(history.Songs, StringComparer.OrdinalIgnoreCase);
@@ -66,19 +69,21 @@ sealed class PracticeHistory
         }
         catch (Exception ex) when (ex is JsonException or IOException or NotSupportedException)
         {
-            try { File.Copy(FilePath, FilePath + ".broken", overwrite: true); } catch (IOException) { }
+            try { File.Copy(path, path + ".broken", overwrite: true); } catch (IOException) { }
         }
         return new PracticeHistory();
     }
 
-    public void Save()
+    public void Save() => Save(FilePath);
+
+    public void Save(string path)
     {
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-            var temp = FilePath + ".tmp";
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            var temp = path + ".tmp";
             File.WriteAllText(temp, JsonSerializer.Serialize(this, JsonOptions));
-            File.Move(temp, FilePath, overwrite: true);
+            File.Move(temp, path, overwrite: true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

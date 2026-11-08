@@ -25,6 +25,7 @@ sealed partial class MainForm
         new(Keys.A, "A", T("Začátek smyčky = aktuální místo", "Loop start = current position"), LoopStartAction),
         new(Keys.B, "B", T("Konec smyčky = aktuální místo", "Loop end = current position"), LoopEndAction),
         new(Keys.M, "M", T("Metronom zapnout / vypnout", "Metronome on / off"), ToggleMetronome),
+        new(Keys.T, "T", T("Metronom bez podkladu: naťukat tempo", "Metronome without a song: tap the tempo"), TapMetronome),
         new(Keys.K, "K", T("Popisky kláves zapnout / vypnout", "Key labels on / off"), ToggleKeyLabels),
         new(Keys.V, "V", T("Přepnout zobrazení (klávesy / noty / obojí)", "Switch the view (keyboard / sheet / both)"), CycleSongView),
         new(Keys.F5, "F5", T("Režim učení", "Learning mode"), () => IfEnabled(learningButton, () => ToggleLearningMode(showSetup: true))),
@@ -155,14 +156,44 @@ sealed partial class MainForm
 
     void UpdateMetronomeOptions()
     {
-        // Only its contents hide: the row keeps its height, so the transport row - and the keyboard under it - don't
-        // change size when the metronome is switched on.
-        foreach (Control control in metronomeOptions.Controls)
-            control.Visible = config.Metronome;
-        metronomeOptions.MinimumSize = new Size(0, metronomeOptions.Controls.Cast<Control>().Max(c => c.Height + c.Margin.Vertical));
-        bpmBox.Enabled = bpmArrows.Enabled = config.MetronomeStandalone;
+        // Only the rows' contents hide: the rows keep their height, so the transport row - and the keyboard under it -
+        // don't change size when the metronome or its options are switched on or off.
+        bool shown = config.Metronome && config.MetronomeOptionsShown;
+        foreach (var optionsRow in (FlowLayoutPanel[])[metronomeOptions, metronomeDetectRow])
+        {
+            foreach (Control control in optionsRow.Controls)
+                control.Visible = shown;
+            optionsRow.MinimumSize = new Size(0, optionsRow.Controls.Cast<Control>().Max(c => c.Height + c.Margin.Vertical));
+        }
+        AlignDetectRow();
+        metronomeExpander.Visible = config.Metronome;
+        metronomeExpander.IconSvg = config.MetronomeOptionsShown ? Icons.Expanded : Icons.Collapsed;
+        bpmBox.Enabled = bpmArrows.Enabled = tapButton.Enabled = meterBox.Enabled = config.MetronomeStandalone;
         UpdateTransport();
         UpdatePlayPauseButton();
+    }
+
+    /// <summary>
+    /// Lines the row up with the one above: Detection under "without a song", reaching up to the tempo box, and the
+    /// time signature right under the tempo box, as wide. Done from where the tempo box really is once laid out (the
+    /// "without a song" box's width isn't final before that, so it can't be computed up front).
+    /// </summary>
+    void AlignDetectRow()
+    {
+        if (!bpmBox.Visible)
+            return;
+        // The tempo box's left edge, from the start of the detection row.
+        int bpmLeft = metronomeOptions.Left + bpmBox.Left - metronomeDetectRow.Parent!.Padding.Left;
+        int gap = LogicalToDeviceUnits(6);
+        int tapWidth = Math.Max(LogicalToDeviceUnits(60), bpmLeft - gap);
+        if (tapButton.Width != tapWidth)
+            tapButton.Width = tapWidth;
+        if (meterBox.Width != bpmBox.Width)
+            meterBox.Width = bpmBox.Width;
+        if (meterBox.Margin.Left != bpmLeft - tapWidth)
+            meterBox.Margin = new Padding(Math.Max(0, bpmLeft - tapWidth), 0, 0, 0);
+        if (metronomeDetectRow.Margin.Left != 0)
+            metronomeDetectRow.Margin = new Padding(0, 4, 0, 0);
     }
 
     void SetMetronomeBpm(int bpm)
@@ -175,6 +206,106 @@ sealed partial class MainForm
         config.MetronomeBpm = bpm;
         Clicker.Bpm = bpm;
         config.Save();
+    }
+
+    void SetMetronomeMeter(string meter)
+    {
+        if (meterBox.SelectedIndex != Array.IndexOf(StandaloneMetronome.Meters, meter))
+            meterBox.SelectedIndex = Array.IndexOf(StandaloneMetronome.Meters, meter); // comes back here with the same meter
+        Clicker.Meter = meter;
+        if (config.MetronomeMeter == Clicker.Meter)
+            return;
+        config.MetronomeMeter = Clicker.Meter;
+        config.Save();
+    }
+
+    void CycleMetronomeMeter()
+    {
+        var meters = StandaloneMetronome.Meters;
+        SetMetronomeMeter(meters[(Array.IndexOf(meters, config.MetronomeMeter) + 1) % meters.Length]);
+        SetStatus(T($"Takt metronomu: {config.MetronomeMeter}", $"Metronome time signature: {config.MetronomeMeter}"));
+    }
+
+    /// <summary>One tap of the tempo; from the second tap in a row on, the metronome takes the tapped tempo.</summary>
+    void TapMetronome()
+    {
+        if (!StandaloneOn)
+        {
+            SetStatus(T("Ťukání tempa je pro metronom bez podkladu: zaškrtni Metronom a Bez podkladu.",
+                "Tapping the tempo is for the metronome without a song: check Metronome and Without a song."));
+            return;
+        }
+        // Hear the tap - unless the metronome is clicking anyway.
+        if (!StandaloneRunning)
+            playbackEngine.PlayClick(false);
+        if (tapTempo.Tap(tapClock.Elapsed.TotalSeconds) is { } bpm)
+        {
+            SetMetronomeBpm(bpm);
+            SetStatus(T($"Tempo: {bpm} BPM", $"Tempo: {bpm} BPM"));
+        }
+        else
+            SetStatus(T("Ťukej dál v rytmu...", "Keep tapping in time..."));
+    }
+
+    /// <summary>"Without a song" on / off - also switching the metronome on, so it's one key from anywhere.</summary>
+    void ToggleStandaloneOption()
+    {
+        bool on = !StandaloneOn;
+        if (on && !metronomeBox.Checked)
+            metronomeBox.Checked = true;
+        standaloneBox.Checked = on;
+        SetStatus(on ? T($"Metronom bez podkladu: {config.MetronomeBpm} BPM, {config.MetronomeMeter}. Spustíš ho Přehrát.",
+                $"Metronome without a song: {config.MetronomeBpm} BPM, {config.MetronomeMeter}. Start it with Play.")
+            : T("Metronom bez podkladu vypnutý.", "Metronome without a song off."));
+    }
+
+    // --- Updates ------------------------------------------------------------------------------------
+
+    /// <param name="manual">Asked for in the menu: say so also when there's nothing new or GitHub can't be reached.</param>
+    async Task CheckForUpdatesAsync(bool manual)
+    {
+        if (manual)
+            SetStatus(T("Zjišťuji, jestli je nová verze...", "Checking for a new version..."));
+        var (reached, update) = await UpdateChecker.CheckAsync(UpdateChecker.CurrentVersion);
+        if (IsDisposed)
+            return;
+        if (reached)
+        {
+            config.LastUpdateCheck = DateTime.Now;
+            config.Save();
+        }
+        if (update != null)
+        {
+            ShowUpdate(update);
+            if (manual)
+                SetStatus(T($"Je venku nová verze {update.Version.ToString(3)} - stáhneš ji tlačítkem vpravo dole.",
+                    $"Version {update.Version.ToString(3)} is out - download it with the button bottom right."));
+        }
+        else if (manual)
+            SetStatus(reached
+                ? T($"Máš nejnovější verzi ({UpdateChecker.CurrentVersion.ToString(3)}).", $"You have the latest version ({UpdateChecker.CurrentVersion.ToString(3)}).")
+                : T("GitHub se nepodařilo zastihnout - zkus to později.", "Couldn't reach GitHub - try again later."));
+    }
+
+    void ShowUpdate(AvailableUpdate update)
+    {
+        availableUpdate = update;
+        updateButton.Text = T($"Nová verze {update.Version.ToString(3)} - stáhnout", $"New version {update.Version.ToString(3)} - download");
+        updateButton.Width = TextRenderer.MeasureText(updateButton.Text, updateButton.Font).Width + LogicalToDeviceUnits(24);
+        updateGroup.Visible = true;
+    }
+
+    void OpenUpdatePage()
+    {
+        string url = availableUpdate?.PageUrl ?? UpdateChecker.ReleasesPage;
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            SetStatus(T("Prohlížeč se nepodařilo otevřít: ", "Couldn't open the browser: ") + url);
+        }
     }
 
     void ToggleStandalone()

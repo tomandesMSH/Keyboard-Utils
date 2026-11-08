@@ -21,6 +21,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The unit tests (tests/KeyboardUtils.Tests) test the internal classes. -->
+    <InternalsVisibleTo Include="KeyboardUtils.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="AntdUI" Version="2.4.18" />
     <PackageReference Include="Melanchall.DryWetMidi" Version="7.*" />
     <PackageReference Include="NAudio" Version="3.3.0" />

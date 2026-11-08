@@ -12,6 +12,13 @@ a převod zvukové stopy na noty. Volitelně se dá ovládat druhou klávesnicí
    Ke spuštění je potřeba .NET 10 Desktop Runtime (x64), Windows 10 nebo 11.
 2. Spusť `KeyboardUtils.exe`. Při prvním spuštění se zeptá na jazyk (čeština / English).
    Později ho změníš v **Nastavení > Jazyk**.
+3. Testy: `dotnet test tests\KeyboardUtils.Tests` (časování, noty, předznamenání, export / import, historie,
+   makro akce, metronom, aktualizace).
+
+**Aktualizace:** appka se při spuštění (nejvýš jednou denně) zeptá GitHubu na nejnovější verzi. Když je nová,
+objeví se vpravo dole tlačítko **Nová verze ... – stáhnout**, které otevře stránku ke stažení. Neposílá nic
+o tobě, jen název a verzi appky. Vypnout jde v **Nastavení > Kontrolovat aktualizace**, ručně se zeptáš přes
+**Nastavení > Zkontrolovat aktualizace teď**.
 
 Aplikace běží jen jednou – když ji spustíš podruhé, nová kopie se hned ukončí. Pokud nevidíš novou verzi,
 zavři všechna okna Keyboard Utils (případně ve Správci úloh).
@@ -41,6 +48,9 @@ Makro klávesnice je volitelná a nic dalšího k běhu aplikace nepotřebuje �
   Se stopami nejde (jsou to zvukové nahrávky, metronom hraje přes MIDI).
   Když je metronom zaškrtnutý, objeví se pod ním **Bez podkladu** a tempo v **BPM**: Přehrát pak spustí jen
   metronom v tomhle tempu (i bez otevřené skladby), Stop ho zastaví a ↑ / ↓ (i z makro klávesnice) mění tempo o 5.
+  Pod tím tlačítkem **Detekce** (nebo klávesou **T**, i makro klávesou) tempo naťukáš – stačí dvě ťuknutí v rytmu, počítá se
+  průměr posledních čtyř. Vedle vybereš takt **2/4, 3/4, 4/4, 5/4 nebo 6/8**; první doba taktu je zvýrazněná,
+  v 6/8 kliká osminy a BPM je tečkovaná čtvrťová. Šipkou vedle Metronomu volby schováš (metronom zůstane zapnutý).
 - **Smyčka** – opakování úseku. Úsek označíš **tažením přes takty v notách**, nebo během přehrávání tlačítky
   **A** (začátek = teď) a **B** (konec = teď). Tlačítkem **Smyčka** ji zapneš / vypneš. Přehrávání se na konci
   úseku vrací na jeho začátek; v **režimu učení** cvičíš jen tenhle úsek a po každém kole začne další – výsledek
@@ -73,6 +83,7 @@ Na kartě Skladba (seznam ukáže **F1** nebo **Nastavení > Klávesové zkratky
 | L | smyčka zapnout / vypnout |
 | A / B | začátek / konec smyčky na aktuálním místě |
 | M | metronom |
+| T | metronom bez podkladu: naťukat tempo |
 | K | popisky kláves |
 | V | přepnout zobrazení (klávesy / noty / obojí) |
 | F5 / F6 / F7 | režim učení / zapisovat noty / poslouchat |
