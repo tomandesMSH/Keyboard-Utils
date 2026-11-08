@@ -12,13 +12,29 @@
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <Version>1.0.0</Version>
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+    <!-- dotnet publish makes one KeyboardUtils.exe (the libraries, native ones too, inside it): the website's
+         download button fetches just that file. It still needs the .NET 10 Desktop Runtime. -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType>embedded</DebugType>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\..\tools\install-interception.exe" Link="install-interception.exe" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Next to the app in a build (DriverSetupForm runs it from there); not in the published single file, which
+         carries it inside - with its LGPL licence - and writes it out when the driver is installed. -->
+    <None Include="..\..\tools\install-interception.exe" Link="install-interception.exe" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
+    <EmbeddedResource Include="..\..\tools\install-interception.exe" LogicalName="KeyboardUtils.install-interception.exe" />
+    <EmbeddedResource Include="..\..\tools\Interception-LGPL-3.0.txt" LogicalName="KeyboardUtils.Interception-LGPL-3.0.txt" />
     <!-- The same icon for the windows (title bar / taskbar), loaded by AppIcon. -->
     <EmbeddedResource Include="Resources\app.ico" LogicalName="KeyboardUtils.app.ico" />
   </ItemGroup>
+
+  <!-- DryWetMidi ships a macOS library too; a Windows app has no use for it next to its .exe. -->
+  <Target Name="DropMacLibraries" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.dylib'" />
+    </ItemGroup>
+  </Target>
 
   <ItemGroup>
     <!-- The unit tests (tests/KeyboardUtils.Tests) test the internal classes. -->

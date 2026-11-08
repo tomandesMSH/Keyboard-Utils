@@ -14,7 +14,40 @@ sealed class DriverSetupForm : AntdUI.Window
     readonly AntdUI.Button restartButton = new() { Text = T("Restartovat počítač", "Restart computer"), AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly AntdUI.Button closeButton = new() { Text = T("Zavřít", "Close"), AutoSize = true, DialogResult = DialogResult.Cancel, Radius = 8 };
 
-    static string InstallerPath => Path.Combine(AppContext.BaseDirectory, "install-interception.exe");
+    const string InstallerName = "install-interception.exe";
+    const string LicenseName = "Interception-LGPL-3.0.txt";
+
+    /// <summary>
+    /// The driver installer: next to the app in a development build or an unpacked zip; otherwise (the app downloaded
+    /// as a single .exe) the copy bundled inside it, written out with its LGPL licence when it's needed.
+    /// </summary>
+    static string InstallerPath
+    {
+        get
+        {
+            string beside = Path.Combine(AppContext.BaseDirectory, InstallerName);
+            return File.Exists(beside) ? beside : ExtractBundled() ?? beside;
+        }
+    }
+
+    /// <summary>Writes the bundled installer (and its licence) to %LOCALAPPDATA%\KeyboardUtils; null if it isn't bundled.</summary>
+    static string? ExtractBundled()
+    {
+        var assembly = typeof(DriverSetupForm).Assembly;
+        using var installer = assembly.GetManifestResourceStream("KeyboardUtils." + InstallerName);
+        if (installer == null)
+            return null;
+        string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "KeyboardUtils");
+        Directory.CreateDirectory(folder);
+        // Written fresh right before it runs, so it's always the copy this app was built with.
+        string path = Path.Combine(folder, InstallerName);
+        using (var file = File.Create(path))
+            installer.CopyTo(file);
+        using (var license = assembly.GetManifestResourceStream("KeyboardUtils." + LicenseName))
+        using (var file = license != null ? File.Create(Path.Combine(folder, LicenseName)) : null)
+            license?.CopyTo(file!);
+        return path;
+    }
 
     /// <summary>The driver is registered as a keyboard class filter. It only starts working after a reboot.</summary>
     public static bool IsDriverInstalled()

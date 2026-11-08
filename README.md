@@ -7,13 +7,21 @@ a převod zvukové stopy na noty. Volitelně se dá ovládat druhou klávesnicí
 
 ## Instalace
 
+**Hotová appka:** stáhni [KeyboardUtils.exe](https://github.com/tomandesMSH/Keyboard-Utils/releases/latest/download/KeyboardUtils.exe)
+z poslední verze a spusť ho – je to jeden soubor, nic se neinstaluje ani nerozbaluje. Potřebuje .NET 10 Desktop
+Runtime (x64); když chybí, appka napoprvé nabídne odkaz ke stažení. Web: [tomandesmsh.github.io/Keyboard-Utils](https://tomandesmsh.github.io/Keyboard-Utils/).
+
+Ze zdrojáků:
+
 1. Sestavení: `dotnet build -c Release src\KeyboardUtils`
    (výstup najdeš v `src\KeyboardUtils\bin\Release\net10.0-windows\win-x64\`).
    Ke spuštění je potřeba .NET 10 Desktop Runtime (x64), Windows 10 nebo 11.
 2. Spusť `KeyboardUtils.exe`. Při prvním spuštění se zeptá na jazyk (čeština / English).
    Později ho změníš v **Nastavení > Jazyk**.
-3. Testy: `dotnet test tests\KeyboardUtils.Tests` (časování, noty, předznamenání, export / import, historie,
-   makro akce, metronom, aktualizace).
+3. Jeden `KeyboardUtils.exe` jako ke stažení: `dotnet publish src\KeyboardUtils -c Release -o publish`
+   (knihovny i instalátor ovladače Interception s licencí jsou uvnitř).
+4. Testy: `dotnet test tests\KeyboardUtils.Tests` (časování, noty, předznamenání, export / import, historie,
+   makro akce, metronom, aktualizace, obsah exe).
 
 **Aktualizace:** appka se při spuštění (nejvýš jednou denně) zeptá GitHubu na nejnovější verzi. Když je nová,
 objeví se vpravo dole tlačítko **Nová verze ... – stáhnout**, které otevře stránku ke stažení. Neposílá nic

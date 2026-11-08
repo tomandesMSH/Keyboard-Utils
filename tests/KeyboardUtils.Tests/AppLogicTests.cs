@@ -194,3 +194,18 @@ public class UpdateCheckerTests
         Assert.Null(UpdateChecker.NewerVersion("v0.4.1", new Version(0, 4, 1, 0)));
     }
 }
+
+public class PackagingTests
+{
+    [Theory]
+    [InlineData("KeyboardUtils.install-interception.exe")]
+    [InlineData("KeyboardUtils.Interception-LGPL-3.0.txt")]
+    [InlineData("KeyboardUtils.app.ico")]
+    public void The_single_exe_carries_the_driver_installer_its_licence_and_the_icon(string resource)
+    {
+        // Downloaded as one .exe, the app has nothing next to it: the driver installer comes from inside it.
+        using var stream = typeof(MainForm).Assembly.GetManifestResourceStream(resource);
+        Assert.NotNull(stream);
+        Assert.True(stream!.Length > 0);
+    }
+}
