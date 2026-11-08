@@ -26,6 +26,14 @@ static class Lang
             CancelText = T("Zrušit", "Cancel"),
         });
 
+    /// <summary>A yes/no question; true when answered OK.</summary>
+    public static bool Confirm(Form target, string title, string content, string okText) =>
+        AntdUI.Modal.open(new AntdUI.Modal.Config(target, title, content, AntdUI.TType.Warn)
+        {
+            OkText = okText,
+            CancelText = T("Zrušit", "Cancel"),
+        }) == DialogResult.OK;
+
     /// <summary>Display names, deliberately not translated so each is readable to its own speakers.</summary>
     public static string DisplayName(AppLanguage language) => language switch
     {

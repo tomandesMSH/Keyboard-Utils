@@ -26,6 +26,7 @@ sealed partial class MainForm
         new(Keys.B, "B", T("Konec smyčky = aktuální místo", "Loop end = current position"), LoopEndAction),
         new(Keys.M, "M", T("Metronom zapnout / vypnout", "Metronome on / off"), ToggleMetronome),
         new(Keys.T, "T", T("Metronom bez podkladu: naťukat tempo", "Metronome without a song: tap the tempo"), TapMetronome),
+        new(Keys.H, "H", T("Procvičit těžké místo (smyčka + učení)", "Practise the hard spot (loop + learning)"), () => IfEnabled(learningButton, () => PracticeHardSpot())),
         new(Keys.K, "K", T("Popisky kláves zapnout / vypnout", "Key labels on / off"), ToggleKeyLabels),
         new(Keys.V, "V", T("Přepnout zobrazení (klávesy / noty / obojí)", "Switch the view (keyboard / sheet / both)"), CycleSongView),
         new(Keys.F5, "F5", T("Režim učení", "Learning mode"), () => IfEnabled(learningButton, () => ToggleLearningMode(showSetup: true))),
@@ -277,7 +278,10 @@ sealed partial class MainForm
         if (update != null)
         {
             ShowUpdate(update);
-            if (manual)
+            if (manual && CanUpdateInPlace(update))
+                SetStatus(T($"Je venku nová verze {update.Version.ToString(3)} - aktualizuješ ji tlačítkem vpravo dole.",
+                    $"Version {update.Version.ToString(3)} is out - update with the button bottom right."));
+            else if (manual)
                 SetStatus(T($"Je venku nová verze {update.Version.ToString(3)} - stáhneš ji tlačítkem vpravo dole.",
                     $"Version {update.Version.ToString(3)} is out - download it with the button bottom right."));
         }
@@ -290,9 +294,90 @@ sealed partial class MainForm
     void ShowUpdate(AvailableUpdate update)
     {
         availableUpdate = update;
-        updateButton.Text = T($"Nová verze {update.Version.ToString(3)} - stáhnout", $"New version {update.Version.ToString(3)} - download");
+        updateButton.Text = CanUpdateInPlace(update)
+            ? T($"Nová verze {update.Version.ToString(3)} - aktualizovat", $"New version {update.Version.ToString(3)} - update")
+            : T($"Nová verze {update.Version.ToString(3)} - stáhnout", $"New version {update.Version.ToString(3)} - download");
         updateButton.Width = TextRenderer.MeasureText(updateButton.Text, updateButton.Font).Width + LogicalToDeviceUnits(24);
         updateGroup.Visible = true;
+    }
+
+    static bool CanUpdateInPlace(AvailableUpdate update) => update.Exe != null && SelfUpdater.UpdatableExe() != null;
+
+    bool updating;
+
+    /// <summary>
+    /// The update button: downloads the new exe, swaps it in and restarts (<see cref="SelfUpdater"/>). Where that
+    /// can't work (a development build, a folder without write access, a release without a digest) it opens the
+    /// release page as before.
+    /// </summary>
+    async Task UpdateAsync()
+    {
+        if (updating || availableUpdate is not { } update)
+            return;
+        if (update.Exe is not { } asset || SelfUpdater.UpdatableExe() is not { } exe)
+        {
+            OpenUpdatePage();
+            return;
+        }
+        // A restart loses an unsaved recording and ends learning: ask first.
+        bool unsaved = recorder != null || (currentScore != null && currentScore == unsavedRecording);
+        if ((unsaved || learning != null) && !Confirm(this, Text,
+                unsaved
+                    ? T("Máš neuloženou nahrávku - po aktualizaci bude pryč. Aktualizovat a restartovat i tak?",
+                        "You have an unsaved recording - it will be gone after the update. Update and restart anyway?")
+                    : T("Aktualizace ukončí režim učení a restartuje aplikaci. Pokračovat?",
+                        "The update ends learning mode and restarts the app. Continue?"),
+                T("Aktualizovat", "Update")))
+            return;
+
+        updating = true;
+        updateButton.Enabled = false;
+        string version = update.Version.ToString(3);
+        string newExe = SelfUpdater.NewPath(exe);
+        try
+        {
+            int lastPercent = -1;
+            var progress = new Progress<double>(fraction =>
+            {
+                int percent = (int)(fraction * 100);
+                if (percent == lastPercent || IsDisposed)
+                    return;
+                lastPercent = percent;
+                statusLabel.Text = T($"Stahuji verzi {version}: {percent} %", $"Downloading version {version}: {percent} %");
+            });
+            await SelfUpdater.DownloadAsync(asset, newExe, progress);
+            if (IsDisposed)
+                return;
+            StopLearningMode(showResult: false);
+            if (recorder != null)
+                StopCreateMode();
+            SelfUpdater.Swap(exe, newExe);
+            try
+            {
+                SelfUpdater.StartNew(exe);
+            }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                // The new exe won't start: put the old one back.
+                SelfUpdater.RollBack(exe);
+                throw;
+            }
+            Close();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException
+            or UnauthorizedAccessException or InvalidDataException or System.ComponentModel.Win32Exception)
+        {
+            if (IsDisposed)
+                return;
+            updating = false;
+            updateButton.Enabled = true;
+            statusLabel.Text = "";
+            ShowModal(this, Text,
+                T($"Aktualizace se nepovedla ({ex.Message}). Otevřu stránku, odkud si novou verzi stáhneš ručně.",
+                    $"The update failed ({ex.Message}). Opening the page to download the new version by hand."),
+                AntdUI.TType.Error);
+            OpenUpdatePage();
+        }
     }
 
     void OpenUpdatePage()

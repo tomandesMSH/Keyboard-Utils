@@ -81,8 +81,11 @@
       </p>
       <p>
         <b>Aktualizace:</b> appka se při spuštění, nejvýš jednou denně, zeptá GitHubu na novou verzi. <br> Když je, objeví
-        se vpravo dole tlačítko <b>Nová verze … - stáhnout</b>. Dá se vypnout v&nbsp;<br> <b>Nastavení &gt; Kontrolovat aktualizace</b> <br>
-        ruční kontrola aktualizace je v <b>Nastavení &gt; Zkontrolovat aktualizace teď</b>.
+        se vpravo dole tlačítko <b>Nová verze … - aktualizovat</b>: stáhne ji, ověří, že je to opravdu soubor z&nbsp;GitHubu
+        (kontrolní součet SHA-256), vymění exe a&nbsp;appku restartuje. Když máš neuloženou nahrávku, nejdřív se zeptá.
+        Pokud appka leží ve složce, kam nejde zapisovat (třeba Program Files), tlačítko jen otevře stránku ke stažení. <br>
+        Kontrola se dá vypnout v&nbsp;<b>Nastavení &gt; Kontrolovat aktualizace</b>, ruční kontrola je
+        v&nbsp;<b>Nastavení &gt; Zkontrolovat aktualizace teď</b>.
       </p>
     </section>
 
@@ -93,6 +96,12 @@
           <b>Otevřít skladbu ▾ &gt; Ze souboru</b> načte <code>.mid</code> nebo <code>.musicxml</code>,<code>.mxl</code> soubory, <br>
           třeba export z&nbsp;MuseScore. Můžeš vybrat víc souborů najednou a mezi nimi přepínat <br>
           (&nbsp;<b>Soubor &gt; Předchozí / Další skladba)</b> nebo klávesami <kbd>Page Up</kbd> / <kbd>Page Down</kbd>.
+        </li>
+        <li>
+          Z&nbsp;Průzkumníka: pravým tlačítkem na <code>.mid</code> / <code>.midi</code> / <code>.musicxml</code> / <code>.mxl</code>
+          &gt; <b>Otevřít v&nbsp;programu &gt; Keyboard Utils</b> (appka se tam přidá při prvním spuštění). <br>
+          Když chceš, aby se noty otevíraly v&nbsp;Keyboard Utils dvojklikem, vyber tam <b>Zvolit jinou aplikaci</b>,
+          Keyboard Utils a&nbsp;<b>Vždy</b>. Když už appka běží, soubor se otevře v&nbsp;ní.
         </li>
         <li>
           <b>Hledat noty zdarma…</b> prohledá <a href="https://www.mutopiaproject.org/">Mutopia Project</a>: přes 2000 skladeb,
@@ -240,6 +249,18 @@
         Každý pokus v&nbsp;režimu učení (i&nbsp;každé kolo smyčky) se uloží ke skladbě. <b>Soubor &gt; Historie cvičení…</b>
         ukáže graf a&nbsp;seznam všech pokusů: datum, procento, rychlost, režim, části a&nbsp;úsek.
       </p>
+      <h3>Těžká místa</h3>
+      <p>
+        Appka si u&nbsp;každého pokusu pamatuje, ve kterých taktech byly chyby. Z&nbsp;posledních pěti pokusů (novější víc
+        váží) vybere nejhorší místa a&nbsp;sousední takty s&nbsp;chybami spojí, nejvýš 4&nbsp;takty:
+      </p>
+      <ul>
+        <li>v&nbsp;hodnocení po učení i&nbsp;v&nbsp;historii je řádek <b>Nejvíc chyb: takty 12–13, 27</b>;</li>
+        <li>v&nbsp;notách mají ty takty nahoře červené kolečko s&nbsp;počtem chyb;</li>
+        <li>tlačítko <b>Procvičit takty 12–13</b> v&nbsp;hodnocení (nebo klávesa <kbd>H</kbd>, nebo makro akce
+          <b>Procvičit těžké místo</b>) nastaví na ně smyčku a&nbsp;spustí učení.</li>
+      </ul>
+      <p>Starší chyby váží čím dál méně; po pěti pokusech bez chyby v&nbsp;tom místě značka zmizí.</p>
     </section>
 
     <section id="zapisovani">
@@ -297,6 +318,7 @@
           <tr><td><kbd>A</kbd> / <kbd>B</kbd></td><td>začátek / konec smyčky na aktuálním místě</td></tr>
           <tr><td><kbd>M</kbd></td><td>metronom</td></tr>
           <tr><td><kbd>T</kbd></td><td>metronom bez podkladu: detekce tempa</td></tr>
+          <tr><td><kbd>H</kbd></td><td>procvičit těžké místo (smyčka + učení)</td></tr>
           <tr><td><kbd>K</kbd></td><td>popisky kláves</td></tr>
           <tr><td><kbd>V</kbd></td><td>přepnout zobrazení (klávesy / noty / obojí)</td></tr>
           <tr><td><kbd>+</kbd> / <kbd>−</kbd></td><td>noty větší / menší</td></tr>
@@ -370,8 +392,15 @@
       <h2>Noty z Muzia</h2>
       <p>
         Učitel může k&nbsp;úkolu v&nbsp;<a href="https://keyboardheromuzio.vercel.app/">Muziu</a> přiložit noty skladby (MIDI nebo
-        MusicXML). Stáhni si je u&nbsp;úkolu, otevři v&nbsp;Keyboard Utils (<b>Otevřít skladbu ▾ &gt; Ze souboru</b>) a&nbsp;procvič si
-        je, třeba zpomalené, ve smyčce nebo v&nbsp;režimu učení. Až skladbu umíš, nahraj úkol v&nbsp;Muziu jako obvykle.
+        MusicXML). U&nbsp;úkolu klikni na <b>Otevřít v&nbsp;Keyboard Utils</b>: appka se spustí (nebo přepne, když už běží)
+        rovnou s&nbsp;tou skladbou. Prohlížeč se napoprvé zeptá, jestli smí Keyboard Utils otevřít &ndash; povol to.
+        Procvič si ji, třeba zpomalenou, ve smyčce nebo v&nbsp;režimu učení. Až skladbu umíš, nahraj úkol v&nbsp;Muziu jako obvykle.
+      </p>
+      <p>
+        Když se po kliknutí nic nestane, nemáš Keyboard Utils 1.1 nebo novější (nebo jsi ji ještě nespustil(a) &ndash; odkazy
+        si zaregistruje při prvním spuštění). Pak si soubor stáhni kliknutím na jeho název a&nbsp;otevři ho přes
+        <b>Otevřít skladbu ▾ &gt; Ze souboru</b>. Stažené noty z&nbsp;Muzia appka ukládá do
+        <code>%LOCALAPPDATA%\KeyboardUtils\Muzio</code>; stahuje jen MIDI a&nbsp;MusicXML z&nbsp;úložiště Muzia, nejvýš 5&nbsp;MB.
       </p>
     </section>
 
@@ -384,7 +413,8 @@
         <li>Nahrávky uložené bez dialogu: <code>Dokumenty\Keyboard Utils\Nahrávky</code></li>
       </ul>
       <p>
-        Na internet se appka připojuje jen na GitHub (aktualizace, doplňky) a&nbsp;při hledání not na Mutopia Project.
+        Na internet se appka připojuje jen na GitHub (aktualizace, doplňky), při hledání not na Mutopia Project
+        a&nbsp;při otevírání not z&nbsp;Muzia.
         O&nbsp;tobě neposílá nic.
       </p>
     </section>

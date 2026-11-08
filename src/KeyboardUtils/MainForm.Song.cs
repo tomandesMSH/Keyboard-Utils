@@ -51,6 +51,7 @@ sealed partial class MainForm
         ShowScore(score);
         loadedSong = (score, path);
         AddRecentSong(path);
+        UpdateHardSpots();
         SetStatus(T($"Načteno: {score.Title}", $"Loaded: {score.Title}"));
     }
 
@@ -62,6 +63,7 @@ sealed partial class MainForm
         currentStems = null;
         currentScore = score;
         ClearLoop();
+        UpdateHardSpots();
 
         playbackEngine.Load(currentScore, ClickTiming);
         SetViewScore(currentScore);

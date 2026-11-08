@@ -42,6 +42,7 @@ sealed partial class MainForm
             case MacroAction.RecentSongs: OpenRecentSongs(0); break;
             case MacroAction.SaveRecording: SaveRecordingQuick(); break;
             case MacroAction.ShowPracticeHistory: ShowPracticeHistory(); break;
+            case MacroAction.PracticeHardSpot: PracticeHardSpot(); break;
             case MacroAction.MetronomeTap: TapMetronome(); break;
             case MacroAction.MetronomeMeterNext: CycleMetronomeMeter(); break;
             case MacroAction.ToggleStandaloneMetronome: ToggleStandaloneOption(); break;
@@ -235,9 +236,49 @@ sealed partial class MainForm
         var info = learningInfo;
         practiceHistory.Add(PracticeKey(), new PracticeEntry(DateTime.Now, Math.Round(result.Percent, 1), result.CorrectNotes, result.TotalNotes,
             result.WrongPresses, result.MissedNotes, Math.Round(result.Duration.TotalSeconds, 1), result.Completed, info.Mode, info.SpeedPercent,
-            info.Parts, info.Range?.Start, info.Range?.End));
+            info.Parts, info.Range?.Start, info.Range?.End,
+            // Empty when all went right: a clean attempt counts too, it makes old mistakes weigh less.
+            HardSpots.CountMistakes(session.WrongNotes.Select(n => n.StartSeconds), ClickTiming)));
         practiceHistory.Save();
+        UpdateHardSpots();
         return true;
+    }
+
+    /// <summary>The open song's hard spots (worst first), from its practice history.</summary>
+    IReadOnlyList<HardSpot> CurrentHardSpots() =>
+        currentScore == null ? [] : HardSpots.For(practiceHistory.For(PracticeKey()));
+
+    /// <summary>Marks the hard spots' bars in the sheet music.</summary>
+    void UpdateHardSpots()
+    {
+        var spots = CurrentHardSpots();
+        var weighted = spots.Count == 0 ? [] : HardSpots.Weighted(practiceHistory.For(PracticeKey()));
+        sheet.HardBars = spots
+            .SelectMany(s => Enumerable.Range(s.FirstBar, s.LastBar - s.FirstBar + 1))
+            .Where(bar => weighted.GetValueOrDefault(bar) > 0)
+            .ToDictionary(bar => bar, bar => weighted[bar]);
+    }
+
+    /// <summary>A loop over <paramref name="spot"/> (or the worst hard spot) and learning mode on it.</summary>
+    void PracticeHardSpot(HardSpot? spot = null)
+    {
+        if (currentScore == null)
+        {
+            SetStatus(T("Nejdřív otevři skladbu.", "Open a song first."));
+            return;
+        }
+        spot ??= CurrentHardSpots().FirstOrDefault();
+        if (spot == null)
+        {
+            SetStatus(T("Zatím žádná těžká místa - nejdřív si skladbu zkus v režimu učení.",
+                "No hard spots yet - try the song in learning mode first."));
+            return;
+        }
+        StopLearningMode(showResult: false);
+        var (start, end) = HardSpots.Range(spot.FirstBar, spot.LastBar, ClickTiming);
+        SetLoop(start, end);
+        StartLearningMode(showSetup: false);
+        SetStatus(T($"Procvičuješ takty {spot.Bars} ve smyčce.", $"Practising bars {spot.Bars} in a loop."));
     }
 
     void ShowPracticeHistory()
@@ -248,7 +289,7 @@ sealed partial class MainForm
             return;
         }
         RestoreWindow();
-        using var form = new PracticeHistoryForm(currentScore.Title, practiceHistory.For(PracticeKey()));
+        using var form = new PracticeHistoryForm(currentScore.Title, practiceHistory.For(PracticeKey()), CurrentHardSpots());
         form.ShowDialog(this);
     }
 

@@ -250,6 +250,7 @@ sealed partial class MainForm : AntdUI.Window
             if (config.CheckForUpdates && (config.LastUpdateCheck is not { } last || DateTime.Now - last > TimeSpan.FromHours(24)))
                 _ = CheckForUpdatesAsync(manual: false);
         };
+        InitIntegration();
     }
 
     void BuildLayout()
@@ -370,7 +371,7 @@ sealed partial class MainForm : AntdUI.Window
         updateGroup.Controls.Add(updateButton);
         statusRow.Controls.Add(updateGroup);
         statusRow.Controls.Add(keyboardSizeGroup);
-        updateButton.Click += (_, _) => OpenUpdatePage();
+        updateButton.Click += (_, _) => _ = UpdateAsync();
         tabs.SelectedIndexChanged += (_, _) => keyboardSizeGroup.Visible = tabs.SelectedTab == songTab;
         Controls.Add(statusRow);
 

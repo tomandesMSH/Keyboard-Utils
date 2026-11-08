@@ -4,8 +4,14 @@ using System.Text.Json;
 
 namespace KeyboardUtils;
 
-/// <summary>A newer release on GitHub: its version and the page to download it from.</summary>
-sealed record AvailableUpdate(Version Version, string PageUrl);
+/// <summary>
+/// A newer release on GitHub: its version, the page to download it from and - when the release has it - the new
+/// KeyboardUtils.exe for <see cref="SelfUpdater"/>.
+/// </summary>
+sealed record AvailableUpdate(Version Version, string PageUrl, ReleaseAsset? Exe = null);
+
+/// <summary>A release's file: where to get it, its size and SHA-256 (hex) as GitHub reports them.</summary>
+sealed record ReleaseAsset(string Url, long Size, string Sha256);
 
 /// <summary>
 /// Asks GitHub for the latest release of the app. Sends nothing about the user - only a User-Agent naming the app
@@ -14,6 +20,8 @@ sealed record AvailableUpdate(Version Version, string PageUrl);
 static class UpdateChecker
 {
     const string LatestReleaseUrl = "https://api.github.com/repos/tomandesMSH/Keyboard-Utils/releases/latest";
+    const string DownloadPrefix = "https://github.com/tomandesMSH/Keyboard-Utils/releases/download/";
+    const string ExeName = "KeyboardUtils.exe";
     public const string ReleasesPage = "https://github.com/tomandesMSH/Keyboard-Utils/releases/latest";
 
     /// <summary>This build's version (from the project's &lt;Version&gt;).</summary>
@@ -47,17 +55,51 @@ static class UpdateChecker
             using var response = await http.GetAsync(LatestReleaseUrl, token);
             if (!response.IsSuccessStatusCode)
                 return (false, null);
-            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token));
-            var root = json.RootElement;
-            string? tag = root.TryGetProperty("tag_name", out var t) ? t.GetString() : null;
-            // The page is opened in the browser: only ever the project's own releases.
-            string page = root.TryGetProperty("html_url", out var u) && u.GetString() is { } url
-                && url.StartsWith("https://github.com/tomandesMSH/Keyboard-Utils/releases/", StringComparison.Ordinal) ? url : ReleasesPage;
-            return (true, NewerVersion(tag, current) is { } newer ? new AvailableUpdate(newer, page) : null);
+            return (true, ParseRelease(await response.Content.ReadAsStringAsync(token), current));
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException)
         {
             return (false, null);
         }
+    }
+
+    /// <summary>The release GitHub describes in <paramref name="json"/>, if it's newer than <paramref name="current"/>.</summary>
+    public static AvailableUpdate? ParseRelease(string json, Version current)
+    {
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        string? tag = root.TryGetProperty("tag_name", out var t) ? t.GetString() : null;
+        if (NewerVersion(tag, current) is not { } newer)
+            return null;
+        // The page is opened in the browser: only ever the project's own releases.
+        string page = root.TryGetProperty("html_url", out var u) && u.GetString() is { } url
+            && url.StartsWith("https://github.com/tomandesMSH/Keyboard-Utils/releases/", StringComparison.Ordinal) ? url : ReleasesPage;
+        return new AvailableUpdate(newer, page, FindExe(root));
+    }
+
+    /// <summary>
+    /// The release's KeyboardUtils.exe - only from the project's own release downloads, and only with a SHA-256
+    /// digest to check it against (without one, the update goes the old way, through the release page).
+    /// </summary>
+    static ReleaseAsset? FindExe(JsonElement release)
+    {
+        if (!release.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
+            return null;
+        foreach (var asset in assets.EnumerateArray())
+        {
+            if (!asset.TryGetProperty("name", out var name) || name.GetString() != ExeName)
+                continue;
+            string? url = asset.TryGetProperty("browser_download_url", out var d) ? d.GetString() : null;
+            long size = asset.TryGetProperty("size", out var z) && z.TryGetInt64(out long n) ? n : 0;
+            string? digest = asset.TryGetProperty("digest", out var g) && g.ValueKind == JsonValueKind.String ? g.GetString() : null;
+            if (url == null || !url.StartsWith(DownloadPrefix, StringComparison.Ordinal) || !url.EndsWith("/" + ExeName, StringComparison.Ordinal)
+                || size <= 0 || digest == null || !digest.StartsWith("sha256:", StringComparison.Ordinal))
+                return null;
+            string hex = digest["sha256:".Length..].ToLowerInvariant();
+            if (hex.Length != 64 || !hex.All(Uri.IsHexDigit))
+                return null;
+            return new ReleaseAsset(url, size, hex);
+        }
+        return null;
     }
 }

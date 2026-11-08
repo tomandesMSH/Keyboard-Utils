@@ -169,9 +169,16 @@ sealed partial class MainForm
         // Nothing played yet: there's nothing to score.
         if (!RecordPractice(session, result) || !showResult)
             return;
-        using var dialog = new LearningResultForm(result, currentScore?.Title ?? "", practiceHistory.For(PracticeKey()));
-        if (dialog.ShowDialog(this) == DialogResult.Retry)
-            StartLearningMode(showSetup: false);
+        using var dialog = new LearningResultForm(result, currentScore?.Title ?? "", practiceHistory.For(PracticeKey()), CurrentHardSpots());
+        switch (dialog.ShowDialog(this))
+        {
+            case DialogResult.Retry:
+                StartLearningMode(showSetup: false);
+                break;
+            case DialogResult.Yes when dialog.HardSpotToPractise is { } spot:
+                PracticeHardSpot(spot);
+                break;
+        }
     }
 
     void UpdateLearningButton()

@@ -2,17 +2,21 @@ namespace KeyboardUtils;
 
 /// <summary>
 /// Final score after a learning session, with the song's earlier attempts (last time, best, a chart).
-/// DialogResult.Retry = play it again.
+/// DialogResult.Retry = play it again; DialogResult.Yes = practise <see cref="HardSpotToPractise"/> in a loop.
 /// </summary>
 sealed class LearningResultForm : AntdUI.Window
 {
+    /// <summary>The hard spot whose "Practise" button closed the dialog.</summary>
+    public HardSpot? HardSpotToPractise { get; private set; }
+
     /// <param name="history">The song's attempts, oldest first, this one last.</param>
-    public LearningResultForm(LearningResult result, string songTitle, IReadOnlyList<PracticeEntry> history)
+    /// <param name="hardSpots">Where the most mistakes are (worst first), from the attempts so far.</param>
+    public LearningResultForm(LearningResult result, string songTitle, IReadOnlyList<PracticeEntry> history, IReadOnlyList<HardSpot> hardSpots)
     {
         Text = T("Hodnocení", "Results");
         Icon = AppIcon.Icon;
         StartPosition = FormStartPosition.CenterParent;
-        Size = new Size(440, 540);
+        Size = new Size(480, 560);
         Resizable = false;
         MaximizeBox = MinimizeBox = false;
         TopMost = true;
@@ -42,6 +46,8 @@ sealed class LearningResultForm : AntdUI.Window
         if (result.MissedNotes > 0)
             lines.Add(T($"Vynechané nebo pozdě: {result.MissedNotes}", $"Missed or late: {result.MissedNotes}"));
         lines.Add(T($"Čas: {result.Duration:m\\:ss}", $"Time: {result.Duration:m\\:ss}"));
+        if (hardSpots.Count > 0)
+            lines.Add(T("Nejvíc chyb: takty ", "Most mistakes: bars ") + string.Join(", ", hardSpots.Select(s => s.Bars)));
         var details = new AntdUI.Label
         {
             Dock = DockStyle.Fill,
@@ -80,6 +86,19 @@ sealed class LearningResultForm : AntdUI.Window
         var retry = new AntdUI.Button { Text = T("Zkusit znovu", "Try again"), AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(12) };
         buttons.Controls.AddRange([close, retry]);
+        // The worst spot, straight into a loop.
+        if (hardSpots.Count > 0)
+        {
+            var spot = hardSpots[0];
+            var practise = new AntdUI.Button { Text = T($"Procvičit takty {spot.Bars}", $"Practise bars {spot.Bars}"), AutoSize = true, Radius = 8 };
+            practise.Click += (_, _) =>
+            {
+                HardSpotToPractise = spot;
+                DialogResult = DialogResult.Yes;
+                Close();
+            };
+            buttons.Controls.Add(practise);
+        }
 
         Controls.Add(details);
         Controls.Add(summary);

@@ -28,7 +28,9 @@ Ze zdrojáků:
    makro akce, metronom, aktualizace, obsah exe).
 
 **Aktualizace:** appka se při spuštění (nejvýš jednou denně) zeptá GitHubu na nejnovější verzi. Když je nová,
-objeví se vpravo dole tlačítko **Nová verze ... – stáhnout**, které otevře stránku ke stažení. Neposílá nic
+objeví se vpravo dole tlačítko **Nová verze ... – aktualizovat**: stáhne nové `KeyboardUtils.exe`, ověří jeho
+velikost a SHA-256 podle GitHubu, vymění ho za běžící exe (to se přejmenuje na `.old`) a appku restartuje; nová
+verze starý soubor smaže. Když nejde zapisovat do složky s exe, tlačítko jen otevře stránku ke stažení. Neposílá nic
 o tobě, jen název a verzi appky. Vypnout jde v **Nastavení > Kontrolovat aktualizace**, ručně se zeptáš přes
 **Nastavení > Zkontrolovat aktualizace teď**.
 
@@ -41,6 +43,9 @@ Makro klávesnice je volitelná a nic dalšího k běhu aplikace nepotřebuje �
 
 ### Skladba
 
+- **Z Průzkumníka:** při spuštění se appka zaregistruje (jen pro tebe, bez práv správce) do **Otevřít v programu**
+  pro `.mid`, `.midi`, `.musicxml` a `.mxl`. Výchozí program nemění – když chceš otevírat noty dvojklikem, vyber
+  **Zvolit jinou aplikaci > Keyboard Utils > Vždy**. Když už appka běží, soubor se otevře v ní.
 - **Otevřít skladbu...** načte MIDI (`.mid`) nebo MusicXML (`.musicxml`, `.mxl`). Vybrat můžeš víc souborů najednou,
   mezi nimi pak přepínáš v **Soubor > Předchozí skladba / Další skladba**.
 - **Složka se skladbami** (**Nastavení > Složka se skladbami...**) – všechny MIDI / MusicXML v ní (i v podsložkách)
@@ -96,6 +101,7 @@ Na kartě Skladba (seznam ukáže **F1** nebo **Nastavení > Klávesové zkratky
 | A / B | začátek / konec smyčky na aktuálním místě |
 | M | metronom |
 | T | metronom bez podkladu: naťukat tempo |
+| H | procvičit těžké místo (smyčka + učení) |
 | K | popisky kláves |
 | V | přepnout zobrazení (klávesy / noty / obojí) |
 | F5 / F6 / F7 | režim učení / zapisovat noty / poslouchat |
@@ -136,6 +142,19 @@ Na konci (nebo po **Ukončit učení** / **Stop**) se ukáže hodnocení: procen
 vynechané noty a čas, výsledek z minula, nejlepší výsledek a graf posledních pokusů. Každý pokus (i každé kolo
 smyčky) se ukládá do historie – **Soubor > Historie cvičení...** ukáže všechny pokusy u otevřené skladby
 (datum, %, rychlost, režim, části, úsek). Historie je v `%APPDATA%\KeyboardUtils\history.json`.
+
+**Těžká místa:** u každého pokusu se ukládá, ve kterých taktech byly chyby. Z posledních 5 pokusů (novější váží víc)
+appka vybere nejhorší místa – sousední takty spojí, nejvýš 4. Hodnocení i historie ukážou „Nejvíc chyb: takty …“,
+v notách mají ty takty červenou značku s počtem chyb a tlačítko **Procvičit takty …** (nebo **H**, nebo makro akce
+**Procvičit těžké místo**) nastaví na ně smyčku a spustí učení.
+
+### Noty z Muzia
+
+U úkolu s přiloženými notami v [Muziu](https://keyboardheromuzio.vercel.app/) je tlačítko **Otevřít v Keyboard
+Utils**. Appka si při spuštění zaregistruje odkazy `keyboardutils://` (jen pro tebe, bez práv správce); odkaz nese
+krátce platný podepsaný odkaz na soubor. Appka stáhne jen MIDI / MusicXML z úložiště Muzia (`*.supabase.co`, https,
+nejvýš 5 MB) do `%LOCALAPPDATA%\KeyboardUtils\Muzio` a otevře ho. Když už běží, předá jí ho nově spuštěná kopie
+(pojmenovaná roura) a sama skončí.
 
 ### Zapisování not
 

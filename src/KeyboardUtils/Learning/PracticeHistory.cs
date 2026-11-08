@@ -3,7 +3,10 @@ using System.Text.Json.Serialization;
 
 namespace KeyboardUtils;
 
-/// <summary>One learning session (or one pass of a loop) and how it went.</summary>
+/// <summary>
+/// One learning session (or one pass of a loop) and how it went. <see cref="BarMistakes"/>: wrong notes per bar
+/// (1 = first bar), for the hard spots (<see cref="HardSpots"/>); null in entries from before 1.1.0.
+/// </summary>
 sealed record PracticeEntry(
     DateTime When,
     double Percent,
@@ -17,7 +20,8 @@ sealed record PracticeEntry(
     int SpeedPercent,
     string[] Parts,
     double? LoopStart,
-    double? LoopEnd);
+    double? LoopEnd,
+    Dictionary<int, int>? BarMistakes = null);
 
 /// <summary>
 /// Results of learning mode, per song - in history.json next to config.json (kept apart, it only grows). A song is

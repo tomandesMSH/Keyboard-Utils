@@ -3,7 +3,7 @@ namespace KeyboardUtils;
 /// <summary>All learning attempts at a song: a chart of the latest and the full list, newest first.</summary>
 sealed class PracticeHistoryForm : AntdUI.Window
 {
-    public PracticeHistoryForm(string songTitle, IReadOnlyList<PracticeEntry> history)
+    public PracticeHistoryForm(string songTitle, IReadOnlyList<PracticeEntry> history, IReadOnlyList<HardSpot> hardSpots)
     {
         Text = T($"Historie cvičení - {songTitle}", $"Practice history - {songTitle}");
         Icon = AppIcon.Icon;
@@ -22,6 +22,16 @@ sealed class PracticeHistoryForm : AntdUI.Window
                 ? T("U téhle skladby zatím nejsou žádné pokusy.", "No attempts at this song yet.")
                 : T($"Pokusů: {history.Count}  ·  Nejlepší: {history.Max(e => e.Percent):0} %  ·  Průměr posledních 10: {history.TakeLast(10).Average(e => e.Percent):0} %",
                     $"Attempts: {history.Count}  ·  Best: {history.Max(e => e.Percent):0} %  ·  Average of the last 10: {history.TakeLast(10).Average(e => e.Percent):0} %"),
+        };
+        var hard = new AntdUI.Label
+        {
+            Dock = DockStyle.Top,
+            Height = hardSpots.Count > 0 ? 24 : 0,
+            TextAlign = ContentAlignment.MiddleCenter,
+            ForeColor = PianoRollControl.WrongColor,
+            Text = hardSpots.Count > 0
+                ? T("Nejvíc chyb: takty ", "Most mistakes: bars ") + string.Join(", ", hardSpots.Select(s => s.Bars))
+                : "",
         };
 
         var chart = new PracticeChart { Dock = DockStyle.Fill, MaxBars = 40 };
@@ -68,6 +78,7 @@ sealed class PracticeHistoryForm : AntdUI.Window
 
         Controls.Add(listBox);
         Controls.Add(chartBox);
+        Controls.Add(hard);
         Controls.Add(summary);
         Controls.Add(note);
         Controls.Add(buttons);

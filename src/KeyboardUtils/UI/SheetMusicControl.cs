@@ -111,6 +111,19 @@ sealed class SheetMusicControl : Control, IThemed
     }
     (double Start, double End)? loop;
 
+    /// <summary>Hard spots: bar number (1-based) → mistakes (weighted), shown as a small red badge on the bar.</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public IReadOnlyDictionary<int, double>? HardBars
+    {
+        get => hardBars;
+        set
+        {
+            hardBars = value;
+            Invalidate();
+        }
+    }
+    IReadOnlyDictionary<int, double>? hardBars;
+
     // A press on a bar: a click seeks there, a drag selects bars for a loop.
     Point? pressPoint;
     int pressMeasure;
@@ -635,6 +648,35 @@ sealed class SheetMusicControl : Control, IThemed
         g.DrawString(score!.Title, font, brush, new RectangleF(2 * S, 0.8f * S, ClientSize.Width - 4 * S - ScrollbarWidth, 3.6f * S), format);
     }
 
+    /// <summary>A red badge with the mistake count above the top right of each hard bar.</summary>
+    void DrawHardBars(Graphics g, SystemLine line)
+    {
+        if (hardBars is not { Count: > 0 })
+            return;
+        float s = S;
+        using var font = new Font("Segoe UI", 1.35f * s, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var fill = new SolidBrush(PianoRollControl.WrongColor);
+        using var text = new SolidBrush(Color.White);
+        var oldMode = g.SmoothingMode;
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        foreach (var measure in line.Measures)
+        {
+            if (!hardBars.TryGetValue(measure.Index + 1, out var mistakes) || mistakes <= 0)
+                continue;
+            string label = Math.Max(1, (int)Math.Round(mistakes)).ToString();
+            var size = g.MeasureString(label, font);
+            float h = 2.1f * s, w = Math.Max(h, size.Width + 0.6f * s);
+            float x = measure.X + measure.Width - w - 0.3f * s, y = line.TrebleTop - 3.0f * s;
+            using var path = new System.Drawing.Drawing2D.GraphicsPath();
+            path.AddArc(x, y, h, h, 90, 180);
+            path.AddArc(x + w - h, y, h, h, 270, 180);
+            path.CloseFigure();
+            g.FillPath(fill, path);
+            g.DrawString(label, font, text, x + (w - size.Width) / 2, y + (h - size.Height) / 2);
+        }
+        g.SmoothingMode = oldMode;
+    }
+
     void DrawSystem(Graphics g, SystemLine line)
     {
         float s = S;
@@ -698,6 +740,7 @@ sealed class SheetMusicControl : Control, IThemed
 
         if (score == null)
             return;
+        DrawHardBars(g, line);
         foreach (var measure in line.Measures)
             foreach (var e in eventsByMeasure[measure.Index])
                 if (e.WholeMeasureRest)

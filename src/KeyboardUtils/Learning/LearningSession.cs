@@ -140,6 +140,9 @@ sealed class LearningSession
 
     public NoteMark MarkOf(ScoreNote note) => marks.TryGetValue(note, out var mark) ? mark : NoteMark.Pending;
 
+    /// <summary>The notes played wrong (or missed) so far - where the hard spots are (<see cref="HardSpots"/>).</summary>
+    public IEnumerable<ScoreNote> WrongNotes => marks.Where(m => m.Value == NoteMark.Wrong).Select(m => m.Key);
+
     /// <summary>Keys the player should press right now - lit as a hint on the keyboard.</summary>
     public IEnumerable<int> ExpectedKeys()
     {

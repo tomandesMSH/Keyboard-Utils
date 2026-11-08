@@ -62,6 +62,7 @@ enum MacroAction
     MetronomeTap,
     MetronomeMeterNext,
     ToggleStandaloneMetronome,
+    PracticeHardSpot,
 }
 
 /// <summary>How the actions behave when a key repeats fast - a knob (rotary encoder) sends a burst of one key.</summary>
@@ -186,6 +187,7 @@ sealed class Binding
         MacroAction.MetronomeTap => T("Metronom: naťukat tempo", "Metronome: tap the tempo"),
         MacroAction.MetronomeMeterNext => T("Metronom: další takt (2/4, 3/4, 4/4, 5/4, 6/8)", "Metronome: next time signature (2/4, 3/4, 4/4, 5/4, 6/8)"),
         MacroAction.ToggleStandaloneMetronome => T("Metronom bez podkladu zapnout / vypnout", "Metronome without a song on / off"),
+        MacroAction.PracticeHardSpot => T("Procvičit těžké místo (smyčka + učení)", "Practise the hard spot (loop + learning)"),
         _ => Action.ToString(),
     };
 }
