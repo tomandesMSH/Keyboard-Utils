@@ -174,7 +174,7 @@ Balíček doplňku sestavíš skriptem `tools\pack-basic-pitch-module.ps1` (výs
 Druhou klávesnici (SayoDevice, starou klávesnici, numerický blok...) můžeš používat jako ovladač appky.
 Klávesy z ní se nedostanou do Windows, hlavní klávesnice funguje normálně.
 
-1. **Makro klávesnice > Nastavit makro klávesnici...** Napoprvé appka stáhne malý doplňkový modul (pár desítek KB).
+1. Karta **Makro klávesnice > Nastavit makro klávesnici...** Napoprvé appka stáhne malý doplňkový modul (pár desítek KB).
    Když chybí driver Interception, nabídne **instalaci ovladače** (potvrdíš v UAC) a pak restart počítače.
    Ruční odinstalace: `install-interception.exe /uninstall` jako administrátor a restart.
 2. Stiskni klávesu na klávesnici, kterou chceš používat, a potvrď **Použít tuto klávesnici**.
@@ -208,6 +208,14 @@ Přiřazení kláves uložíš do souboru tlačítkem **Exportovat...** a načte
 **Nastavení > Tmavý režim** přepne celou appku do tmavých barev.
 
 Nastavení se ukládá do `%APPDATA%\KeyboardUtils\config.json`.
+
+**Nápověda > O aplikaci** ukáže verzi a odkazy na zdrojový kód, web a [dokumentaci](https://tomandesmsh.github.io/Keyboard-Utils/docs/);
+**Nápověda > Nahlásit chybu...** otevře [formulář na tomandes.eu](https://tomandes.eu/report/?app=keyboard-utils)
+s vyplněnou verzí – GitHub účet není potřeba, hlášení se objeví mezi [issues](https://github.com/tomandesMSH/Keyboard-Utils/issues).
+
+## Licence
+
+[MIT](LICENSE) © 2026 tomandesMSH. Ovladač Interception a doplněk pro akordy mají své vlastní licence (viz níže).
 
 ## Poznámky
 

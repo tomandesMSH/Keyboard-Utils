@@ -202,7 +202,7 @@ sealed partial class MainForm : AntdUI.Window
     readonly MenuBarButton fileMenuButton = new();
     readonly MenuBarButton editMenuButton = new();
     readonly MenuBarButton settingsMenuButton = new();
-    readonly MenuBarButton macroSetupMenuButton = new();
+    readonly MenuBarButton helpMenuButton = new();
 
     public MainForm(AppConfig config, IMacroKeyboardInterceptor? interceptor)
     {
@@ -374,7 +374,7 @@ sealed partial class MainForm : AntdUI.Window
         tabs.SelectedIndexChanged += (_, _) => keyboardSizeGroup.Visible = tabs.SelectedTab == songTab;
         Controls.Add(statusRow);
 
-        menuBar.Controls.AddRange([fileMenuButton, editMenuButton, settingsMenuButton, macroSetupMenuButton]);
+        menuBar.Controls.AddRange([fileMenuButton, editMenuButton, settingsMenuButton, helpMenuButton]);
         Controls.Add(menuBar);
 
         // Title bar must be added LAST (and never BringToFront - that resets its z-index to 0, which for
@@ -406,7 +406,9 @@ sealed partial class MainForm : AntdUI.Window
 
         settingsMenuButton.Click += (_, _) => ShowMenu(settingsMenuButton, BuildSettingsMenuItems());
 
-        macroSetupMenuButton.Click += (_, _) => StartLearning();
+        helpMenuButton.Click += (_, _) => ShowMenu(helpMenuButton,
+            MenuItem(T("O aplikaci", "About"), () => { using var about = new AboutForm(); about.ShowDialog(this); }),
+            MenuItem(T("Nahlásit chybu...", "Report a bug..."), () => AboutForm.Open(AboutForm.IssuesUrl)));
 
         learnButton.Click += (_, _) => StartLearning();
         forgetButton.Click += (_, _) => ForgetKeyboard();
@@ -682,7 +684,7 @@ sealed partial class MainForm : AntdUI.Window
         fileMenuButton.Text = T("Soubor", "File");
         editMenuButton.Text = T("Úpravy", "Edit");
         settingsMenuButton.Text = T("Nastavení", "Settings");
-        macroSetupMenuButton.Text = T("Makro klávesnice", "Macro keyboard");
+        helpMenuButton.Text = T("Nápověda", "Help");
         songTab.Text = T("Skladba", "Song");
         bindingsTab.Text = T("Makro klávesnice", "Macro keyboard");
         openSongButton.Text = T("Otevřít skladbu ▾", "Open song ▾");

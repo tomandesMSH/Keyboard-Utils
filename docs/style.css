@@ -403,10 +403,81 @@ footer p { padding: 18px 20px 28px; margin: 0; }
 
 .page-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 36px; }
 
+/* --- Documentation (docs/docs/) ---------------------------------------------------------- */
+
+nav a[aria-current="page"] { color: var(--text); }
+
+.doc {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 0 20px;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 40px;
+  align-items: start;
+}
+
+.doc-body { padding: 28px 0 64px; max-width: 760px; margin: 0; }
+.doc-body section { scroll-margin-top: 16px; }
+.doc-body h3 { margin-top: 24px; }
+
+/* The contents stay in view while reading, on the left. */
+.doc-toc {
+  position: sticky;
+  top: 16px;
+  padding: 28px 0;
+  font-size: .93rem;
+}
+.doc-toc-title {
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+.doc-toc ol { list-style: none; padding: 0; margin: 0; border-left: 3px solid var(--accent); }
+.doc-toc li { margin: 0; }
+.doc-toc a { display: block; padding: 4px 0 4px 14px; color: var(--muted); text-decoration: none; }
+.doc-toc a:hover { color: var(--text); }
+
+/* A key cap. */
+kbd {
+  font: 600 .82em 'Inter', 'Segoe UI', system-ui, sans-serif;
+  background: var(--surface);
+  border: 1px solid var(--edge);
+  border-bottom-width: 3px;
+  border-radius: 5px;
+  padding: .05em .45em;
+  white-space: nowrap;
+}
+
+.note {
+  border-left: 4px solid var(--edge);
+  background: var(--surface-2);
+  padding: 10px 14px;
+  border-radius: 0 8px 8px 0;
+  font-size: .93rem;
+}
+
+.doc-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: .95rem; }
+.doc-table th, .doc-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.doc-table th { font-weight: 600; color: var(--muted); }
+.doc-table td:first-child { white-space: nowrap; width: 1%; }
+
 /* --- Phones ------------------------------------------------------------------------------- */
+
+/* The contents go above the text when there's no room beside it. */
+@media (max-width: 860px) {
+  .doc { grid-template-columns: 1fr; gap: 0; }
+  .doc-toc { position: static; padding-bottom: 0; }
+  .doc-toc ol { columns: 2; }
+}
 
 @media (max-width: 640px) {
   .page { padding: 20px 16px 48px; }
+  .doc { padding: 0 16px; }
+  .doc-body { padding-top: 20px; }
   .hero { padding: 32px 16px 36px; }
   .top { padding: 14px 16px; }
   .header-end { gap: 14px; }

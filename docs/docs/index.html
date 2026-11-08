@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dokumentace – Keyboard Utils</title>
+  <meta name="description" content="Dokumentace Keyboard Utils: skladby, zobrazení, přehrávání, metronom, smyčka, režim učení, zapisování not, makro klávesnice a klávesové zkratky.">
+  <link rel="icon" type="image/png" href="../img/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- The light / dark pick, set before the page is drawn (no flash of the wrong one). See theme.js. -->
+  <script>try { const t = localStorage.getItem('theme'); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t } catch (e) {}</script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="../index.html">
+    <img src="../img/logo.png" alt="" width="36" height="36">
+    <span>Keyboard Utils</span>
+  </a>
+  <div class="header-end">
+    <nav>
+      <a href="../index.html">Domů</a>
+      <a href="../index.html#funkce">Funkce</a>
+      <a href="../index.html#zacit">Jak začít</a>
+      <a href="index.html" aria-current="page">Dokumentace</a>
+      <a href="https://github.com/tomandesMSH/Keyboard-Utils">GitHub</a>
+    </nav>
+    <button class="theme-toggle" type="button" aria-label="Tmavý režim" aria-pressed="false">
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="doc">
+  <aside class="doc-toc" aria-label="Obsah">
+    <p class="doc-toc-title">Obsah</p>
+    <ol>
+      <li><a href="#instalace">Instalace</a></li>
+      <li><a href="#skladby">Skladby</a></li>
+      <li><a href="#zobrazeni">Zobrazení</a></li>
+      <li><a href="#prehravani">Přehrávání</a></li>
+      <li><a href="#smycka">Smyčka</a></li>
+      <li><a href="#metronom">Metronom</a></li>
+      <li><a href="#casti">Části a hlasitost</a></li>
+      <li><a href="#vstup">Vstup not</a></li>
+      <li><a href="#uceni">Režim učení</a></li>
+      <li><a href="#historie">Historie cvičení</a></li>
+      <li><a href="#zapisovani">Zapisování not</a></li>
+      <li><a href="#stopy">Stopy a převod zvuku</a></li>
+      <li><a href="#zkratky">Klávesové zkratky</a></li>
+      <li><a href="#makro">Makro klávesnice</a></li>
+      <li><a href="#muzio">Noty z Muzia</a></li>
+      <li><a href="#nastaveni">Nastavení a data</a></li>
+      <li><a href="#problemy">Oprava chyb</a></li>
+    </ol>
+  </aside>
+
+  <main class="page doc-body">
+    <h1>Dokumentace</h1>
+    <p class="lead">
+      Všechno, co Keyboard Utils umí, a&nbsp;jak to použít. Návod na první spuštění je
+      na <a href="../index.html#zacit">hlavní stránce</a>.
+    </p>
+
+    <section id="instalace">
+      <h2>Instalace</h2>
+      <p>
+        Stáhni <a href="https://github.com/tomandesMSH/Keyboard-Utils/releases/latest/download/KeyboardUtils.exe" download>KeyboardUtils.exe</a>
+        a&nbsp;spusť ho. Je to jeden soubor, nic se neinstaluje ani nerozbaluje. Potřebuje
+        <a href="https://dotnet.microsoft.com/download/dotnet/10.0">.NET 10 Desktop Runtime (x64)</a> a&nbsp;Windows 10 nebo 11;
+        když .NET chybí, appka napoprvé nabídne odkaz ke stažení.
+      </p>
+      <p>
+        Při prvním spuštění se zeptá na jazyk (čeština / English), změníš ho později v&nbsp;<b>Nastavení &gt; Jazyk</b>.
+        Když Windows napíšou „Systém Windows ochránil počítač“, klikni na <b>Další informace</b> a&nbsp;<b>Přesto spustit</b>
+        (<a href="../proc.html">proč?</a>).
+      </p>
+      <p>
+        <b>Aktualizace:</b> appka se při spuštění, nejvýš jednou denně, zeptá GitHubu na novou verzi. <br> Když je, objeví
+        se vpravo dole tlačítko <b>Nová verze … - stáhnout</b>. Dá se vypnout v&nbsp;<br> <b>Nastavení &gt; Kontrolovat aktualizace</b> <br>
+        ruční kontrola aktualizace je v <b>Nastavení &gt; Zkontrolovat aktualizace teď</b>.
+      </p>
+    </section>
+
+    <section id="skladby">
+      <h2>Skladby</h2>
+      <ul>
+        <li>
+          <b>Otevřít skladbu ▾ &gt; Ze souboru</b> načte <code>.mid</code> nebo <code>.musicxml</code>,<code>.mxl</code> soubory, <br>
+          třeba export z&nbsp;MuseScore. Můžeš vybrat víc souborů najednou a mezi nimi přepínat <br>
+          (&nbsp;<b>Soubor &gt; Předchozí / Další skladba)</b> nebo klávesami <kbd>Page Up</kbd> / <kbd>Page Down</kbd>.
+        </li>
+        <li>
+          <b>Hledat noty zdarma…</b> prohledá <a href="https://www.mutopiaproject.org/">Mutopia Project</a>: přes 2000 skladeb,
+          hlavně klasika, jako volné dílo nebo pod licencí Creative Commons. Vybranou skladbu stáhne a&nbsp;otevře.
+        </li>
+        <li>
+          <b>Složka se skladbami</b> (<b>Nastavení &gt; Složka se skladbami…</b>): všechny MIDI a&nbsp;MusicXML v&nbsp;ní
+          i&nbsp;v&nbsp;podsložkách jsou playlist. <b>Soubor &gt; Skladby ze složky</b> ho načte. 
+        </li>
+        <li><b>Soubor &gt; Nedávné skladby</b> ukáže posledních 10 otevřených.</li>
+        <li>
+          <b>Soubor &gt; Uložit skladbu jako…</b> uloží skladbu jako MIDI nebo MusicXML. Skladba ze souboru si nechá
+          tempo (i&nbsp;jeho změny), takt a&nbsp;předznamenání.
+        </li>
+        <li><b>Odebrat skladbu</b> ji zavře. Soubor na disku zůstane.</li>
+      </ul>
+    </section>
+
+    <section id="zobrazeni">
+      <h2>Zobrazení</h2>
+      <p>Přepínač vpravo nad skladbou vybere, co se ukáže:</p>
+      <ul>
+        <li><b>Klávesy</b>: padající noty na klaviatuře. Klávesa se při dopadu noty rozsvítí barvou své části.</li>
+        <li>
+          <b>Noty</b>: notový zápis na klavírní dvojosnově s&nbsp;předznamenáním. Aktuální takt se posouvá modře, znějící noty
+          mají barvu své části. Klikem na takt na něj skladbu posuneš, <kbd>Ctrl</kbd> + kolečko myši noty zvětší / zmenší.
+        </li>
+        <li><b>Noty + klávesy</b>: obojí vedle sebe, dělítko mezi nimi jde přetáhnout.</li>
+      </ul>
+      <ul>
+        <li><b>Velikost klávesnice</b> (dole vpravo) mění šířku kláves; ve větším okně se ukáže víc oktáv.</li>
+        <li><b>Popisky kláves</b> napíšou název noty na každou bílou klávesu (jinak jen na C).</li>
+        <li>V&nbsp;padajících notách posouváš skladbu tažením nahoru / dolů; klik na klávesu ji zahraje.</li>
+        <li><b>Nastavení &gt; Tmavý režim</b> (<kbd>Ctrl</kbd> + <kbd>D</kbd>) přepne celou appku do tmavých barev.</li>
+      </ul>
+      <p class="note">
+        Předznamenání se vezme ze souboru; když v&nbsp;něm není, appka ho odhadne z&nbsp;not. Noty jsou zarovnané na
+        šestnáctiny s&nbsp;jedním hlasem na osnovu, takže trioly a&nbsp;rychlé ozdoby vypadají zjednodušeně.
+      </p>
+    </section>
+
+    <section id="prehravani">
+      <h2>Přehrávání</h2>
+      <ul>
+        <li><b>Přehrát / pauza</b> (<kbd>mezerník</kbd>) a&nbsp;<b>Stop</b> (<kbd>Home</kbd>, vrátí na začátek).</li>
+        <li>
+          <b>RW / FF</b> přetáčí, dokud je držíš, a&nbsp;čím déle, tím rychleji (2× až 16×). FF při přehrávání skladbu
+          opravdu zrychlí, takže ji slyšíš. Šipky <kbd>←</kbd> / <kbd>→</kbd> skočí o&nbsp;5&nbsp;s, se <kbd>Shift</kbd> o&nbsp;1&nbsp;s.
+        </li>
+        <li>
+          <b>Rychlost přehrávání</b> 25–200&nbsp;%: posuvník, přesná hodnota v&nbsp;políčku, šipky vedle něj
+          nebo <kbd>↑</kbd> / <kbd>↓</kbd> po 5&nbsp;%. Kruhová šipka (<kbd>R</kbd>) vrátí 100&nbsp;%.
+        </li>
+        <li>Zvuk jde na MIDI výstup zvolený v&nbsp;<b>Nastavení &gt; MIDI výstup</b> (výchozí je syntezátor Windows).</li>
+      </ul>
+    </section>
+
+    <section id="smycka">
+      <h2>Smyčka</h2>
+      <p>Opakování úseku, třeba těžkého místa.</p>
+      <ol>
+        <li>Úsek označíš <b>tažením přes takty v&nbsp;notách</b>, nebo během přehrávání tlačítky <b>A</b> (začátek = teď) a&nbsp;<b>B</b> (konec = teď).</li>
+        <li>Tlačítkem <b>Smyčka</b> (<kbd>L</kbd>) ji zapneš / vypneš.</li>
+      </ol>
+      <p>
+        Přehrávání se na konci úseku vrací na jeho začátek. Úsek je v&nbsp;notách podbarvený a&nbsp;v&nbsp;padajících notách
+        ohraničený čárkovaně. V&nbsp;<a href="#uceni">režimu učení</a> cvičíš jen tenhle úsek, kolo po kole.
+      </p>
+    </section>
+
+    <section id="metronom">
+      <h2>Metronom</h2>
+      <p>
+        Zaškrtávátko <b>Metronom</b> (<kbd>M</kbd>) přidá ke skladbě klikání na každou dobu podle jejího tempa a&nbsp;taktu,
+        i&nbsp;při změnách tempa, zpomalení a&nbsp;ve smyčce. První doba taktu je zvýrazněná. Před spuštěním odpočítá jeden takt;
+        v&nbsp;režimu učení v&nbsp;tempu je to předehra, takže nastoupíš včas.
+      </p>
+      <h3>Bez podkladu</h3>
+      <p>
+        Pod metronomem zaškrtni <b>Bez podkladu</b>: Přehrát pak spustí jen metronom, i&nbsp;bez otevřené skladby.
+      </p>
+      <ul>
+        <li><b>BPM</b>: tempo, 20–300. <kbd>↑</kbd> / <kbd>↓</kbd> ho mění o&nbsp;5.</li>
+        <li><b>Detekce</b> (<kbd>T</kbd>): klikej v&nbsp;rytmu a&nbsp;appka tempo spočítá. Stačí dvě ťuknutí, počítá se průměr posledních čtyř.</li>
+        <li><b>Takt</b>: 2/4, 3/4, 4/4, 5/4 nebo 6/8. V&nbsp;6/8 kliká osminy a&nbsp;BPM je tečkovaná čtvrťová.</li>
+        <li>Šipka vedle Metronomu volby schová; metronom zůstane zapnutý.</li>
+      </ul>
+      <p class="note">Se stopami metronom hraje jen bez podkladu (stopy jsou zvukové nahrávky, metronom hraje přes MIDI).</p>
+    </section>
+
+    <section id="casti">
+      <h2>Části a hlasitost</h2>
+      <p>
+        Panel <b>Části / nástroje</b> vpravo: zaškrtávátkem část vypneš (třeba ruku, kterou budeš hrát sám),
+        posuvníkem změníš její hlasitost.
+      </p>
+    </section>
+
+    <section id="vstup">
+      <h2>Vstup not</h2>
+      <p>V&nbsp;<b>Nastavení &gt; Vstup not</b> vybereš, odkud appka bere to, co hraješ:</p>
+      <ul>
+        <li>
+          <b>MIDI</b>: digitální piano nebo MIDI klávesy přes USB. Nejpřesnější, slyší i&nbsp;akordy.
+        </li>
+        <li>
+          <b>Mikrofon (akustické piano)</b>: rozpoznává výšku tónu ze zvuku. Před prvním použitím otevři
+          <b>Nastavení &gt; Mikrofon a&nbsp;citlivost…</b>, chvíli buď potichu, klikni <b>Změřit šum</b> a&nbsp;zahraj pár not.
+          Když appka reaguje na šum, posuň práh doprava.
+        </li>
+        <li><b>Zvuk z&nbsp;počítače</b>: poslouchá, co hraje počítač (YouTube, Spotify…), bez zvuku samotné appky.</li>
+        <li><b>Klikání na klaviaturu v&nbsp;appce</b>: kliknutá klávesa se počítá jako zahraná. Na vyzkoušení bez piana.</li>
+      </ul>
+      <p>Tlačítko <b>Poslouchat</b> (<kbd>F7</kbd>) zapne poslouchání: znějící klávesy svítí oranžově.</p>
+      <p class="note">
+        Ze zvuku appka slyší jednu notu naráz (kromě kontroly akordů v&nbsp;režimu učení) a&nbsp;nepozná nejhlubší noty pod F1.
+      </p>
+    </section>
+
+    <section id="uceni">
+      <h2>Režim učení</h2>
+      <p><b>Režim učení…</b> (<kbd>F5</kbd>): vybereš, co hraješ (třeba jen pravou ruku), režim a&nbsp;rychlost.</p>
+      <ul>
+        <li><b>Čekat na notu</b>: skladba se zastaví na další notě, dokud ji nezahraješ správně.</li>
+        <li><b>V&nbsp;tempu</b>: skladba jede, nota se počítá, když ji zahraješ včas (±0,25&nbsp;s). Ostatní části můžou hrát jako doprovod.</li>
+      </ul>
+      <p>
+        Klávesy, které máš zahrát, svítí světle modře; správně zahraná nota zezelená, chyba zčervená, v&nbsp;padajících
+        notách i&nbsp;v&nbsp;notovém zápisu.
+      </p>
+      <p>
+        S&nbsp;mikrofonem nebo zvukem z&nbsp;počítače je zapnutá volba <b>U&nbsp;akordů kontrolovat všechny noty</b>: akord se
+        počítá, až zazní celý. Kdyby appka některou notu neslyšela, volbu vypni a&nbsp;u&nbsp;akordu pak stačí jedna správná nota.
+      </p>
+      <p>
+        Na konci (nebo po <b>Ukončit učení</b> / <b>Stop</b>) se ukáže hodnocení: procento správných not, špatné klávesy,
+        vynechané noty, čas, výsledek z&nbsp;minula, nejlepší výsledek a&nbsp;graf posledních pokusů. <b>Zkusit znovu</b> (<kbd>Enter</kbd>)
+        spustí další pokus se stejným nastavením.
+      </p>
+    </section>
+
+    <section id="historie">
+      <h2>Historie cvičení</h2>
+      <p>
+        Každý pokus v&nbsp;režimu učení (i&nbsp;každé kolo smyčky) se uloží ke skladbě. <b>Soubor &gt; Historie cvičení…</b>
+        ukáže graf a&nbsp;seznam všech pokusů: datum, procento, rychlost, režim, části a&nbsp;úsek.
+      </p>
+    </section>
+
+    <section id="zapisovani">
+      <h2>Zapisování not</h2>
+      <p>
+        <b>Zapisovat noty</b> (<kbd>F6</kbd>): hraj a&nbsp;appka zapisuje, co slyší. Po <b>Ukončit nahrávání</b> se nahrávka
+        otevře jako skladba. Přehraj si ji, a&nbsp;když se ti líbí, ulož ji tlačítkem <b>Uložit</b> (vedle Zapisovat noty) jako:
+      </p>
+      <ul>
+        <li><b>MIDI</b>: přesně to, co jsi zahrál,</li>
+        <li>
+          <b>MusicXML</b> pro MuseScore: noty zarovnané na šestnáctiny na dvojosnově. Appka se zeptá na tempo zápisu;
+          nastav ho zhruba na to, ve kterém jsi hrál.
+        </li>
+      </ul>
+      <p><kbd>Ctrl</kbd> + <kbd>R</kbd> uloží nahrávku rovnou jako MIDI do <code>Dokumenty\Keyboard Utils\Nahrávky</code>, bez dialogu.</p>
+    </section>
+
+    <section id="stopy">
+      <h2>Stopy a převod zvuku na noty</h2>
+      <p><b>Importovat stopy…</b> nabídne dvě možnosti:</p>
+      <ul>
+        <li>
+          <b>Jako doprovod</b>: vybereš složku se stopami (<code>.wav</code>) a&nbsp;přehraje se originální nahrávka; každou
+          stopu jde vypnout nebo zeslabit. Tlačítko <b>Noty</b> u&nbsp;stopy z&nbsp;ní rozpozná noty a&nbsp;ukáže je souběžně
+          s&nbsp;nahrávkou. Stopu pak vypneš a&nbsp;hraješ ji sám k&nbsp;originálu, i&nbsp;v&nbsp;režimu učení.
+        </li>
+        <li><b>Detekovat noty z&nbsp;hudby</b>: ze zvukového souboru (WAV, MP3, FLAC, AIFF) udělá noty jako novou skladbu.</li>
+      </ul>
+      <p>
+        Stopy z&nbsp;FL Studia: <b>Export &gt; WAV File &gt; Miscellaneous &gt; „Split mixer tracks“</b>. Odkazy, kde sehnat
+        stopy hotových skladeb, jsou přímo v&nbsp;dialogu.
+      </p>
+      <h3>Doplněk: rozpoznávání akordů</h3>
+      <p>
+        Bez doplňku převod slyší jednu notu naráz. Volitelný doplněk, neuronová síť
+        <a href="https://github.com/spotify/basic-pitch">Basic Pitch</a> od Spotify (asi 5&nbsp;MB), pozná i&nbsp;akordy. Appka
+        ho nabídne při prvním převodu; stáhneš nebo odebereš ho kdykoli v&nbsp;<b>Nastavení &gt; Rozpoznávání akordů (doplněk)…</b>.
+      </p>
+      <p class="note">Se stopami jde rychlost přehrávání i&nbsp;učení v&nbsp;tempu jen 100&nbsp;%: originální nahrávka zpomalit nejde.</p>
+    </section>
+
+    <section id="zkratky">
+      <h2>Klávesové zkratky</h2>
+      <p>Platí na kartě Skladba; seznam ukáže i&nbsp;appka klávesou <kbd>F1</kbd>.</p>
+      <table class="doc-table">
+        <thead><tr><th>Klávesa</th><th>Akce</th></tr></thead>
+        <tbody>
+          <tr><td><kbd>mezerník</kbd></td><td>přehrát / pauza</td></tr>
+          <tr><td><kbd>Home</kbd></td><td>zastavit (zpět na začátek)</td></tr>
+          <tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>o&nbsp;5&nbsp;s zpět / dopředu (se <kbd>Shift</kbd> o&nbsp;1&nbsp;s)</td></tr>
+          <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>rychlost +5&nbsp;% / −5&nbsp;% (u&nbsp;metronomu bez podkladu tempo ±5)</td></tr>
+          <tr><td><kbd>R</kbd></td><td>rychlost zpět na 100&nbsp;%</td></tr>
+          <tr><td><kbd>L</kbd></td><td>smyčka zapnout / vypnout</td></tr>
+          <tr><td><kbd>A</kbd> / <kbd>B</kbd></td><td>začátek / konec smyčky na aktuálním místě</td></tr>
+          <tr><td><kbd>M</kbd></td><td>metronom</td></tr>
+          <tr><td><kbd>T</kbd></td><td>metronom bez podkladu: detekce tempa</td></tr>
+          <tr><td><kbd>K</kbd></td><td>popisky kláves</td></tr>
+          <tr><td><kbd>V</kbd></td><td>přepnout zobrazení (klávesy / noty / obojí)</td></tr>
+          <tr><td><kbd>+</kbd> / <kbd>−</kbd></td><td>noty větší / menší</td></tr>
+          <tr><td><kbd>F5</kbd> / <kbd>F6</kbd> / <kbd>F7</kbd></td><td>režim učení / zapisovat noty / poslouchat</td></tr>
+          <tr><td><kbd>Page Up</kbd> / <kbd>Page Down</kbd></td><td>předchozí / další skladba</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>O</kbd> / <kbd>S</kbd></td><td>otevřít / uložit skladbu</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>R</kbd></td><td>uložit nahrávku jako MIDI bez dialogu</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>D</kbd></td><td>tmavý / světlý režim</td></tr>
+          <tr><td><kbd>F1</kbd></td><td>seznam zkratek</td></tr>
+        </tbody>
+      </table>
+      <p class="note">Když píšeš do políčka rychlosti, klávesy patří políčku.</p>
+    </section>
+
+    <section id="makro">
+      <h2>Makro klávesnice</h2>
+      <p>
+        Druhou klávesnici (programovatelnou typu SayoDevice, starou klávesnici, numerický blok…) můžeš použít jako
+        ovladač appky a&nbsp;ovládat ji celou bez počítačové klávesnice i&nbsp;myši, ruce zůstanou u&nbsp;piana. Klávesy z&nbsp;ní se
+        nedostanou do Windows, hlavní klávesnice píše normálně.
+      </p>
+      <h3>Nastavení</h3>
+      <ol>
+        <li>
+          Karta <b>Makro klávesnice &gt; Nastavit makro klávesnici…</b> Napoprvé appka stáhne malý modul. Když chybí ovladač
+          <b>Interception</b>, nabídne jeho instalaci (oprávnění správce) a&nbsp;restart počítače.
+        </li>
+        <li>Stiskni klávesu na klávesnici, kterou chceš používat, a&nbsp;potvrď <b>Použít tuto klávesnici</b>.</li>
+        <li><b>Přidat klávesu…</b>, stiskni klávesu na makro klávesnici a&nbsp;vyber akci.</li>
+      </ol>
+      <h3>Akce</h3>
+      <ul>
+        <li><b>Přehrávání</b>: přehrát / pauza, stop, posun o&nbsp;5 nebo 1&nbsp;s, hlasitost všech částí.</li>
+        <li><b>Metronom</b>: zapnout / vypnout, bez podkladu, detekce tempa, další takt.</li>
+        <li><b>Smyčka a&nbsp;rychlost</b>: smyčka, začátek, konec, pomalejší / rychlejší / 100&nbsp;%.</li>
+        <li><b>Skladby</b>: další / předchozí, skladby ze složky, nedávné skladby, otevřít skladbu.</li>
+        <li>
+          <b>Učení a&nbsp;nahrávání</b>: režim učení a&nbsp;jeho nastavení bez dialogu (čekat / v&nbsp;tempu, co hraješ, rychlost),
+          historie cvičení, zapisovat noty, uložit nahrávku, poslouchat, vstup not.
+        </li>
+        <li><b>Zobrazení</b>: přepnout zobrazení, velikost not a&nbsp;klávesnice, popisky kláves, tmavý režim, okno do popředí / minimalizovat.</li>
+        <li>
+          <b>Dialogy a&nbsp;okna</b>: <kbd>Enter</kbd>, <kbd>Esc</kbd>, <kbd>Tab</kbd>, šipky a&nbsp;mezerník, takže odpovíš na každý
+          dialog appky (třeba hodnocení: Enter = zkusit znovu, Esc = zavřít).
+        </li>
+        <li><b>Části skladby</b>: pro každou část vypnout / zapnout a&nbsp;hlasitost ±10&nbsp;%.</li>
+        <li><b>Nota</b>: zahrát zvolenou notu.</li>
+      </ul>
+      <h3>Kolečko</h3>
+      <p>
+        Otočné kolečko na makro klávesnici posílá při otáčení jednu klávesu pořád dokola. Vyber krokovou akci (posun,
+        rychlost, hlasitost, velikost not, další skladba, šipky…) a&nbsp;nech zaškrtnuté <b>Kolečko: otočením na druhou stranu
+        nastavit opačný směr</b>; pak stačí kolečkem otočit na druhou stranu. Rychlé otáčení se sečte do jednoho kroku
+        (5 cvaknutí = posun o&nbsp;25&nbsp;s), při listování skladbami se načte až ta, na které se zastavíš.
+      </p>
+      <p>
+        <b>Velké hlášky:</b> co makro klávesa nebo zkratka udělala, se na chvíli ukáže velkým písmem uprostřed okna,
+        čitelné i&nbsp;od piana. Vypneš je v&nbsp;<b>Nastavení &gt; Velké hlášky</b>.
+      </p>
+      <p>
+        Přiřazení kláves uložíš tlačítkem <b>Exportovat…</b> a&nbsp;načteš <b>Importovat…</b>. <b>Ovládání zapnuté</b> dočasně
+        vypne zachytávání, makro klávesnice pak píše normálně.
+      </p>
+      <p class="note">
+        Interception je ovladač na úrovni jádra; anticheaty jako Vanguard (Valorant) nebo FACEIT ho můžou blokovat. Ručně ho
+        odinstaluješ příkazem <code>install-interception.exe /uninstall</code> (jako správce) a&nbsp;restartem.
+      </p>
+    </section>
+
+    <section id="muzio">
+      <h2>Noty z Muzia</h2>
+      <p>
+        Učitel může k&nbsp;úkolu v&nbsp;<a href="https://keyboardheromuzio.vercel.app/">Muziu</a> přiložit noty skladby (MIDI nebo
+        MusicXML). Stáhni si je u&nbsp;úkolu, otevři v&nbsp;Keyboard Utils (<b>Otevřít skladbu ▾ &gt; Ze souboru</b>) a&nbsp;procvič si
+        je, třeba zpomalené, ve smyčce nebo v&nbsp;režimu učení. Až skladbu umíš, nahraj úkol v&nbsp;Muziu jako obvykle.
+      </p>
+    </section>
+
+    <section id="nastaveni">
+      <h2>Nastavení a data</h2>
+      <ul>
+        <li>Nastavení: <code>%APPDATA%\KeyboardUtils\config.json</code></li>
+        <li>Historie cvičení: <code>%APPDATA%\KeyboardUtils\history.json</code></li>
+        <li>Doplňky (makro klávesnice, akordy): <code>%APPDATA%\KeyboardUtils\modules</code></li>
+        <li>Nahrávky uložené bez dialogu: <code>Dokumenty\Keyboard Utils\Nahrávky</code></li>
+      </ul>
+      <p>
+        Na internet se appka připojuje jen na GitHub (aktualizace, doplňky) a&nbsp;při hledání not na Mutopia Project.
+        O&nbsp;tobě neposílá nic.
+      </p>
+    </section>
+
+    <section id="problemy">
+      <h2>Oprava chyb</h2>
+      <ul>
+        <li><b>Windows nechtějí appku spustit</b>: viz <a href="../proc.html">Proč Windows hlásí „ochránil počítač“</a>.</li>
+        <li><b>Není slyšet zvuk</b>: zkontroluj <b>Nastavení &gt; MIDI výstup</b> a&nbsp;hlasitost částí v&nbsp;panelu vpravo.</li>
+        <li><b>Mikrofon nereaguje nebo reaguje na šum</b>: <b>Nastavení &gt; Mikrofon a&nbsp;citlivost…</b>, změř šum a&nbsp;posuň práh.</li>
+        <li><b>Nová verze se neukazuje</b>: zavři všechna okna Keyboard Utils a&nbsp;spusť ji znovu.</li>
+        <li>
+          <b>Makro klávesnice přestala fungovat po přepojování USB</b>: Interception má 10 míst pro klávesnice, po mnoha
+          odpojeních pomůže restart počítače.
+        </li>
+      </ul>
+      <p>
+        Našel jsi chybu nebo ti něco chybí? <a href="https://github.com/tomandesMSH/Keyboard-Utils/issues/new">Napiš to na GitHub</a>, nebo, pokud nemáš GitHub, podej žádost
+        <a href="https://tomandes.eu/report/?app=keyboard-utils">sem</a> (v&nbsp;appce <b>Nápověda &gt; Nahlásit chybu…</b>).
+      </p>
+    </section>
+  </main>
+</div>
+
+<footer>
+  <div class="keys keys-small" aria-hidden="true"></div>
+  <p>
+    Keyboard Utils · <a href="https://github.com/tomandesMSH">tomandesMSH</a> ·
+    <a href="https://github.com/tomandesMSH/Keyboard-Utils">GitHub</a> ·
+    <a href="https://github.com/tomandesMSH/Keyboard-Utils/releases">Všechny verze</a>
+  </p>
+</footer>
+<script src="../theme.js"></script>
+</body>
+</html>
