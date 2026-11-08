@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>O Windows Smartscreen</title>
+  <meta name="description" content="Proč Windows při prvním spuštění Keyboard Utils ukáže „Systém Windows ochránil počítač“, proč to nevadí a jak si ověřit, že máš pravou appku.">
+  <link rel="icon" type="image/png" href="img/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- The light / dark pick, set before the page is drawn (no flash of the wrong one). See theme.js. -->
+  <script>try { const t = localStorage.getItem('theme'); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t } catch (e) {}</script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="index.html">
+    <img src="img/logo.png" alt="" width="36" height="36">
+    <span>Keyboard Utils</span>
+  </a>
+  <div class="header-end">
+    <nav>
+      <a href="index.html#funkce">Funkce</a>
+      <a href="index.html#zacit">Jak začít</a>
+      <a href="index.html#muzio">Muzio</a>
+      <a href="https://github.com/tomandesMSH/Keyboard-Utils">GitHub</a>
+    </nav>
+    <button class="theme-toggle" type="button" aria-label="Tmavý režim" aria-pressed="false">
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="page">
+  <a class="back" href="index.html#zacit">← Zpět na Jak začít</a>
+
+  <h1>Proč Windows <br> "ochraňuje počítač" <br> před Keyboard Utils?</h1>
+  <p class="lead">
+    Krátce: Keyboard Utils není podepsaná placeným certifikátem a&nbsp;zatím ji nestáhlo tolik lidí, aby ji
+    Windows „znaly“. Nejde o&nbsp;to, že by v&nbsp;ní Windows našly něco nebezpečného.
+  </p>
+
+  <figure class="smartscreen" aria-label="Jak hláška vypadá">
+    <div class="ss-title">Systém Windows ochránil počítač</div>
+    <p>Filtr Microsoft Defender SmartScreen zabránil spuštění nerozpoznané aplikace. …</p>
+    <p class="ss-small">Aplikace: KeyboardUtils.exe<br>Vydavatel: Neznámý vydavatel</p>
+    <div class="ss-buttons"><span class="ss-btn ss-primary">Přesto spustit</span><span class="ss-btn">Nespouštět</span></div>
+    <figcaption>Tlačítko <b>Přesto spustit</b> se ukáže až po kliknutí na <b>Další informace</b>.</figcaption>
+  </figure>
+  <br>
+  <p>Dlouze:</p>
+  <h2>Co je to Windows SmartScreen</h2>
+  <p>
+    Hlášku ukazuje <b>Microsoft Defender SmartScreen</b>, ochrana zabudovaná ve Windows. Když spouštíš program
+    stažený z&nbsp;internetu, SmartScreen se podívá na dvě věci:
+  </p>
+  <ul>
+    <li><b>Podpis.</b> Je program digitálně podepsaný vydavatelem, kterého někdo ověřil?</li>
+    <li><b>Pověst.</b> Kolik lidí už stejný soubor stáhlo a&nbsp;spustilo bez problémů?</li>
+  </ul>
+  <p>
+    Když chybí obojí, Windows radši zastaví a&nbsp;zeptají se tebe. Hláška tedy neznačí "tohle je vir", ale
+    "tenhle program neznám". Stejně se chová u&nbsp;spousty malých programů od jednotlivců, škol...
+  </p>
+
+  <h2>Proč appka není podepsaná</h2>
+  <p>
+    Podpisový certifikát pro programy stojí několik tisíc korun ročně a&nbsp;vydává se po ověření
+    totožnosti. Keyboard Utils je zdarma, byl bych rád kdyby zůstal zdarma, a&nbsp;pracuje na ni jeden člověk ve svém volném čase, takže proto podepsaná
+    není. Pověst u&nbsp;SmartScreenu navíc začíná od nuly s&nbsp;každou novou verzí. Hláška proto může naskočit
+    i&nbsp;u&nbsp;dalších aktualizací, dokud si aplikaci Windows "neoblíbí".
+  </p>
+
+  <h2>Jak si ověřit, že máš pravou appku</h2>
+  <ul>
+    <li>
+      Stahuj jen tlačítkem na tomhle webu nebo ze stránky
+      <a href="https://github.com/tomandesMSH/Keyboard-Utils/releases"> na GitHubu</a>. Obojí vede na
+      stejný soubor z&nbsp;oficiálního repozitáře (online složka, kde se uchovává zdrojový kód aplikace).
+    </li>
+    <li>
+      Zdrojový kód je celý veřejný na
+      <a href="https://github.com/tomandesMSH/Keyboard-Utils">GitHubu</a>. Kdokoli si může přečíst, co appka dělá.
+    </li>
+    <li>
+      Pokud chceš mít úplný klid, nahraj stažený soubor na <a href="https://www.virustotal.com/">VirusTotal</a>.
+      Prověří ho desítkami antivirů najednou.
+    </li>
+  </ul>
+
+  <h2>Co appka v&nbsp;počítači dělá</h2>
+  <ul>
+    <li><b>Nic neinstaluje.</b> Je to jeden soubor, spouští se rovnou a&nbsp;smazáním ho odstraníš.</li>
+    <li>
+      <b>Nastavení a&nbsp;historii cvičení</b> si ukládá do <code>%APPDATA%\KeyboardUtils</code>.
+    </li>
+    <li>
+      <b>Na internet</b> se připojuje jen na GitHub, a&nbsp;to kvůli kontrole nových verzí (jednou denně, jde
+      vypnout) a&nbsp;stažení volitelných doplňků. Když hledáš volné noty, připojí se na Mutopia Project.
+      O&nbsp;tobě se nesbírají žádné informace.
+    </li>
+    <li>
+      <b>Oprávnění správce</b> chce jen jednou, a&nbsp;to když si sám nastavuješ makro klávesnici a&nbsp;instaluješ
+      pro ni ovladač. Bez makro klávesnice ho nepotřebuje nikdy.
+    </li>
+  </ul>
+
+  <h2>Jak ji spustit</h2>
+  <ol>
+    <li>Spusť stažený <code>KeyboardUtils.exe</code>.</li>
+    <li>V&nbsp;okně „Systém Windows ochránil počítač“ klikni na <b>Další informace</b>.</li>
+    <li>Zkontroluj, že u&nbsp;<i>Aplikace</i> stojí <code>KeyboardUtils.exe</code>, a&nbsp;klikni na <b>Přesto spustit</b>.</li>
+  </ol>
+  <p>Windows si to zapamatují a&nbsp;příště už se ptát nebudou.</p>
+
+  <p class="page-actions">
+    <a class="btn btn-dark" href="https://github.com/tomandesMSH/Keyboard-Utils/releases/latest/download/KeyboardUtils.exe" download>Stáhnout pro Windows</a>
+    <a class="btn btn-light" href="index.html">Zpět na hlavní stránku</a>
+    <a class="btn btn-dark" href="https://github.com/tomandesMSH/Keyboard-Utils">Zdrojový kód aplikace</a>
+  </p>
+</main>
+
+<footer>
+  <div class="keys keys-small" aria-hidden="true"></div>
+  <p>
+    Keyboard Utils · <a href="https://github.com/tomandesMSH">tomandesMSH</a> ·
+    <a href="https://github.com/tomandesMSH/Keyboard-Utils">GitHub</a> ·
+    <a href="https://github.com/tomandesMSH/Keyboard-Utils/releases">Všechny verze</a>
+  </p>
+</footer>
+<script src="theme.js"></script>
+</body>
+</html>

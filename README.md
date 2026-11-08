@@ -5,6 +5,10 @@ ukáže ji jako padající noty (piano roll) a poslouchá, co hraješ – přes 
 nebo klikáním na klaviaturu v appce. Umí režim učení s hodnocením, zápis zahraných not do MIDI / MusicXML
 a převod zvukové stopy na noty. Volitelně se dá ovládat druhou klávesnicí (makro klávesnice, např. SayoDevice).
 
+| Světlý režim | Tmavý režim |
+| --- | --- |
+| ![Keyboard Utils ve světlém režimu: Óda na radost jako padající noty a notový zápis vedle sebe](docs/img/app-light.png) | ![Keyboard Utils v tmavém režimu: Óda na radost jako padající noty a notový zápis vedle sebe](docs/img/app-dark.png) |
+
 ## Instalace
 
 **Hotová appka:** stáhni [KeyboardUtils.exe](https://github.com/tomandesMSH/Keyboard-Utils/releases/latest/download/KeyboardUtils.exe)
