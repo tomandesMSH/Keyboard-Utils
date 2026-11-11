@@ -125,7 +125,7 @@ Při psaní do políčka rychlosti klávesy patří políčku.
 
 V **Nastavení > Vstup not** vybereš, odkud appka bere zahrané noty:
 
-- **Mikrofon (akustické piano)** – rozpoznávání výšky tónu ze zvuku.
+- **Mikrofon (akustický nástroj)** – rozpoznávání výšky tónu ze zvuku (klavír, ale i housle, flétna, kytara…).
   Před prvním použitím otevři **Nastavení > Mikrofon a citlivost...**, chvíli buď potichu a klikni **Změřit šum**,
   pak zahraj pár not – dole by se měly ukázat správně. Když appka reaguje na šum, posuň práh doprava.
 - **Zvuk z počítače (YouTube, Spotify...)** – poslouchá, co hraje počítač (bez zvuku samotné appky).
@@ -188,6 +188,26 @@ klávesa i oktáva), nebo klikni na její jméno či zmáčkni písmeno (C D E F
 basový (F–c1), oba, pokročilý (pomocné linky, křížky a béčka) a **intervaly** (sekunda–oktáva, odpověď tlačítkem
 nebo číslicí 2–8). Volitelný **časový limit** 5 / 3 / 2 s na notu. Kolo má 20 not; pamatuje se nejlepší výsledek
 a série správných odpovědí. Noty, ve kterých chybuješ, chodí častěji (i v dalších kolech).
+
+### Jiné nástroje než klavír
+
+**Nastavení > Můj nástroj**: klavír, kytara, housle, viola, violoncello, příčná flétna, zobcová flétna (sopránová),
+klarinet in B, trubka in B, altový saxofon in Es. Pro jiný nástroj než klavír:
+
+- **noty na jedné osnově v klíči nástroje** (houslový, kytarový s osmičkou, altový, basový) a u transponujících
+  nástrojů tak, jak je hráč čte – klarinet a trubka o tón výš, saxofon o sextu, i s předznamenáním;
+- **zvuk nástroje** při přehrávání (General MIDI ve Windows; zvukový balíček klavíru hraje jen klavír);
+- **mikrofon počítá s legatem a vibratem** (smyčcové a dechové nástroje) a ignoruje tóny mimo rozsah nástroje;
+- **Trénink čtení not** má úrovně pro nástroj (začátek a celý rozsah) a navíc altový a tenorový klíč; zahraný tón se
+  hodnotí podle toho, jak zní;
+- **Stupnice a rozcvičky**: stupnice, chromatická stupnice, rozložený akord a stupnice v terciích jednohlasně od
+  nejnižší tóniky nástroje; tónina se vybírá tak, jak ji hráč čte;
+- uložení jako MusicXML zapíše part nástroje s jeho klíčem a transpozicí; MusicXML s `<transpose>` (třeba part
+  klarinetu z MuseScore) se načte správně.
+
+**Soubor > Ladička...** poslouchá mikrofon: tón, ručička ±50 centů (zeleně do ±5), frekvence, u transponujících
+nástrojů i psaná nota. U strunných nástrojů ukáže struny a rozsvítí tu, kterou ladíš; kliknutím na ni zazní. Ladění
+a1 jde nastavit 430–446 Hz. Funguje i jako makro akce **Ladička**.
 
 ### Zapisování not
 
