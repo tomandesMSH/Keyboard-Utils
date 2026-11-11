@@ -79,6 +79,63 @@ sealed class PianoRollControl : Control, IThemed
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public bool RecordingView { get; set; }
 
+    /// <summary>
+    /// Create mode, after recording: clicking a note selects it (<see cref="NoteSelected"/>), shift-click toggles
+    /// one in/out of the selection (<see cref="NoteToggleSelectRequested"/>), dragging empty space marquee-selects
+    /// a region (<see cref="MarqueeSelectRequested"/>), dragging a selected note moves the whole selection
+    /// (<see cref="NoteDragged"/>), arrow keys nudge it, Delete removes it, double-click opens the properties
+    /// dialog. The control only reports intent - the owner applies edits and calls <see cref="SetSelectedNotes"/>
+    /// to keep the highlight in sync, the same way <see cref="Seek"/> works for scrubbing.
+    /// </summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool Editable { get; set; }
+
+    HashSet<ScoreNote> selectedNotes = [];
+
+    /// <summary>Seconds a Left/Right key press nudges the selection by.</summary>
+    const double KeyNudgeSeconds = 0.02;
+
+    /// <summary>A plain click on a note not already in the selection - replaces the selection with just it.</summary>
+    public event Action<ScoreNote?>? NoteSelected;
+
+    /// <summary>A shift-click on a note - add/remove it from the selection without touching the rest.</summary>
+    public event Action<ScoreNote>? NoteToggleSelectRequested;
+
+    /// <summary>A drag over empty space finished: the notes inside the rectangle, and whether to add to (shift
+    /// was held) or replace the current selection. Empty + not additive is "clicked empty space" - clears it.</summary>
+    public event Action<IReadOnlyList<ScoreNote>, bool>? MarqueeSelectRequested;
+
+    /// <summary>A note drag began/ended - a good place to group every <see cref="NoteDragged"/> call in between
+    /// into one undo step, since a drag can call it once per pixel of movement.</summary>
+    public event Action? NoteDragStarted;
+    public event Action? NoteDragEnded;
+
+    /// <summary>A drag, or a Left/Right key press, moved the selection by this many seconds (+ = later).</summary>
+    public event Action<double>? NoteDragged;
+
+    /// <summary>An Up/Down key press - the selection should move by this many semitones.</summary>
+    public event Action<int>? NotePitchChangeRequested;
+
+    public event Action? NoteDeleteRequested;
+
+    /// <summary>Double-click on a selected note: open its pitch/time/duration dialog (the owner decides whether
+    /// that's valid for the current selection size).</summary>
+    public event Action? NoteEditRequested;
+
+    int? dragNoteStartY;
+
+    // Marquee (rubber-band) drag-select over empty space: the rectangle's corners on screen, and whether it adds
+    // to (Shift was held at drag-start) or replaces the selection.
+    Point? marqueeStart, marqueeCurrent;
+    bool marqueeAdditive;
+
+    /// <summary>Resyncs the highlighted notes after the owner applies an edit (old references no longer match).</summary>
+    public void SetSelectedNotes(IReadOnlySet<ScoreNote> notes)
+    {
+        selectedNotes = new HashSet<ScoreNote>(notes);
+        Invalidate();
+    }
+
     /// <summary>When true, every white key shows its note name (C, D, E...), not just the Cs.</summary>
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public bool AllKeyLabels
@@ -192,6 +249,7 @@ sealed class PianoRollControl : Control, IThemed
     {
         score = newScore;
         currentSeconds = 0;
+        selectedNotes.Clear();
         var pitches = score?.Parts.SelectMany(p => p.Notes).Select(n => n.Pitch).ToList() ?? [];
         if (pitches.Count > 0)
         {
@@ -313,6 +371,7 @@ sealed class PianoRollControl : Control, IThemed
         {
             DrawNotes(g, rollHeight, soundingKeys);
             DrawLoop(g, rollHeight);
+            DrawMarquee(g);
             using var nowPen = new Pen(Color.White, 2);
             g.DrawLine(nowPen, 0, rollHeight, ClientSize.Width, rollHeight);
         }
@@ -326,13 +385,41 @@ sealed class PianoRollControl : Control, IThemed
 
     float RollHeight => FillKeyboard ? 0 : ClientSize.Height - KeyboardHeight;
 
-    bool CanSeekAt(Point p) => Seekable && score != null && !RecordingView && p.Y < RollHeight;
+    bool CanSeekAt(Point p) => Seekable && !Editable && score != null && !RecordingView && p.Y < RollHeight;
+
+    bool CanEditAt(Point p) => Editable && score != null && !RecordingView && p.Y < RollHeight;
 
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e);
         if (e.Button != MouseButtons.Left)
             return;
+        if (CanEditAt(e.Location))
+        {
+            Focus();
+            var hit = HitTestNote(e.Location);
+            bool shift = (ModifierKeys & Keys.Shift) != 0;
+            if (hit != null)
+            {
+                if (shift)
+                {
+                    NoteToggleSelectRequested?.Invoke(hit);
+                    return;
+                }
+                // Clicking a note already in the selection drags the whole group; otherwise it becomes the sole selection.
+                if (!selectedNotes.Contains(hit))
+                    NoteSelected?.Invoke(hit);
+                dragNoteStartY = e.Y;
+                Capture = true;
+                NoteDragStarted?.Invoke();
+                return;
+            }
+            // Empty space: start a marquee (rubber-band) drag-select; a plain click with no drag selects nothing.
+            marqueeStart = marqueeCurrent = e.Location;
+            marqueeAdditive = shift;
+            Capture = true;
+            return;
+        }
         if (CanSeekAt(e.Location))
         {
             dragStartY = e.Y;
@@ -348,9 +435,31 @@ sealed class PianoRollControl : Control, IThemed
         KeySelected?.Invoke(key);
     }
 
+    protected override void OnMouseDoubleClick(MouseEventArgs e)
+    {
+        base.OnMouseDoubleClick(e);
+        if (CanEditAt(e.Location) && selectedNotes.Count > 0)
+            NoteEditRequested?.Invoke();
+    }
+
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        if (dragNoteStartY is { } noteStartY)
+        {
+            double pixelsPerSecond = RollHeight / SecondsVisible;
+            double deltaSeconds = (e.Y - noteStartY) / pixelsPerSecond;
+            dragNoteStartY = e.Y;
+            if (deltaSeconds != 0)
+                NoteDragged?.Invoke(deltaSeconds);
+            return;
+        }
+        if (marqueeStart != null)
+        {
+            marqueeCurrent = e.Location;
+            Invalidate();
+            return;
+        }
         if (dragStartY is { } startY)
         {
             // Grab-and-drag: pulling the notes down brings later ones to the keyboard, i.e. moves forward.
@@ -359,13 +468,17 @@ sealed class PianoRollControl : Control, IThemed
             Seek?.Invoke(Math.Clamp(seconds, 0, score?.DurationSeconds ?? 0));
             return;
         }
-        Cursor = CanSeekAt(e.Location) ? Cursors.SizeNS : Clickable && e.Y >= RollHeight ? Cursors.Hand : Cursors.Default;
+        Cursor = CanSeekAt(e.Location) ? Cursors.SizeNS
+            : CanEditAt(e.Location) && HitTestNote(e.Location) != null ? Cursors.SizeAll
+            : Clickable && e.Y >= RollHeight ? Cursors.Hand : Cursors.Default;
     }
 
     protected override void OnMouseUp(MouseEventArgs e)
     {
         base.OnMouseUp(e);
         EndDrag();
+        EndNoteDrag();
+        EndMarquee();
         ReleaseKey();
     }
 
@@ -373,7 +486,65 @@ sealed class PianoRollControl : Control, IThemed
     {
         base.OnMouseCaptureChanged(e);
         EndDrag();
+        EndNoteDrag();
+        EndMarquee();
         ReleaseKey();
+    }
+
+    void EndNoteDrag()
+    {
+        if (dragNoteStartY == null)
+            return;
+        dragNoteStartY = null;
+        Capture = false;
+        NoteDragEnded?.Invoke();
+    }
+
+    void EndMarquee()
+    {
+        if (marqueeStart is not { } start || marqueeCurrent is not { } current)
+            return;
+        marqueeStart = marqueeCurrent = null;
+        Capture = false;
+        var rect = Rectangle.FromLTRB(Math.Min(start.X, current.X), Math.Min(start.Y, current.Y),
+            Math.Max(start.X, current.X), Math.Max(start.Y, current.Y));
+        MarqueeSelectRequested?.Invoke(NotesInRect(rect), marqueeAdditive);
+        Invalidate();
+    }
+
+    protected override bool IsInputKey(Keys keyData) =>
+        Editable && keyData is Keys.Left or Keys.Right or Keys.Up or Keys.Down or Keys.Delete or Keys.Back
+            ? true
+            : base.IsInputKey(keyData);
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (!Editable || selectedNotes.Count == 0)
+            return;
+        switch (e.KeyCode)
+        {
+            case Keys.Delete or Keys.Back:
+                NoteDeleteRequested?.Invoke();
+                e.Handled = true;
+                break;
+            case Keys.Left:
+                NoteDragged?.Invoke(-KeyNudgeSeconds);
+                e.Handled = true;
+                break;
+            case Keys.Right:
+                NoteDragged?.Invoke(KeyNudgeSeconds);
+                e.Handled = true;
+                break;
+            case Keys.Up:
+                NotePitchChangeRequested?.Invoke(1);
+                e.Handled = true;
+                break;
+            case Keys.Down:
+                NotePitchChangeRequested?.Invoke(-1);
+                e.Handled = true;
+                break;
+        }
     }
 
     void ReleaseKey()
@@ -407,6 +578,76 @@ sealed class PianoRollControl : Control, IThemed
         return null;
     }
 
+    /// <summary>
+    /// Where a note's falling (or, in <see cref="RecordingView"/>, rising) rectangle is vertically right now;
+    /// null when it's outside the visible time window. Shared by drawing and <see cref="HitTestNote"/> so the
+    /// two can never drift apart.
+    /// </summary>
+    (float Top, float Bottom)? NoteYRange(ScoreNote note, float rollHeight, float pixelsPerSecond)
+    {
+        double noteEnd = note.StartSeconds + note.DurationSeconds;
+        if (RecordingView)
+        {
+            // Played notes rise away from the keyboard: the newest at the line, older ones higher up.
+            if (noteEnd < currentSeconds - SecondsVisible || note.StartSeconds > currentSeconds)
+                return null;
+            float yTop = rollHeight - (float)((currentSeconds - note.StartSeconds) * pixelsPerSecond);
+            float yBottom = rollHeight - (float)((currentSeconds - noteEnd) * pixelsPerSecond);
+            return (yTop, yBottom);
+        }
+        if (noteEnd < currentSeconds || note.StartSeconds > currentSeconds + SecondsVisible)
+            return null;
+        float bottom = rollHeight - (float)((note.StartSeconds - currentSeconds) * pixelsPerSecond);
+        float top = rollHeight - (float)((noteEnd - currentSeconds) * pixelsPerSecond);
+        return (top, bottom);
+    }
+
+    /// <summary>The topmost note under <paramref name="p"/> in the roll area, or null. Only used while <see cref="Editable"/>.</summary>
+    public ScoreNote? HitTestNote(Point p)
+    {
+        if (score == null)
+            return null;
+        float rollHeight = RollHeight;
+        float pixelsPerSecond = (float)(rollHeight / SecondsVisible);
+        for (int partIndex = score.Parts.Count - 1; partIndex >= 0; partIndex--)
+        {
+            var part = score.Parts[partIndex];
+            foreach (var note in part.Notes)
+            {
+                if (!keyLayout.TryGetValue(note.Pitch, out var layout) || p.X < layout.X || p.X >= layout.X + layout.Width)
+                    continue;
+                if (NoteYRange(note, rollHeight, pixelsPerSecond) is not { } range)
+                    continue;
+                float height = Math.Max(3, range.Bottom - range.Top);
+                if (p.Y >= range.Top && p.Y <= range.Top + height)
+                    return note;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>Every note (any part) whose rectangle intersects <paramref name="rect"/> - a marquee drag-select.</summary>
+    List<ScoreNote> NotesInRect(Rectangle rect)
+    {
+        var result = new List<ScoreNote>();
+        if (score == null)
+            return result;
+        float rollHeight = RollHeight;
+        float pixelsPerSecond = (float)(rollHeight / SecondsVisible);
+        foreach (var part in score.Parts)
+            foreach (var note in part.Notes)
+            {
+                if (!keyLayout.TryGetValue(note.Pitch, out var layout) || layout.X + layout.Width < rect.Left || layout.X > rect.Right)
+                    continue;
+                if (NoteYRange(note, rollHeight, pixelsPerSecond) is not { } range)
+                    continue;
+                float height = Math.Max(3, range.Bottom - range.Top);
+                if (range.Top + height >= rect.Top && range.Top <= rect.Bottom)
+                    result.Add(note);
+            }
+        return result;
+    }
+
     /// <param name="soundingKeys">Filled with the keys whose note has reached the keyboard and is still sounding,
     /// in that note's colour - so the key lights up in the colour of what hits it.</param>
     void DrawNotes(Graphics g, float rollHeight, Dictionary<int, Color> soundingKeys)
@@ -417,6 +658,7 @@ sealed class PianoRollControl : Control, IThemed
         float pixelsPerSecond = (float)(rollHeight / SecondsVisible);
         using var correctBrush = new SolidBrush(CorrectColor);
         using var wrongBrush = new SolidBrush(WrongColor);
+        using var selectionPen = new Pen(Color.White, 2);
         for (int partIndex = 0; partIndex < score.Parts.Count; partIndex++)
         {
             var part = score.Parts[partIndex];
@@ -429,26 +671,13 @@ sealed class PianoRollControl : Control, IThemed
             using var brush = new SolidBrush(Learning != null && !practiced ? Color.FromArgb(60, partColor) : partColor);
             foreach (var note in part.Notes)
             {
-                double noteEnd = note.StartSeconds + note.DurationSeconds;
                 if (!keyLayout.TryGetValue(note.Pitch, out var layout))
                     continue;
+                if (NoteYRange(note, rollHeight, pixelsPerSecond) is not { } range)
+                    continue;
 
-                float yBottom, yTop;
-                if (RecordingView)
-                {
-                    // Played notes rise away from the keyboard: the newest at the line, older ones higher up.
-                    if (noteEnd < currentSeconds - SecondsVisible || note.StartSeconds > currentSeconds)
-                        continue;
-                    yTop = rollHeight - (float)((currentSeconds - note.StartSeconds) * pixelsPerSecond);
-                    yBottom = rollHeight - (float)((currentSeconds - noteEnd) * pixelsPerSecond);
-                }
-                else
-                {
-                    if (noteEnd < currentSeconds || note.StartSeconds > currentSeconds + SecondsVisible)
-                        continue;
-                    yBottom = rollHeight - (float)((note.StartSeconds - currentSeconds) * pixelsPerSecond);
-                    yTop = rollHeight - (float)((noteEnd - currentSeconds) * pixelsPerSecond);
-                }
+                float yTop = range.Top, yBottom = range.Bottom;
+                double noteEnd = note.StartSeconds + note.DurationSeconds;
                 float height = Math.Max(3, yBottom - yTop);
                 var mark = practiced ? Learning!.MarkOf(note) : NoteMark.Pending;
                 var noteBrush = mark switch
@@ -458,6 +687,8 @@ sealed class PianoRollControl : Control, IThemed
                     _ => brush,
                 };
                 g.FillRectangle(noteBrush, layout.X + 1, yTop, Math.Max(2, layout.Width - 2), height);
+                if (Editable && selectedNotes.Contains(note))
+                    g.DrawRectangle(selectionPen, layout.X + 1, yTop, Math.Max(2, layout.Width - 2), height);
 
                 // Recording shows what's held via the held keys instead. In learning mode only practiced notes
                 // that were already judged light up - a pending one is the "play this" hint, the rest is dimmed context.
@@ -488,6 +719,19 @@ sealed class PianoRollControl : Control, IThemed
             if (y >= 0 && y <= rollHeight)
                 g.DrawLine(pen, 0, y, ClientSize.Width, y);
         }
+    }
+
+    /// <summary>The marquee (rubber-band) rectangle while drag-selecting over empty space.</summary>
+    void DrawMarquee(Graphics g)
+    {
+        if (marqueeStart is not { } start || marqueeCurrent is not { } current)
+            return;
+        var rect = Rectangle.FromLTRB(Math.Min(start.X, current.X), Math.Min(start.Y, current.Y),
+            Math.Max(start.X, current.X), Math.Max(start.Y, current.Y));
+        using var band = new SolidBrush(Color.FromArgb(40, SelectedColor));
+        g.FillRectangle(band, rect);
+        using var pen = new Pen(SelectedColor, 1);
+        g.DrawRectangle(pen, rect);
     }
 
     void DrawKeyboard(Graphics g, float top, float height, IReadOnlyDictionary<int, Color> soundingKeys)

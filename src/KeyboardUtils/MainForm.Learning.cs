@@ -211,6 +211,8 @@ sealed partial class MainForm
 
         playbackEngine.Stop();
         stemPlaybackEngine.Stop();
+        noteEditor = null;
+        pianoRoll.Editable = false;
         recorder = new NoteRecorder(source.LatencySeconds);
         recordingTitle = T("Nahrávka ", "Recording ") + DateTime.Now.ToString("yyyy-MM-dd HH-mm");
         pianoRoll.RecordingView = true;
@@ -245,6 +247,9 @@ sealed partial class MainForm
             playlistIndex = -1;
             ShowScore(recording);
             unsavedRecording = recording;
+            // Editing is live right away - no separate mode to turn on; it only ever acts on this recording.
+            noteEditor = new NoteEditor(recording);
+            pianoRoll.Editable = true;
         }
         else
             SetViewScore(currentScore);
@@ -263,8 +268,101 @@ sealed partial class MainForm
             return;
         }
         // No dialog: listen to it first (Play), then save it with the Save button if it's worth keeping.
-        SetStatus(T($"Nahráno: {recording.Parts[0].Notes.Count} not. Poslechni si to (Přehrát) a když se ti to líbí, ulož to tlačítkem Uložit.",
-            $"Recorded: {recording.Parts[0].Notes.Count} notes. Listen to it (Play) and if you like it, save it with the Save button."));
+        SetStatus(T($"Nahráno: {recording.Parts[0].Notes.Count} not. Klikni na notu a uprav ji nebo ji smaž (Delete), "
+            + "poslechni si to (Přehrát) a když se ti to líbí, ulož to tlačítkem Uložit.",
+            $"Recorded: {recording.Parts[0].Notes.Count} notes. Click a note to edit it, or delete it (Delete), "
+            + "listen to it (Play) and if you like it, save it with the Save button."));
+    }
+
+    // --- Note editing: fixing a recording without re-recording it --------------------------------
+
+    void EditNoteSelected(ScoreNote? note)
+    {
+        noteEditor?.Select(note);
+    }
+
+    void ToggleNoteSelection(ScoreNote note)
+    {
+        if (noteEditor is not { } editor)
+            return;
+        editor.ToggleSelect(note);
+        pianoRoll.SetSelectedNotes(editor.Selected);
+    }
+
+    /// <summary>A marquee drag-select finished: <paramref name="additive"/> means Shift was held (add, don't replace).</summary>
+    void ApplyMarqueeSelection(IReadOnlyList<ScoreNote> notes, bool additive)
+    {
+        if (noteEditor is not { } editor)
+            return;
+        if (additive)
+            editor.SelectAdditional(notes);
+        else
+            editor.SelectOnly(notes);
+        pianoRoll.SetSelectedNotes(editor.Selected);
+    }
+
+    void MoveSelection(double deltaSeconds)
+    {
+        if (noteEditor is not { } editor || editor.Selected.Count == 0)
+            return;
+        editor.MoveSelection(deltaSeconds);
+        AfterNoteEdit(editor);
+    }
+
+    void RepitchSelection(int deltaSemitones)
+    {
+        if (noteEditor is not { } editor || editor.Selected.Count == 0)
+            return;
+        editor.ChangeSelectionPitch(deltaSemitones);
+        AfterNoteEdit(editor);
+    }
+
+    void DeleteSelection()
+    {
+        if (noteEditor is not { } editor || editor.Selected.Count == 0)
+            return;
+        editor.DeleteSelection();
+        AfterNoteEdit(editor);
+    }
+
+    /// <summary>Precise pitch/time/duration editing only makes sense for exactly one selected note.</summary>
+    void EditSelectedNoteProperties()
+    {
+        if (noteEditor is not { } editor || editor.Selected.Count != 1)
+            return;
+        var note = editor.Selected.First();
+        using var dialog = new EditNoteForm(note);
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+            return;
+        editor.Replace(note, dialog.Result);
+        AfterNoteEdit(editor);
+    }
+
+    void UndoNoteEdit()
+    {
+        if (noteEditor is not { CanUndo: true } editor)
+            return;
+        editor.Undo();
+        AfterNoteEdit(editor);
+        SetStatus(T("Zpět.", "Undone."));
+    }
+
+    void RedoNoteEdit()
+    {
+        if (noteEditor is not { CanRedo: true } editor)
+            return;
+        editor.Redo();
+        AfterNoteEdit(editor);
+        SetStatus(T("Vpřed.", "Redone."));
+    }
+
+    /// <summary>Refreshes the views and resyncs the piano roll's highlight after any edit (old note references are stale).</summary>
+    void AfterNoteEdit(NoteEditor editor)
+    {
+        pianoRoll.SetSelectedNotes(editor.Selected);
+        pianoRoll.Invalidate();
+        sheet.NotesChanged();
+        UpdateSongLabel();
     }
 
     /// <summary>Called on every playback tick, so it can't miss a change of the open song or of its saved state.</summary>
@@ -331,7 +429,12 @@ sealed partial class MainForm
             return false;
         }
         if (score == unsavedRecording)
+        {
             unsavedRecording = null;
+            // Saved to a file: it's no longer "the recording being fixed up", editing wraps up here.
+            noteEditor = null;
+            pianoRoll.Editable = false;
+        }
         SetStatus(T($"Uloženo: {dialog.FileName}", $"Saved: {dialog.FileName}"));
         return true;
     }

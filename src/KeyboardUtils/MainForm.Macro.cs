@@ -318,6 +318,8 @@ sealed partial class MainForm
             return;
         }
         unsavedRecording = null;
+        noteEditor = null;
+        pianoRoll.Editable = false;
         loadedSong = (recording, path);
         AddRecentSong(path);
         UpdateSaveRecordingButton();

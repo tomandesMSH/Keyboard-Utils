@@ -26,6 +26,9 @@ sealed partial class MainForm : AntdUI.Window
     LearningSession? recordedSession;
     NoteRecorder? recorder;
     string recordingTitle = "";
+
+    /// <summary>Live while a just-stopped recording can still be fixed up (click/drag/delete notes) before saving.</summary>
+    NoteEditor? noteEditor;
     bool resumeAfterSeek;
 
     /// <summary>The recording shown as the current song until it's saved - removing it then asks first.</summary>
@@ -334,6 +337,18 @@ sealed partial class MainForm : AntdUI.Window
             resumeAfterSeek = false;
         };
 
+        // Create mode, after recording: fix a wrong note instead of re-recording the whole take.
+        pianoRoll.NoteSelected += EditNoteSelected;
+        pianoRoll.NoteToggleSelectRequested += ToggleNoteSelection;
+        pianoRoll.MarqueeSelectRequested += ApplyMarqueeSelection;
+        // A drag can call NoteDragged once per pixel - grouped into one undo step by Begin/EndEdit.
+        pianoRoll.NoteDragStarted += () => noteEditor?.BeginEdit();
+        pianoRoll.NoteDragEnded += () => noteEditor?.EndEdit();
+        pianoRoll.NoteDragged += MoveSelection;
+        pianoRoll.NotePitchChangeRequested += RepitchSelection;
+        pianoRoll.NoteDeleteRequested += DeleteSelection;
+        pianoRoll.NoteEditRequested += EditSelectedNoteProperties;
+
         // Both ways of getting a song: a file you have, or a free one from the internet.
         openSongButton.Click += (_, _) => ShowMenu(openSongButton,
             MenuItem(T("Ze souboru (MIDI, XML)...", "From a file (MIDI, XML)..."), OpenSong),
@@ -391,6 +406,7 @@ sealed partial class MainForm : AntdUI.Window
             new AntdUI.ContextMenuStripItemDivider(),
             new AntdUI.ContextMenuStripItem(T("Nedávné skladby", "Recent songs")) { Sub = BuildRecentSongItems(), Enabled = config.RecentSongs.Count > 0 },
             new AntdUI.ContextMenuStripItem(T("Skladby ze složky", "Songs from the folder")) { Tag = (Action)(() => LoadSongsFolder()) },
+            new AntdUI.ContextMenuStripItem(T("Knihovna", "Library")) { Sub = BuildLibraryMenuItems() },
             new AntdUI.ContextMenuStripItem(T("Historie cvičení...", "Practice history...")) { Enabled = currentScore != null, Tag = (Action)ShowPracticeHistory },
             new AntdUI.ContextMenuStripItem(T("Předchozí skladba", "Previous song")) { Enabled = playlist.Count > 1, Tag = (Action)DoPreviousTrack },
             new AntdUI.ContextMenuStripItem(T("Další skladba", "Next song")) { Enabled = playlist.Count > 1, Tag = (Action)DoNextTrack },

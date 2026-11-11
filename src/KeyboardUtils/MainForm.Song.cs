@@ -62,6 +62,12 @@ sealed partial class MainForm
         stemPlaybackEngine.Stop();
         currentStems = null;
         currentScore = score;
+        // A different score than the one being fixed up: editing no longer applies.
+        if (noteEditor != null && noteEditor.Score != score)
+        {
+            noteEditor = null;
+            pianoRoll.Editable = false;
+        }
         ClearLoop();
         UpdateHardSpots();
 
@@ -120,6 +126,8 @@ sealed partial class MainForm
         playlist = [];
         playlistIndex = -1;
         currentScore = null;
+        noteEditor = null;
+        pianoRoll.Editable = false;
         currentStems = stems;
         ClearLoop();
         SetViewScore(null);
@@ -183,6 +191,8 @@ sealed partial class MainForm
         currentScore = null;
         currentStems = null;
         unsavedRecording = null;
+        noteEditor = null;
+        pianoRoll.Editable = false;
         playlist = [];
         playlistIndex = -1;
         ClearLoop();

@@ -304,6 +304,9 @@ sealed class AppConfig
 
     public const int MaxRecentSongs = 10;
 
+    /// <summary>Favorites and tags for songs, on top of <see cref="RecentSongs"/> and <see cref="SongsFolder"/>.</summary>
+    public List<LibraryEntry> Library { get; set; } = [];
+
     /// <summary>Null until the user picks one on first start.</summary>
     public AppLanguage? Language { get; set; }
     public List<Binding> Bindings { get; set; } = [];

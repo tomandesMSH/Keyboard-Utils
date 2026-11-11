@@ -39,6 +39,8 @@ sealed partial class MainForm
         new(Keys.PageUp, "Page Up", T("Předchozí skladba", "Previous song"), () => StepTrack(-1)),
         new(Keys.PageDown, "Page Down", T("Další skladba", "Next song"), () => StepTrack(1)),
         new(Keys.Control | Keys.R, "Ctrl + R", T("Uložit nahrávku (MIDI, bez dialogu)", "Save the recording (MIDI, no dialog)"), SaveRecordingQuick),
+        new(Keys.Control | Keys.Z, "Ctrl + Z", T("Zpět (úprava noty)", "Undo (note edit)"), UndoNoteEdit),
+        new(Keys.Control | Keys.Y, "Ctrl + Y", T("Vpřed (úprava noty)", "Redo (note edit)"), RedoNoteEdit),
         new(Keys.Control | Keys.O, "Ctrl + O", T("Otevřít skladbu", "Open song"), OpenSong, SongTabOnly: false),
         new(Keys.Control | Keys.S, "Ctrl + S", T("Uložit skladbu jako", "Save song as"), SaveCurrentSong, SongTabOnly: false),
         new(Keys.Control | Keys.D, "Ctrl + D", T("Tmavý / světlý režim", "Dark / light mode"), ToggleDarkMode, SongTabOnly: false),
