@@ -83,6 +83,7 @@
         <b>Aktualizace:</b> appka se při spuštění, nejvýš jednou denně, zeptá GitHubu na novou verzi. <br> Když je, objeví
         se vpravo dole tlačítko <b>Nová verze … - aktualizovat</b>: stáhne ji, ověří, že je to opravdu soubor z&nbsp;GitHubu
         (kontrolní součet SHA-256), vymění exe a&nbsp;appku restartuje. Když máš neuloženou nahrávku, nejdřív se zeptá.
+        Po restartu ukáže okno <b>Co je nového</b> (kdykoli i&nbsp;přes <b>Nápověda &gt; Co je nového…</b>).
         Pokud appka leží ve složce, kam nejde zapisovat (třeba Program Files), tlačítko jen otevře stránku ke stažení. <br>
         Kontrola se dá vypnout v&nbsp;<b>Nastavení &gt; Kontrolovat aktualizace</b>, ruční kontrola je
         v&nbsp;<b>Nastavení &gt; Zkontrolovat aktualizace teď</b>.
@@ -175,6 +176,13 @@
         Přehrávání se na konci úseku vrací na jeho začátek. Úsek je v&nbsp;notách podbarvený a&nbsp;v&nbsp;padajících notách
         ohraničený čárkovaně. V&nbsp;<a href="#uceni">režimu učení</a> cvičíš jen tenhle úsek, kolo po kole.
       </p>
+      <h3>Postupné zrychlování</h3>
+      <p>
+        Těžké místo dostaneš do tempa samo: v&nbsp;okně <b>Režim učení…</b> zaškrtni <b>Postupně zrychlovat smyčku</b>
+        (jde jen se zapnutou smyčkou). Začni třeba na 50&nbsp;%. Každé kolo zahrané aspoň na <b>90&nbsp;%</b> zrychlí další
+        kolo o&nbsp;<b>5&nbsp;%</b>, až do plného tempa; stavový řádek ukáže „zrychleno na 60&nbsp;%“. Dosažená rychlost
+        zůstane nastavená i&nbsp;pro příští učení.
+      </p>
     </section>
 
     <section id="metronom">
@@ -266,6 +274,13 @@
           <b>Procvičit těžké místo</b>) nastaví na ně smyčku a&nbsp;spustí učení.</li>
       </ul>
       <p>Starší chyby váží čím dál méně; po pěti pokusech bez chyby v&nbsp;tom místě značka zmizí.</p>
+      <h3>Denní cíl a&nbsp;série</h3>
+      <p>
+        Vpravo dole je vidět, kolik minut jsi dnes cvičil(a) v&nbsp;režimu učení (třeba <b>Dnes 12 / 20 min · 🔥 3</b>),
+        a&nbsp;série dní v&nbsp;řadě se splněným cílem. Najetím myší uvidíš posledních 7 dní. Cíl (výchozí 20&nbsp;min) změníš
+        kliknutím na ukazatel nebo v&nbsp;<b>Nastavení &gt; Denní cíl…</b>; 0 ho vypne. Počítá se jen čas v&nbsp;režimu učení
+        (bez pauz), volné přehrávání ne. Série nezmizí ráno: dokud dnešek není splněný, počítá se do včerejška.
+      </p>
     </section>
 
     <section id="zapisovani">

@@ -30,7 +30,7 @@ Ze zdrojáků:
 **Aktualizace:** appka se při spuštění (nejvýš jednou denně) zeptá GitHubu na nejnovější verzi. Když je nová,
 objeví se vpravo dole tlačítko **Nová verze ... – aktualizovat**: stáhne nové `KeyboardUtils.exe`, ověří jeho
 velikost a SHA-256 podle GitHubu, vymění ho za běžící exe (to se přejmenuje na `.old`) a appku restartuje; nová
-verze starý soubor smaže. Když nejde zapisovat do složky s exe, tlačítko jen otevře stránku ke stažení. Neposílá nic
+verze starý soubor smaže a ukáže okno **Co je nového** (kdykoli i přes **Nápověda > Co je nového...**). Když nejde zapisovat do složky s exe, tlačítko jen otevře stránku ke stažení. Neposílá nic
 o tobě, jen název a verzi appky. Vypnout jde v **Nastavení > Kontrolovat aktualizace**, ručně se zeptáš přes
 **Nastavení > Zkontrolovat aktualizace teď**.
 
@@ -75,6 +75,8 @@ Makro klávesnice je volitelná a nic dalšího k běhu aplikace nepotřebuje �
   **A** (začátek = teď) a **B** (konec = teď). Tlačítkem **Smyčka** ji zapneš / vypneš. Přehrávání se na konci
   úseku vrací na jeho začátek; v **režimu učení** cvičíš jen tenhle úsek a po každém kole začne další – výsledek
   minulého kola je ve stavovém řádku. Úsek je v notách podbarvený a v padajících notách ohraničený čárkovanou čarou.
+  **Postupně zrychlovat smyčku** (v okně Režim učení): každé kolo zahrané aspoň na 90 % zrychlí další o 5 %,
+  až do 100 %; dosažená rychlost zůstane nastavená.
 - Panel **Části / nástroje** vpravo: zaškrtávátkem část vypneš, posuvníkem změníš její hlasitost.
 - V piano rollu **tažením nahoru / dolů** posouváš skladbu v čase. Klávesa se při dopadu noty rozsvítí barvou části.
   Kliknutím na klávesu ji zahraješ.
@@ -151,6 +153,10 @@ smyčky) se ukládá do historie – **Soubor > Historie cvičení...** ukáže 
 appka vybere nejhorší místa – sousední takty spojí, nejvýš 4. Hodnocení i historie ukážou „Nejvíc chyb: takty …“,
 v notách mají ty takty červenou značku s počtem chyb a tlačítko **Procvičit takty …** (nebo **H**, nebo makro akce
 **Procvičit těžké místo**) nastaví na ně smyčku a spustí učení.
+
+**Denní cíl a série:** vpravo dole je vidět, kolik minut jsi dnes cvičil(a) v režimu učení, a 🔥 série dní v řadě
+se splněným cílem (najetím myší posledních 7 dní). Cíl (výchozí 20 min, 0 = vypnuto) změníš kliknutím na ukazatel
+nebo v **Nastavení > Denní cíl...**. Počítá se jen režim učení, z `history.json`.
 
 ### Noty z Muzia
 
