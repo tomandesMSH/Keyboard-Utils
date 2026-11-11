@@ -122,6 +122,11 @@ sealed partial class MainForm
         trackLoadTimer.Start();
     }
 
+    /// <summary>The Library menu's item that plays through the folder: with its name once one is chosen.</summary>
+    string MySongsFolderLabel => config.SongsFolder is { } folder && Directory.Exists(folder)
+        ? T($"Moje složka se skladbami ({Path.GetFileName(folder.TrimEnd('\\', '/'))})", $"My songs folder ({Path.GetFileName(folder.TrimEnd('\\', '/'))})")
+        : T("Moje složka se skladbami", "My songs folder");
+
     void PickSongsFolder()
     {
         using var dialog = new FolderBrowserDialog
@@ -141,20 +146,26 @@ sealed partial class MainForm
     /// <summary>The songs folder (with its subfolders) as the playlist, the first song loaded.</summary>
     void LoadSongsFolder()
     {
+        // Not chosen yet: choose it now (that loads it too).
+        if (config.SongsFolder is not { } folder || !Directory.Exists(folder))
+        {
+            PickSongsFolder();
+            return;
+        }
         if (!SetFolderPlaylist())
             return;
         playlistIndex = 0;
         LoadCurrentSong();
-        SetStatus(T($"Skladby ze složky: {playlist.Count}. Další / předchozí skladba jimi listuje.",
-            $"Songs from the folder: {playlist.Count}. Next / previous song go through them."));
+        SetStatus(T($"Moje složka se skladbami: {playlist.Count} skladeb. Další / předchozí skladba jimi listuje.",
+            $"My songs folder: {playlist.Count} songs. Next / previous song go through them."));
     }
 
     bool SetFolderPlaylist()
     {
         if (config.SongsFolder is not { } folder || !Directory.Exists(folder))
         {
-            SetStatus(T("Nejdřív vyber složku se skladbami: Nastavení > Složka se skladbami...",
-                "Pick a songs folder first: Settings > Songs folder..."));
+            SetStatus(T("Nejdřív vyber svoji složku se skladbami: Knihovna > Vybrat moji složku se skladbami...",
+                "Choose your songs folder first: Library > Choose my songs folder..."));
             return false;
         }
         List<string> files;

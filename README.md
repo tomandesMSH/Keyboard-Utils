@@ -47,16 +47,17 @@ Makro klávesnice je volitelná a nic dalšího k běhu aplikace nepotřebuje �
   pro `.mid`, `.midi`, `.musicxml` a `.mxl`. Výchozí program nemění – když chceš otevírat noty dvojklikem, vyber
   **Zvolit jinou aplikaci > Keyboard Utils > Vždy**. Když už appka běží, soubor se otevře v ní.
 - **Otevřít skladbu...** načte MIDI (`.mid`) nebo MusicXML (`.musicxml`, `.mxl`). Vybrat můžeš víc souborů najednou,
-  mezi nimi pak přepínáš v **Soubor > Předchozí skladba / Další skladba**.
-- **Složka se skladbami** (**Nastavení > Složka se skladbami...**) – všechny MIDI / MusicXML v ní (i v podsložkách)
-  jsou playlist; **Soubor > Skladby ze složky** ho načte a další / předchozí skladba jím listuje bez dialogu.
+  mezi nimi pak přepínáš v **Knihovna > Předchozí skladba / Další skladba**.
+- **Moje složka se skladbami** (vybereš ji v **Knihovna > Vybrat moji složku se skladbami...**) – všechny MIDI /
+  MusicXML v ní (i v podsložkách) jsou playlist; **Knihovna > Moje složka se skladbami** ho načte a další / předchozí
+  skladba jím listuje bez dialogu.
   **Soubor > Nedávné skladby** ukáže posledních 10 otevřených.
-- **Soubor > Knihovna** – otevřenou skladbu přidáš do **oblíbených** nebo jí dáš **štítky** (oddělené čárkou).
+- **Knihovna** – otevřenou skladbu přidáš do **oblíbených** nebo jí dáš **štítky** (oddělené čárkou).
   V Knihovně pak jsou **Oblíbené skladby** a seznam skladeb pro každý štítek; otevřou se jako playlist.
   Ukládá se do `config.json`.
 - **Hledat noty zdarma...** prohledá [Mutopia Project](https://www.mutopiaproject.org/) – přes 2000 skladeb (hlavně
   klasika) jako volné dílo nebo pod licencí Creative Commons. Vybranou skladbu stáhne jako MIDI a otevře; věty
-  skladby jsou v seznamu (**Soubor > Předchozí / Další skladba**). U licencí CC BY uveď při sdílení autora a zdroj.
+  skladby jsou v seznamu (**Knihovna > Předchozí / Další skladba**). U licencí CC BY uveď při sdílení autora a zdroj.
   Appka se na internet připojí jen ve chvíli, kdy hledáš.
 - Ovládání nad klávesami / notami: **RW** a **FF** přetáčí, dokud je držíš, a čím déle, tím rychleji (2× až 16×;
   FF při přehrávání skladbu opravdu zrychlí, takže ji slyšíš), **přehrát / pauza**, **stop** a posuvník **Rychlost přehrávání** (25–200 %). Zvuk jde na MIDI výstup zvolený
@@ -148,7 +149,7 @@ a u akordu pak stačí jedna správná nota.
 Klávesy, které máš zahrát, svítí světle modře. Správně zahraná nota zezelená, chyba zčervená.
 Na konci (nebo po **Ukončit učení** / **Stop**) se ukáže hodnocení: procento správných not, špatné klávesy,
 vynechané noty a čas, výsledek z minula, nejlepší výsledek a graf posledních pokusů. Každý pokus (i každé kolo
-smyčky) se ukládá do historie – **Soubor > Historie cvičení...** ukáže všechny pokusy u otevřené skladby
+smyčky) se ukládá do historie – **Cvičení > Historie cvičení...** ukáže všechny pokusy u otevřené skladby
 (datum, %, rychlost, režim, části, úsek). Historie je v `%APPDATA%\KeyboardUtils\history.json`.
 
 **Těžká místa:** u každého pokusu se ukládá, ve kterých taktech byly chyby. Z posledních 5 pokusů (novější váží víc)
@@ -162,8 +163,7 @@ Zvuková nahrávka se sama ořízne o ticho na začátku a konci a zesílí, kdy
 se nenahrává (byl by v něm i doprovod).
 
 **Denní cíl a série:** vpravo dole je vidět, kolik minut jsi dnes cvičil(a) v režimu učení, a 🔥 série dní v řadě
-se splněným cílem (najetím myší posledních 7 dní). Cíl (výchozí 20 min, 0 = vypnuto) změníš kliknutím na ukazatel
-nebo v **Nastavení > Denní cíl...**. Počítá se jen režim učení, z `history.json`.
+se splněným cílem (najetím myší posledních 7 dní). Cíl (výchozí 20 min, 0 = vypnuto) změníš kliknutím na ukazatel. Počítá se jen režim učení, z `history.json`.
 
 ### Noty z Muzia
 
@@ -183,7 +183,7 @@ takže funguje režim učení, smyčka se zrychlováním, metronom i historie; u
 
 ### Trénink čtení not
 
-**Soubor > Trénink čtení not...** ukáže notu na osnově; zahraj ji (MIDI / mikrofon / zvuk z počítače – musí sedět
+**Cvičení > Trénink čtení not...** ukáže notu na osnově; zahraj ji (MIDI / mikrofon / zvuk z počítače – musí sedět
 klávesa i oktáva), nebo klikni na její jméno či zmáčkni písmeno (C D E F G A H). Úrovně: houslový klíč (c1–g2),
 basový (F–c1), oba, pokročilý (pomocné linky, křížky a béčka) a **intervaly** (sekunda–oktáva, odpověď tlačítkem
 nebo číslicí 2–8). Volitelný **časový limit** 5 / 3 / 2 s na notu. Kolo má 20 not; pamatuje se nejlepší výsledek
@@ -205,7 +205,7 @@ klarinet in B, trubka in B, altový saxofon in Es. Pro jiný nástroj než klav�
 - uložení jako MusicXML zapíše part nástroje s jeho klíčem a transpozicí; MusicXML s `<transpose>` (třeba part
   klarinetu z MuseScore) se načte správně.
 
-**Soubor > Ladička...** poslouchá mikrofon: tón, ručička ±50 centů (zeleně do ±5), frekvence, u transponujících
+**Cvičení > Ladička...** poslouchá mikrofon: tón, ručička ±50 centů (zeleně do ±5), frekvence, u transponujících
 nástrojů i psaná nota. U strunných nástrojů ukáže struny a rozsvítí tu, kterou ladíš; kliknutím na ni zazní. Ladění
 a1 jde nastavit 430–446 Hz. Funguje i jako makro akce **Ladička**.
 
@@ -258,7 +258,7 @@ Klávesy z ní se nedostanou do Windows, hlavní klávesnice funguje normálně.
 3. **Přidat klávesu...**, stiskni klávesu na makro klávesnici a vyber akci. Akce jsou ve skupinách:
    - **Přehrávání** – přehrát / pauza, stop, posun o 5 s nebo 1 s, metronom, hlasitost všech částí.
    - **Smyčka a rychlost** – smyčka (zapnout, začátek, konec), pomalejší / rychlejší / 100 %.
-   - **Skladby** – další / předchozí, skladby ze složky, nedávné skladby, otevřít skladbu.
+   - **Skladby** – další / předchozí, moje složka se skladbami, nedávné skladby, otevřít skladbu.
    - **Učení a nahrávání** – režim učení, a bez dialogu nastavení: čekat na notu / v tempu, co hraješ
      (všechno / jednotlivé části), rychlost; zapisovat noty, uložit nahrávku (MIDI bez dialogu), poslouchat,
      vstup not (mikrofon → zvuk z počítače → klikání → MIDI zařízení).

@@ -167,7 +167,7 @@ sealed class Binding
         MacroAction.VolumeDown => T("Hlasitost všech částí −10 %", "Volume of all parts −10 %"),
         MacroAction.ToggleListening => T("Poslouchat zapnout / vypnout", "Listen on / off"),
         MacroAction.OpenSong => T("Otevřít skladbu (dialog)", "Open song (dialog)"),
-        MacroAction.SongsFromFolder => T("Skladby ze složky", "Songs from the folder"),
+        MacroAction.SongsFromFolder => T("Moje složka se skladbami", "My songs folder"),
         MacroAction.RecentSongs => T("Nedávné skladby", "Recent songs"),
         MacroAction.SaveRecording => T("Uložit nahrávku (MIDI, bez dialogu)", "Save the recording (MIDI, no dialog)"),
         MacroAction.LearningModeNext => T("Učení: čekat na notu / v tempu", "Learning: wait for note / in tempo"),

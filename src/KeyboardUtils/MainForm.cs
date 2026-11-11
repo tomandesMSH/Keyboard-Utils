@@ -203,6 +203,8 @@ sealed partial class MainForm : AntdUI.Window
     };
     readonly FlowLayoutPanel menuBar = new() { Dock = DockStyle.Top, Height = 28, BackColor = Color.FromArgb(248, 248, 248), Padding = new Padding(4, 3, 4, 3), WrapContents = false };
     readonly MenuBarButton fileMenuButton = new();
+    readonly MenuBarButton libraryMenuButton = new();
+    readonly MenuBarButton practiceMenuButton = new();
     readonly MenuBarButton editMenuButton = new();
     readonly MenuBarButton settingsMenuButton = new();
     readonly MenuBarButton helpMenuButton = new();
@@ -395,7 +397,7 @@ sealed partial class MainForm : AntdUI.Window
         tabs.SelectedIndexChanged += (_, _) => keyboardSizeGroup.Visible = tabs.SelectedTab == songTab;
         Controls.Add(statusRow);
 
-        menuBar.Controls.AddRange([fileMenuButton, editMenuButton, settingsMenuButton, helpMenuButton]);
+        menuBar.Controls.AddRange([fileMenuButton, libraryMenuButton, practiceMenuButton, editMenuButton, settingsMenuButton, helpMenuButton]);
         Controls.Add(menuBar);
 
         // Title bar must be added LAST (and never BringToFront - that resets its z-index to 0, which for
@@ -403,31 +405,42 @@ sealed partial class MainForm : AntdUI.Window
         var titleBar = new TitleBar(this, showMinimize: true, showMaximize: true);
         Controls.Add(titleBar);
 
+        // Soubor: the song itself. Knihovna: finding songs. Cvičení: practice tools. Úpravy: the macro keys.
         fileMenuButton.Click += (_, _) => ShowMenu(fileMenuButton,
             MenuItem(T("Otevřít skladbu...", "Open song..."), OpenSong),
-            MenuItem(T("Hledat noty zdarma...", "Find free sheet music..."), FindFreeScores),
+            new AntdUI.ContextMenuStripItem(T("Nedávné skladby", "Recent songs")) { Sub = BuildRecentSongItems(), Enabled = config.RecentSongs.Count > 0 },
+            MenuItem(T("Uložit skladbu jako...", "Save song as..."), SaveCurrentSong),
+            new AntdUI.ContextMenuStripItemDivider(),
+            MenuItem(T("Importovat stopy...", "Import stems..."), ImportStems),
+            new AntdUI.ContextMenuStripItemDivider(),
+            MenuItem(T("Ukončit", "Exit"), Close));
+
+        libraryMenuButton.Click += (_, _) => ShowMenu(libraryMenuButton,
+            [
+                // "My songs folder": play through it, or pick which folder it is - side by side, nowhere else.
+                new AntdUI.ContextMenuStripItem(MySongsFolderLabel) { Tag = (Action)(() => LoadSongsFolder()) },
+                new AntdUI.ContextMenuStripItem(T("Vybrat moji složku se skladbami...", "Choose my songs folder...")) { Tag = (Action)PickSongsFolder },
+                new AntdUI.ContextMenuStripItem(T("Předchozí skladba", "Previous song")) { Enabled = playlist.Count > 1, Tag = (Action)DoPreviousTrack },
+                new AntdUI.ContextMenuStripItem(T("Další skladba", "Next song")) { Enabled = playlist.Count > 1, Tag = (Action)DoNextTrack },
+                MenuItem(T("Hledat noty zdarma...", "Find free sheet music..."), FindFreeScores),
+                new AntdUI.ContextMenuStripItemDivider(),
+                .. BuildLibraryMenuItems(),
+            ]);
+
+        practiceMenuButton.Click += (_, _) => ShowMenu(practiceMenuButton,
             MenuItem(T("Stupnice a rozcvičky...", "Scales and warm-ups..."), OpenExercise),
             MenuItem(T("Trénink čtení not...", "Note-reading trainer..."), OpenNoteTrainer),
             MenuItem(T("Ladička...", "Tuner..."), OpenTuner),
-            MenuItem(T("Importovat stopy...", "Import stems..."), ImportStems),
-            MenuItem(T("Uložit skladbu jako...", "Save song as..."), SaveCurrentSong),
             new AntdUI.ContextMenuStripItemDivider(),
-            new AntdUI.ContextMenuStripItem(T("Nedávné skladby", "Recent songs")) { Sub = BuildRecentSongItems(), Enabled = config.RecentSongs.Count > 0 },
-            new AntdUI.ContextMenuStripItem(T("Skladby ze složky", "Songs from the folder")) { Tag = (Action)(() => LoadSongsFolder()) },
-            new AntdUI.ContextMenuStripItem(T("Knihovna", "Library")) { Sub = BuildLibraryMenuItems() },
-            new AntdUI.ContextMenuStripItem(T("Historie cvičení...", "Practice history...")) { Enabled = currentScore != null, Tag = (Action)ShowPracticeHistory },
-            new AntdUI.ContextMenuStripItem(T("Předchozí skladba", "Previous song")) { Enabled = playlist.Count > 1, Tag = (Action)DoPreviousTrack },
-            new AntdUI.ContextMenuStripItem(T("Další skladba", "Next song")) { Enabled = playlist.Count > 1, Tag = (Action)DoNextTrack },
-            new AntdUI.ContextMenuStripItemDivider(),
-            MenuItem(T("Exportovat klávesy...", "Export keys..."), ExportBindings),
-            MenuItem(T("Importovat klávesy...", "Import keys..."), ImportBindings),
-            new AntdUI.ContextMenuStripItemDivider(),
-            MenuItem(T("Ukončit", "Exit"), Close));
+            new AntdUI.ContextMenuStripItem(T("Historie cvičení...", "Practice history...")) { Enabled = currentScore != null, Tag = (Action)ShowPracticeHistory });
 
         editMenuButton.Click += (_, _) => ShowMenu(editMenuButton,
             MenuItem(T("Přidat klávesu...", "Add key..."), ToggleCapture),
             MenuItem(T("Změnit akci...", "Change action..."), EditSelected),
-            MenuItem(T("Odebrat", "Remove"), RemoveSelected));
+            MenuItem(T("Odebrat", "Remove"), RemoveSelected),
+            new AntdUI.ContextMenuStripItemDivider(),
+            MenuItem(T("Exportovat klávesy...", "Export keys..."), ExportBindings),
+            MenuItem(T("Importovat klávesy...", "Import keys..."), ImportBindings));
 
         settingsMenuButton.Click += (_, _) => ShowMenu(settingsMenuButton, BuildSettingsMenuItems());
 
@@ -675,7 +688,7 @@ sealed partial class MainForm : AntdUI.Window
                 Tag = (Action)(() => { config.CheckForUpdates = !config.CheckForUpdates; config.Save(); }),
             },
             new AntdUI.ContextMenuStripItem(T("Zkontrolovat aktualizace teď", "Check for updates now")) { Tag = (Action)(() => _ = CheckForUpdatesAsync(manual: true)) },
-            new AntdUI.ContextMenuStripItem(T("Denní cíl...", "Daily goal...")) { Tag = (Action)SetDailyGoal },
+            new AntdUI.ContextMenuStripItem(T("Propojit s Muziem...", "Connect to Muzio...")) { Tag = (Action)ConnectToMuzio },
             new AntdUI.ContextMenuStripItem(T("Velké hlášky (makro klávesy, zkratky)", "Big messages (macro keys, shortcuts)"))
             {
                 Checked = config.BigNotices,
@@ -685,7 +698,6 @@ sealed partial class MainForm : AntdUI.Window
             new AntdUI.ContextMenuStripItem(T("MIDI výstup", "MIDI output")) { Sub = deviceItems.ToArray() },
             new AntdUI.ContextMenuStripItem(T("Vstup not", "Note input")) { Sub = BuildNoteInputItems() },
             new AntdUI.ContextMenuStripItem(T("Mikrofon a citlivost...", "Microphone and sensitivity...")) { Tag = (Action)ShowMicrophoneSetup },
-            new AntdUI.ContextMenuStripItem(T("Složka se skladbami...", "Songs folder...")) { Tag = (Action)PickSongsFolder },
             new AntdUI.ContextMenuStripItem(T("Rozpoznávání akordů (doplněk)...", "Chord detection (add-on)..."))
             {
                 Checked = BasicPitchModule.IsInstalled,
@@ -719,6 +731,13 @@ sealed partial class MainForm : AntdUI.Window
         return items.ToArray();
     }
 
+    /// <summary>Linking the app to a Muzio account isn't there yet - says so.</summary>
+    void ConnectToMuzio() =>
+        ShowModal(this, T("Propojit s Muziem", "Connect to Muzio"),
+            T("Propojení s Muziem zatím není hotové - přijde v některé z příštích aktualizací.\n\nNoty z Muzia už teď otevřeš tlačítkem „Otevřít v Keyboard Utils“ u úkolu.",
+              "Connecting to Muzio isn't ready yet - it will come in a future update.\n\nYou can already open scores from Muzio with the \"Open in Keyboard Utils\" button on an assignment."),
+            AntdUI.TType.Info);
+
     /// <param name="name">Null = the system default output.</param>
     void SetMidiOutput(string? name)
     {
@@ -737,6 +756,8 @@ sealed partial class MainForm : AntdUI.Window
     void ApplyTexts()
     {
         fileMenuButton.Text = T("Soubor", "File");
+        libraryMenuButton.Text = T("Knihovna", "Library");
+        practiceMenuButton.Text = T("Cvičení", "Practice");
         editMenuButton.Text = T("Úpravy", "Edit");
         settingsMenuButton.Text = T("Nastavení", "Settings");
         helpMenuButton.Text = T("Nápověda", "Help");

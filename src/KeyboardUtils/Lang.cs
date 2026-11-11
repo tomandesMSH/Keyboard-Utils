@@ -93,6 +93,11 @@ sealed class LanguagePickerForm : AntdUI.Window
         {
             var content = layout.GetPreferredSize(Size.Empty);
             ClientSize = new Size(Math.Max(ClientSize.Width, content.Width), titleBar.Height + content.Height);
+            // The window can be wider than its content: centre the text and the buttons in it.
+            int inner = ClientSize.Width - layout.Padding.Horizontal;
+            prompt.Margin = new Padding(Math.Max(0, (inner - prompt.Width) / 2), prompt.Margin.Top, 0, prompt.Margin.Bottom);
+            var row = buttons.GetPreferredSize(Size.Empty);
+            buttons.Margin = new Padding(Math.Max(0, (inner - row.Width) / 2), 0, 0, 0);
             CenterToScreen();
         };
     }
