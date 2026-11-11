@@ -205,6 +205,7 @@ sealed partial class MainForm : AntdUI.Window
     readonly MenuBarButton fileMenuButton = new();
     readonly MenuBarButton libraryMenuButton = new();
     readonly MenuBarButton practiceMenuButton = new();
+    readonly MenuBarButton muzioMenuButton = new();
     readonly MenuBarButton editMenuButton = new();
     readonly MenuBarButton settingsMenuButton = new();
     readonly MenuBarButton helpMenuButton = new();
@@ -397,7 +398,7 @@ sealed partial class MainForm : AntdUI.Window
         tabs.SelectedIndexChanged += (_, _) => keyboardSizeGroup.Visible = tabs.SelectedTab == songTab;
         Controls.Add(statusRow);
 
-        menuBar.Controls.AddRange([fileMenuButton, libraryMenuButton, practiceMenuButton, editMenuButton, settingsMenuButton, helpMenuButton]);
+        menuBar.Controls.AddRange([fileMenuButton, libraryMenuButton, practiceMenuButton, muzioMenuButton, editMenuButton, settingsMenuButton, helpMenuButton]);
         Controls.Add(menuBar);
 
         // Title bar must be added LAST (and never BringToFront - that resets its z-index to 0, which for
@@ -425,6 +426,10 @@ sealed partial class MainForm : AntdUI.Window
                 new AntdUI.ContextMenuStripItemDivider(),
                 .. BuildLibraryMenuItems(),
             ]);
+
+        muzioMenuButton.Click += (_, _) => ShowMenu(muzioMenuButton,
+            MenuItem(T("Muzio...", "Muzio..."), ShowAboutMuzio),
+            MenuItem(T("Propojit s Muzio účtem...", "Connect a Muzio account..."), ConnectToMuzio));
 
         practiceMenuButton.Click += (_, _) => ShowMenu(practiceMenuButton,
             MenuItem(T("Stupnice a rozcvičky...", "Scales and warm-ups..."), OpenExercise),
@@ -687,7 +692,6 @@ sealed partial class MainForm : AntdUI.Window
                 Tag = (Action)(() => { config.CheckForUpdates = !config.CheckForUpdates; config.Save(); }),
             },
             new AntdUI.ContextMenuStripItem(T("Zkontrolovat aktualizace teď", "Check for updates now")) { Tag = (Action)(() => _ = CheckForUpdatesAsync(manual: true)) },
-            new AntdUI.ContextMenuStripItem(T("Propojit s Muziem...", "Connect to Muzio...")) { Tag = (Action)ConnectToMuzio },
             new AntdUI.ContextMenuStripItem(T("Velké hlášky (makro klávesy, zkratky)", "Big messages (macro keys, shortcuts)"))
             {
                 Checked = config.BigNotices,
@@ -731,8 +735,24 @@ sealed partial class MainForm : AntdUI.Window
     }
 
     /// <summary>Linking the app to a Muzio account isn't there yet - says so.</summary>
+    const string MuzioUrl = "https://keyboardheromuzio.vercel.app/";
+
+    /// <summary>Muzio > Muzio...: what Muzio is, and a way there.</summary>
+    void ShowAboutMuzio()
+    {
+        if (Confirm(this, "Muzio",
+            T("Muzio je webová aplikace ZUŠ Moravský Krumlov pro žáky a učitele: učitel zadává úkoly a noty, žák cvičí, "
+              + "nahrává se a sbírá body a odznaky za každodenní cvičení.\n\n"
+              + "Noty z úkolu v Muziu otevřeš v Keyboard Utils tlačítkem „Otevřít v Keyboard Utils“.",
+              "Muzio is the web app of ZUŠ Moravský Krumlov for pupils and teachers: teachers set assignments and scores, pupils "
+              + "practise, record themselves and earn points and badges for practising every day.\n\n"
+              + "Open an assignment's score in Keyboard Utils with its \"Open in Keyboard Utils\" button."),
+            T("Otevřít Muzio", "Open Muzio")))
+            AboutForm.Open(MuzioUrl);
+    }
+
     void ConnectToMuzio() =>
-        ShowModal(this, T("Propojit s Muziem", "Connect to Muzio"),
+        ShowModal(this, T("Propojit s Muzio účtem", "Connect a Muzio account"),
             T("Propojení s Muziem zatím není hotové - přijde v některé z příštích aktualizací.\n\nNoty z Muzia už teď otevřeš tlačítkem „Otevřít v Keyboard Utils“ u úkolu.",
               "Connecting to Muzio isn't ready yet - it will come in a future update.\n\nYou can already open scores from Muzio with the \"Open in Keyboard Utils\" button on an assignment."),
             AntdUI.TType.Info);
@@ -757,6 +777,7 @@ sealed partial class MainForm : AntdUI.Window
         fileMenuButton.Text = T("Soubor", "File");
         libraryMenuButton.Text = T("Knihovna", "Library");
         practiceMenuButton.Text = T("Cvičení", "Practice");
+        muzioMenuButton.Text = "Muzio";
         editMenuButton.Text = T("Úpravy", "Edit");
         settingsMenuButton.Text = T("Nastavení", "Settings");
         helpMenuButton.Text = T("Nápověda", "Help");
