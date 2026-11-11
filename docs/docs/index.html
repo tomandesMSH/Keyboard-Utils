@@ -163,7 +163,7 @@
           <b>Rychlost přehrávání</b> 25–200&nbsp;%: posuvník, přesná hodnota v&nbsp;políčku, šipky vedle něj
           nebo <kbd>↑</kbd> / <kbd>↓</kbd> po 5&nbsp;%. Kruhová šipka (<kbd>R</kbd>) vrátí 100&nbsp;%.
         </li>
-        <li>Zvuk jde na MIDI výstup zvolený v&nbsp;<b>Nastavení &gt; MIDI výstup</b> (výchozí je syntezátor Windows).</li>
+        <li>Zvuk jde na MIDI výstup zvolený v&nbsp;<b>Nastavení &gt; MIDI výstup</b> (výchozí je syntezátor Windows). Lepší zvuk má <b>Klavír Keyboard Utils</b>: nahrávka skutečného pianina (FreePats, volně šiřitelná), stáhne se jednou, asi 45&nbsp;MB. Odebrat jde ve stejném menu.</li>
       </ul>
     </section>
 
@@ -260,7 +260,7 @@
       <p>
         V&nbsp;okně Režim učení zaškrtni <b>Nahrát, jak hraju</b>. S&nbsp;mikrofonem se nahraje zvuk, s&nbsp;MIDI klávesami
         nebo klikáním na klaviaturu zahrané noty (smyčka se nahraje celá, všechna kola). V&nbsp;hodnocení pak je
-        <b>▶ Poslechnout si</b> a&nbsp;<b>Uložit nahrávku</b> (WAV nebo MIDI do <code>Dokumenty\Keyboard Utils\Nahrávky</code>).
+        <b>▶ Poslechnout si</b> a&nbsp;<b>Uložit nahrávku</b> (MP3, případně WAV, nebo MIDI do <code>Dokumenty\Keyboard Utils\Nahrávky</code>). Zvuková nahrávka se sama ořízne o&nbsp;ticho na začátku a&nbsp;na konci a&nbsp;když jsi hrál(a) potichu, zesílí se.
         Se zvukem z&nbsp;počítače se nenahrává, zachytil by i&nbsp;doprovod. Nahrávka má nejvýš 30&nbsp;minut.
       </p>
     </section>
@@ -298,9 +298,12 @@
         <b>Otevřít skladbu ▾ &gt; Stupnice a&nbsp;rozcvičky…</b> (nebo v&nbsp;menu Soubor) vytvoří cvičení jako skladbu:
       </p>
       <ul>
-        <li><b>Stupnice</b> nahoru a&nbsp;dolů (mollové jako harmonické, se zvýšeným 7. stupněm),</li>
+        <li><b>Stupnice</b> nahoru a&nbsp;dolů; u&nbsp;mollových vybereš harmonickou, melodickou nebo přirozenou,</li>
         <li><b>rozložený akord</b> (arpeggio) tóniky,</li>
-        <li><b>kadence T–S–D–T</b> (akordy v&nbsp;pravé ruce, basové tóny v&nbsp;levé).</li>
+        <li><b>chromatická stupnice</b> (po půltónech),</li>
+        <li><b>kadence T–S–D–T</b> (akordy v&nbsp;pravé ruce, basové tóny v&nbsp;levé),</li>
+        <li><b>obraty akordu</b> (základní tvar, 1. a&nbsp;2. obrat a&nbsp;zpět),</li>
+        <li><b>Hanon č. 1</b>: prstová rozcvička po stupních tóniny.</li>
       </ul>
       <p>
         Vybereš tóninu (12 durových, 10 mollových), rozsah 1 nebo 2 oktávy, ruku (pravá, levá, obě), tempo a&nbsp;jestli
@@ -319,8 +322,11 @@
         a&nbsp;zahraje, jaká nota to byla.
       </p>
       <ul>
-        <li><b>Úrovně:</b> houslový klíč (c1–g2), basový klíč (F–c1), oba klíče, pokročilý (pomocné linky, křížky a&nbsp;béčka).</li>
-        <li>Kolo má 20 not; na konci uvidíš, kolik bylo správně, průměrný čas na notu a&nbsp;nejlepší výsledek pro úroveň.</li>
+        <li><b>Úrovně:</b> houslový klíč (c1–g2), basový klíč (F–c1), oba klíče, pokročilý (pomocné linky, křížky a&nbsp;béčka)
+          a&nbsp;<b>intervaly</b> – dvě noty nad sebou, odpovíš tlačítkem nebo číslicí 2–8 (2 = sekunda … 8 = oktáva).</li>
+        <li><b>Časový limit</b> 5, 3 nebo 2&nbsp;s na notu (nebo bez limitu); když vyprší, počítá se jako chyba.</li>
+        <li>Kolo má 20 not; na konci uvidíš, kolik bylo správně, průměrný čas na notu, nejdelší sérii a&nbsp;nejlepší výsledek pro úroveň.</li>
+        <li>Noty, ve kterých chybuješ, chodí častěji – i&nbsp;v&nbsp;dalších kolech; na konci kola uvidíš, které to byly.</li>
       </ul>
     </section>
 

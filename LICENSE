@@ -23,3 +23,5 @@ SOFTWARE.
 Third-party parts keep their own licences: the Interception driver (LGPL 3.0,
 tools/Interception-LGPL-3.0.txt) and the optional chord detection add-on
 (Basic Pitch, Apache 2.0; ONNX Runtime, MIT - included in the add-on package).
+MeltySynth (MIT, Nobuaki Tanaka) plays the optional piano sound, the FreePats
+Upright Piano KW SoundFont (CC0, public domain).

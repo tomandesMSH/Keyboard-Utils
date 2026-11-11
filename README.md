@@ -60,7 +60,9 @@ Makro klávesnice je volitelná a nic dalšího k běhu aplikace nepotřebuje �
   Appka se na internet připojí jen ve chvíli, kdy hledáš.
 - Ovládání nad klávesami / notami: **RW** a **FF** přetáčí, dokud je držíš, a čím déle, tím rychleji (2× až 16×;
   FF při přehrávání skladbu opravdu zrychlí, takže ji slyšíš), **přehrát / pauza**, **stop** a posuvník **Rychlost přehrávání** (25–200 %). Zvuk jde na MIDI výstup zvolený
-  v **Nastavení > MIDI výstup**. Se stopami jde rychlost jen 100 % (originální nahrávka zpomalit nejde).
+  v **Nastavení > MIDI výstup**. Tam je i **Klavír Keyboard Utils (lepší zvuk)** – nahrávka skutečného pianina
+(FreePats Upright Piano KW, CC0), stáhne se jednou (asi 45 MB) do `%APPDATA%\KeyboardUtils\modules\piano-sound`.
+Se stopami jde rychlost jen 100 % (originální nahrávka zpomalit nejde).
   Zaškrtávátko **Popisky kláves** napíše název noty na každou bílou klávesu (jinak jen na C).
 - **Metronom** – klikání na každou dobu (první doba taktu je zvýrazněná), podle tempa a taktu skladby, i při
   změnách tempa, zpomalení a ve smyčce. Před spuštěním přehrávání nejdřív odpočítá jeden takt; v režimu učení
@@ -155,7 +157,8 @@ v notách mají ty takty červenou značku s počtem chyb a tlačítko **Procvi�
 **Procvičit těžké místo**) nastaví na ně smyčku a spustí učení.
 
 **Nahrát, jak hraju** (v okně Režim učení): s mikrofonem se nahraje zvuk, s MIDI / klikáním zahrané noty. V hodnocení
-je pak **Poslechnout si** a **Uložit nahrávku** (WAV / MIDI do `Dokumenty\Keyboard Utils\Nahrávky`). Zvuk z počítače
+je pak **Poslechnout si** a **Uložit nahrávku** (MP3, případně WAV / MIDI do `Dokumenty\Keyboard Utils\Nahrávky`).
+Zvuková nahrávka se sama ořízne o ticho na začátku a konci a zesílí, když jsi hrál(a) potichu. Zvuk z počítače
 se nenahrává (byl by v něm i doprovod).
 
 **Denní cíl a série:** vpravo dole je vidět, kolik minut jsi dnes cvičil(a) v režimu učení, a 🔥 série dní v řadě
@@ -172,8 +175,9 @@ nejvýš 5 MB) do `%LOCALAPPDATA%\KeyboardUtils\Muzio` a otevře ho. Když už b
 
 ### Stupnice a rozcvičky
 
-**Otevřít skladbu ▾ > Stupnice a rozcvičky...** vytvoří cvičení jako skladbu: **stupnice** nahoru a dolů (mollové
-harmonické), **rozložený akord** nebo **kadence T–S–D–T**, v libovolné tónině (12 dur, 10 moll), na 1–2 oktávy,
+**Otevřít skladbu ▾ > Stupnice a rozcvičky...** vytvoří cvičení jako skladbu: **stupnice** nahoru a dolů (moll
+harmonická, melodická nebo přirozená), **rozložený akord**, **chromatická stupnice**, **kadence T–S–D–T**, **obraty
+akordu** nebo **Hanon č. 1** (prstová rozcvička), v libovolné tónině (12 dur, 10 moll), na 1–2 oktávy,
 pro pravou, levou nebo obě ruce, v zadaném tempu ve čtvrťových nebo osminových notách. Má takty a předznamenání,
 takže funguje režim učení, smyčka se zrychlováním, metronom i historie; uložit jde přes Uložit skladbu jako.
 
@@ -181,7 +185,9 @@ takže funguje režim učení, smyčka se zrychlováním, metronom i historie; u
 
 **Soubor > Trénink čtení not...** ukáže notu na osnově; zahraj ji (MIDI / mikrofon / zvuk z počítače – musí sedět
 klávesa i oktáva), nebo klikni na její jméno či zmáčkni písmeno (C D E F G A H). Úrovně: houslový klíč (c1–g2),
-basový (F–c1), oba, pokročilý (pomocné linky, křížky a béčka). Kolo má 20 not, pamatuje se nejlepší výsledek.
+basový (F–c1), oba, pokročilý (pomocné linky, křížky a béčka) a **intervaly** (sekunda–oktáva, odpověď tlačítkem
+nebo číslicí 2–8). Volitelný **časový limit** 5 / 3 / 2 s na notu. Kolo má 20 not; pamatuje se nejlepší výsledek
+a série správných odpovědí. Noty, ve kterých chybuješ, chodí častěji (i v dalších kolech).
 
 ### Zapisování not
 
@@ -284,5 +290,7 @@ s vyplněnou verzí – GitHub účet není potřeba, hlášení se objeví mezi
 - Interception (oblitum) je pro nekomerční použití pod LGPL 3.0, viz `tools/`.
 - Doplněk pro akordy obsahuje Basic Pitch (Spotify, Apache 2.0) a ONNX Runtime (Microsoft, MIT); licence jsou
   přiložené v balíčku doplňku.
+- Zvuk klavíru je SoundFont Upright Piano KW z projektu [FreePats](http://freepats.zenvoid.org) (CC0, public domain);
+  přehrává ho knihovna [MeltySynth](https://github.com/sinshu/meltysynth) (MIT).
 - Zachytávání makro klávesnice je oddělené do knihovny `src/MacroKeyboard`, kterou sdílí i
   [Soundpad Translator](https://github.com/tomandesMSH/SoundpadTranslator).
