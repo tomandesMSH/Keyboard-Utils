@@ -26,7 +26,7 @@ sealed class ActionPickerForm : AntdUI.Window
             MacroAction.RecentSongs, MacroAction.OpenSong]),
         (T("Učení a nahrávání", "Learning and recording"), [MacroAction.ToggleLearningMode, MacroAction.LearningModeNext,
             MacroAction.LearningPartsNext, MacroAction.LearningSpeedNext, MacroAction.ShowPracticeHistory, MacroAction.PracticeHardSpot,
-            MacroAction.NoteTrainer, MacroAction.Exercise, MacroAction.ToggleCreateMode, MacroAction.SaveRecording,
+            MacroAction.NoteTrainer, MacroAction.Tuner, MacroAction.Exercise, MacroAction.ToggleCreateMode, MacroAction.SaveRecording,
             MacroAction.ToggleListening, MacroAction.NoteInputNext]),
         (T("Zobrazení", "View"), [MacroAction.SwitchView, MacroAction.ZoomIn, MacroAction.ZoomOut, MacroAction.KeyboardLarger,
             MacroAction.KeyboardSmaller, MacroAction.ToggleKeyLabels, MacroAction.ToggleDarkMode, MacroAction.ShowWindow,

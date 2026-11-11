@@ -65,6 +65,7 @@ enum MacroAction
     PracticeHardSpot,
     NoteTrainer,
     Exercise,
+    Tuner,
 }
 
 /// <summary>How the actions behave when a key repeats fast - a knob (rotary encoder) sends a burst of one key.</summary>
@@ -192,6 +193,7 @@ sealed class Binding
         MacroAction.PracticeHardSpot => T("Procvičit těžké místo (smyčka + učení)", "Practise the hard spot (loop + learning)"),
         MacroAction.NoteTrainer => T("Trénink čtení not", "Note-reading trainer"),
         MacroAction.Exercise => T("Stupnice a rozcvičky", "Scales and warm-ups"),
+        MacroAction.Tuner => T("Ladička", "Tuner"),
         _ => Action.ToString(),
     };
 }
@@ -229,6 +231,12 @@ sealed class AppConfig
 
     /// <summary>Null = system default MIDI output.</summary>
     public string? MidiOutputDevice { get; set; }
+
+    /// <summary>The player's instrument (<see cref="KeyboardUtils.Instrument.Id"/>): its clef, transposition, range and sound.</summary>
+    public string Instrument { get; set; } = KeyboardUtils.Instrument.PianoId;
+
+    /// <summary>The tuner's reference: A4 in Hz.</summary>
+    public double TunerA4 { get; set; } = 440;
 
     /// <summary>Where played notes are heard from (learning mode, create mode, the "Listen" button).</summary>
     public NoteInputKind NoteInput { get; set; } = NoteInputKind.Microphone;

@@ -49,6 +49,17 @@ static class KeySignature
         return spelling;
     }
 
+    /// <summary>
+    /// The key a whole tone, a sixth... away: moving by <paramref name="semitones"/> adds 7 × semitones fifths (mod
+    /// 12). Kept within six sharps or flats (C♯ major comes out as D♭ major).
+    /// </summary>
+    public static int Transposed(int fifths, int semitones)
+    {
+        int shift = Mod12(7 * semitones);
+        int result = fifths + (shift > 6 ? shift - 12 : shift);
+        return result > 6 ? result - 12 : result < -6 ? result + 12 : result;
+    }
+
     /// <summary>Pitch class of the key's tonic: major, or its relative minor.</summary>
     public static int Tonic(int fifths, bool minor) => Mod12(7 * fifths + (minor ? 9 : 0));
 

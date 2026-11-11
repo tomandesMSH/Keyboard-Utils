@@ -130,8 +130,8 @@ public class NoteQuizTests
             Assert.True(quiz.AnswerInterval(item.Interval, 1));
         }
         Assert.Equal(NoteQuiz.RoundLength, quiz.Correct);
-        Assert.Equal("Tercie", new QuizNote(60, 0, 0, true, new QuizNote(64, 2, 0, true)).Name);
-        Assert.Equal(8, new QuizNote(60, 0, 0, true, new QuizNote(72, 0, 0, true)).Interval);
+        Assert.Equal("Tercie", new QuizNote(60, 0, 0, Clef.Treble, new QuizNote(64, 2, 0, Clef.Treble)).Name);
+        Assert.Equal(8, new QuizNote(60, 0, 0, Clef.Treble, new QuizNote(72, 0, 0, Clef.Treble)).Interval);
     }
 
     [Theory]

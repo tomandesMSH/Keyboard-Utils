@@ -46,6 +46,8 @@ sealed partial class MainForm
             recorder?.OnNoteOff(note);
             takeRecorder?.OnNoteOff(note);
         });
+        if (source is IInstrumentAware aware)
+            aware.Instrument = instrument;
         try
         {
             source.Start();

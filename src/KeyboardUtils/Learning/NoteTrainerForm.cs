@@ -12,6 +12,8 @@ sealed class NoteTrainerForm : AntdUI.Window
     static readonly int[] TimeLimits = [0, 5, 3, 2];
 
     readonly AppConfig config;
+    readonly Instrument instrument;
+    readonly NoteQuizLevel[] levels;
     readonly Action<int>? playNote;
     readonly string? inputName;
     readonly AntdUI.Select levelBox = new() { Size = new Size(330, 36), List = true };
@@ -31,15 +33,18 @@ sealed class NoteTrainerForm : AntdUI.Window
     /// <summary>Waiting before the next note (the answer is showing): input is ignored meanwhile.</summary>
     bool showingAnswer;
 
-    NoteQuizLevel Level => (NoteQuizLevel)Math.Max(0, levelBox.SelectedIndex);
+    NoteQuizLevel Level => levels[Math.Max(0, levelBox.SelectedIndex)];
     bool Intervals => Level == NoteQuizLevel.Intervals;
     int SecondsPerNote => TimeLimits[Math.Max(0, timeBox.SelectedIndex)];
 
+    /// <param name="instrument">The player's: its own levels, and played notes are taken as it sounds.</param>
     /// <param name="playNote">Plays a pitch (the right note after a wrong answer); null = silent.</param>
     /// <param name="inputName">What the player plays on ("MIDI: ...", "Mikrofon"), for the hint; null = no instrument listening.</param>
-    public NoteTrainerForm(AppConfig config, Action<int>? playNote, string? inputName)
+    public NoteTrainerForm(AppConfig config, Action<int>? playNote, string? inputName, Instrument? instrument = null)
     {
         this.config = config;
+        this.instrument = instrument ?? Instrument.Piano;
+        levels = NoteQuiz.LevelsFor(this.instrument);
         this.playNote = playNote;
         this.inputName = inputName;
         Text = T("Trénink čtení not", "Note-reading trainer");
@@ -49,14 +54,8 @@ sealed class NoteTrainerForm : AntdUI.Window
         MaximizeBox = MinimizeBox = false;
         KeyPreview = true;
 
-        levelBox.Items.AddRange([
-            T("Houslový klíč (c1 – g2, bez posuvek)", "Treble clef (C4 – G5, no accidentals)"),
-            T("Basový klíč (F – c1, bez posuvek)", "Bass clef (F2 – C4, no accidentals)"),
-            T("Oba klíče", "Both clefs"),
-            T("Pokročilý (pomocné linky, křížky a béčka)", "Advanced (ledger lines, sharps and flats)"),
-            T("Intervaly (sekunda – oktáva)", "Intervals (second – octave)"),
-        ]);
-        levelBox.SelectedIndex = Math.Clamp((int)config.NoteQuizLevel, 0, levelBox.Items.Count - 1);
+        levelBox.Items.AddRange(levels.Select(l => (object)LevelName(l)).ToArray());
+        levelBox.SelectedIndex = Math.Max(0, Array.IndexOf(levels, config.NoteQuizLevel));
         timeBox.Items.AddRange([T("Bez limitu", "No time limit"), T("5 s na notu", "5 s a note"), T("3 s na notu", "3 s a note"), T("2 s na notu", "2 s a note")]);
         timeBox.SelectedIndex = Math.Max(0, Array.IndexOf(TimeLimits, config.NoteQuizSeconds));
         var top = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = false, Padding = new Padding(16, 10, 16, 6) };
@@ -117,15 +116,36 @@ sealed class NoteTrainerForm : AntdUI.Window
             clock.Dispose();
             config.Save(); // the per-note mistake counts
         };
-        quiz = new NoteQuiz(Level, weakness: config.NoteQuizWeakness);
+        quiz = new NoteQuiz(Level, weakness: config.NoteQuizWeakness, instrument: this.instrument);
         StartRound();
     }
+
+    string LevelName(NoteQuizLevel level) => level switch
+    {
+        NoteQuizLevel.Treble => T("Houslový klíč (c1 – g2, bez posuvek)", "Treble clef (C4 – G5, no accidentals)"),
+        NoteQuizLevel.Bass => T("Basový klíč (F – c1, bez posuvek)", "Bass clef (F2 – C4, no accidentals)"),
+        NoteQuizLevel.Both => T("Oba klíče", "Both clefs"),
+        NoteQuizLevel.Advanced => T("Pokročilý (pomocné linky, křížky a béčka)", "Advanced (ledger lines, sharps and flats)"),
+        NoteQuizLevel.Intervals => T("Intervaly (sekunda – oktáva)", "Intervals (second – octave)"),
+        NoteQuizLevel.Alto => T("Altový klíč (bez posuvek)", "Alto clef (no accidentals)"),
+        NoteQuizLevel.Tenor => T("Tenorový klíč (bez posuvek)", "Tenor clef (no accidentals)"),
+        NoteQuizLevel.Instrument => T($"{instrument.Name}: začátek (bez posuvek)", $"{instrument.Name}: first notes (no accidentals)"),
+        _ => T($"{instrument.Name}: celý rozsah, křížky a béčka", $"{instrument.Name}: whole range, sharps and flats"),
+    };
 
     void StartRound()
     {
         pause.Stop();
         showingAnswer = false;
-        quiz = new NoteQuiz(Level, weakness: config.NoteQuizWeakness);
+        quiz = new NoteQuiz(Level, weakness: config.NoteQuizWeakness, instrument: instrument);
+        staff.EmptyClef = Level switch
+        {
+            NoteQuizLevel.Bass => Clef.Bass,
+            NoteQuizLevel.Alto => Clef.Alto,
+            NoteQuizLevel.Tenor => Clef.Tenor,
+            NoteQuizLevel.Instrument or NoteQuizLevel.InstrumentAdvanced => instrument.Clef,
+            _ => Clef.Treble,
+        };
         again.Visible = false;
         for (int i = 0; i < 7; i++)
         {
@@ -198,10 +218,10 @@ sealed class NoteTrainerForm : AntdUI.Window
         staff.Show(note, right ? NoteFlashControl.Feedback.Right : NoteFlashControl.Feedback.Wrong);
         if (!right)
         {
-            // Hear what it should have been.
-            playNote?.Invoke(note.Pitch);
+            // Hear what it should have been - as the instrument sounds it.
+            playNote?.Invoke(instrument.Sounding(note.Pitch));
             if (note.Upper is { } upper)
-                playNote?.Invoke(upper.Pitch);
+                playNote?.Invoke(instrument.Sounding(upper.Pitch));
         }
         UpdateProgress(timeUp);
         showingAnswer = true;

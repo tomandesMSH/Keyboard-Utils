@@ -10,12 +10,12 @@ sealed partial class MainForm
     void OpenExercise()
     {
         FinishCreateMode();
-        using var dialog = new ExerciseForm(config.Exercise);
+        using var dialog = new ExerciseForm(config.Exercise, instrument);
         if (dialog.ShowDialog(this) != DialogResult.OK)
             return;
         config.Exercise = dialog.Spec;
         config.Save();
-        var score = ExerciseGenerator.Generate(dialog.Spec);
+        var score = ExerciseGenerator.Generate(dialog.Spec, instrument);
         playlist = [];
         playlistIndex = -1;
         ShowScore(score);
@@ -110,7 +110,7 @@ sealed partial class MainForm
         if (noteSource == null && config.NoteInput != NoteInputKind.ScreenKeyboard)
             StartListening();
         string? input = noteSource is { } source and not ScreenKeyboardNoteSource ? source.Name : null;
-        using var trainer = new NoteTrainerForm(config, pitch => playbackEngine.PlayNote(pitch), input);
+        using var trainer = new NoteTrainerForm(config, pitch => playbackEngine.PlayNote(pitch), input, instrument);
         noteTrainer = trainer;
         try
         {

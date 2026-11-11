@@ -26,8 +26,19 @@ sealed class NoteTracker
     /// <summary>Frames after an onset during which another onset is ignored (one strike = one rise).</summary>
     const int OnsetRefractoryFrames = 6;
 
+    /// <summary>Sustained instruments: frames a new pitch must hold - with no attack between legato notes, it's all there is.</summary>
+    const int SustainedStableFrames = 4;
+
+    /// <summary>Sustained instruments: how far (semitones) the pitch must move from the sounding note to leave it.
+    /// Vibrato swings by about ±0.3 - ±0.5, so it stays one note.</summary>
+    const double SustainedHysteresis = 0.7;
+
+    /// <summary>Frames the pitch is smoothed over (median) on sustained instruments.</summary>
+    const int MedianFrames = 3;
+
     readonly PitchDetector detector;
     readonly Queue<double> recentLevels = new();
+    readonly Queue<double> recentPitches = new();
     int? candidate;
     int candidateFrames;
     bool onsetPending;
@@ -37,6 +48,17 @@ sealed class NoteTracker
 
     /// <summary>Frames quieter than this (dBFS) are treated as silence. Settable live from the calibration UI.</summary>
     public double ThresholdDb { get; set; } = -45;
+
+    /// <summary>
+    /// Bowed and wind instruments (<see cref="Instrument.Sustained"/>): notes change without a new attack (legato), and
+    /// the pitch wobbles (vibrato). A new note then needs only to hold steady, the pitch is smoothed, and it must
+    /// move clearly away from the sounding note before it counts as a different one.
+    /// </summary>
+    public bool Sustained { get; set; }
+
+    /// <summary>The instrument's sounding range: pitches well outside it (octave slips, noise) are ignored.</summary>
+    public int Lowest { get; set; }
+    public int Highest { get; set; } = 127;
 
     /// <summary>The note currently sounding, if any.</summary>
     public int? ActiveNote { get; private set; }
@@ -74,7 +96,17 @@ sealed class NoteTracker
         if (LastFrequency is not { } frequency || frequency < detector.MinFrequency)
             return levelDb;
 
-        int note = Math.Clamp(PitchDetector.ToMidi(frequency), 0, 127);
+        int note;
+        if (Sustained)
+        {
+            if (SustainedNote(frequency) is not { } steady)
+                return levelDb;
+            note = steady;
+        }
+        else
+            note = Math.Clamp(PitchDetector.ToMidi(frequency), 0, 127);
+        if (note < Lowest - 2 || note > Highest + 2)
+            return levelDb; // not something this instrument plays: an octave slip or noise
         if (note == candidate)
             candidateFrames++;
         else
@@ -83,7 +115,8 @@ sealed class NoteTracker
             candidateFrames = 1;
         }
 
-        int needed = onsetPending || ActiveNote == null ? StableFrames : StableFramesWithoutOnset;
+        int needed = Sustained ? SustainedStableFrames
+            : onsetPending || ActiveNote == null ? StableFrames : StableFramesWithoutOnset;
         if (candidateFrames < needed)
             return levelDb;
 
@@ -126,6 +159,24 @@ sealed class NoteTracker
     {
         candidate = null;
         candidateFrames = 0;
+        recentPitches.Clear();
+    }
+
+    /// <summary>
+    /// The note a frame counts as on a sustained instrument: the median of the last few pitches (fractional
+    /// semitones), kept on the sounding note while it stays within <see cref="SustainedHysteresis"/> of it.
+    /// </summary>
+    int? SustainedNote(double frequency)
+    {
+        double semitones = 69 + 12 * Math.Log2(frequency / 440);
+        recentPitches.Enqueue(semitones);
+        if (recentPitches.Count > MedianFrames)
+            recentPitches.Dequeue();
+        var sorted = recentPitches.Order().ToList();
+        double median = sorted[sorted.Count / 2];
+        if (ActiveNote is { } active && Math.Abs(median - active) < SustainedHysteresis)
+            return active;
+        return Math.Clamp((int)Math.Round(median), 0, 127);
     }
 
     public static double LevelDb(ReadOnlySpan<float> frame)

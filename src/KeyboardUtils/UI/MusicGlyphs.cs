@@ -45,6 +45,83 @@ static class MusicGlyphs
         g.FillPath(brush, path);
     }
 
+    /// <summary>
+    /// A clef at the start of a staff whose top line is at <paramref name="staffTop"/>: G (treble, and the guitar's
+    /// with a small 8 below), F on the fourth line (bass), C on the middle line (alto) or the fourth (tenor).
+    /// </summary>
+    public static void DrawClef(Graphics g, Brush brush, Clef clef, float x, float staffTop, float s)
+    {
+        switch (clef)
+        {
+            case Clef.Treble:
+            case Clef.Treble8:
+                Glyph(g, brush, "\U0001D11E", 7.2f * s, x, staffTop - 1.55f * s, "G");
+                if (clef == Clef.Treble8)
+                {
+                    using var font = new Font("Segoe UI", 1.35f * s, FontStyle.Bold, GraphicsUnit.Pixel);
+                    var size = g.MeasureString("8", font);
+                    g.DrawString("8", font, brush, x + 1.3f * s - size.Width / 2, staffTop + 5.35f * s);
+                }
+                break;
+            case Clef.Bass:
+                Glyph(g, brush, "\U0001D122", 3.3f * s, x + 0.2f * s, staffTop - 0.05f * s, "F");
+                break;
+            case Clef.Alto:
+                Glyph(g, brush, "\U0001D121", 4.1f * s, x + 0.1f * s, staffTop - 0.05f * s, "C");
+                break;
+            case Clef.Tenor:
+                Glyph(g, brush, "\U0001D121", 4.1f * s, x + 0.1f * s, staffTop - 1.05f * s, "C");
+                break;
+        }
+    }
+
+    /// <summary>Glyph outlines from Segoe UI Symbol at height 1 (null when the font lacks them), by text.</summary>
+    static readonly Dictionary<string, GraphicsPath?> glyphs = [];
+
+    /// <summary>A music symbol from Segoe UI Symbol, <paramref name="height"/> tall with its top left at (x, y); the
+    /// fallback letter when the font lacks it.</summary>
+    public static void Glyph(Graphics g, Brush brush, string text, float height, float x, float y, string fallback)
+    {
+        if (!glyphs.TryGetValue(text, out var unit))
+        {
+            unit = new GraphicsPath();
+            try
+            {
+                using var family = new FontFamily("Segoe UI Symbol");
+                unit.AddString(text, family, (int)FontStyle.Regular, 100, PointF.Empty, StringFormat.GenericTypographic);
+            }
+            catch (ArgumentException)
+            {
+            }
+            var bounds = unit.GetBounds();
+            if (bounds.Height <= 0)
+            {
+                unit.Dispose();
+                unit = null;
+            }
+            else
+            {
+                using var normalize = new Matrix();
+                normalize.Scale(1 / bounds.Height, 1 / bounds.Height);
+                normalize.Translate(-bounds.X, -bounds.Y);
+                unit.Transform(normalize);
+            }
+            glyphs[text] = unit;
+        }
+        if (unit == null)
+        {
+            using var font = new Font("Times New Roman", height * 0.6f, FontStyle.Bold, GraphicsUnit.Pixel);
+            g.DrawString(fallback, font, brush, x, y + height * 0.15f);
+            return;
+        }
+        using var path = (GraphicsPath)unit.Clone();
+        using var matrix = new Matrix();
+        matrix.Translate(x, y);
+        matrix.Scale(height, height);
+        path.Transform(matrix);
+        g.FillPath(brush, path);
+    }
+
     /// <summary>A sharp, flat or natural (<see cref="Sharp"/>...) ending at <paramref name="right"/>, centred on the note's line or space.</summary>
     public static void Accidental(Graphics g, Brush brush, int kind, float right, float y, float s)
     {

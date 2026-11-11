@@ -3,8 +3,8 @@ using NAudio.Wave;
 
 namespace KeyboardUtils;
 
-/// <summary>Notes from an acoustic piano via the microphone (16-bit mono at 44.1 kHz into an <see cref="AudioNoteDetector"/>).</summary>
-sealed class MicrophoneNoteSource : INoteSource, IExpectedNotesListener
+/// <summary>Notes from an acoustic instrument via the microphone (16-bit mono at 44.1 kHz into an <see cref="AudioNoteDetector"/>).</summary>
+sealed class MicrophoneNoteSource : INoteSource, IExpectedNotesListener, IInstrumentAware
 {
     const int SampleRate = 44100;
 
@@ -48,6 +48,18 @@ sealed class MicrophoneNoteSource : INoteSource, IExpectedNotesListener
     }
 
     public string Name { get; }
+
+    Instrument instrument = Instrument.Piano;
+
+    public Instrument Instrument
+    {
+        get => instrument;
+        set
+        {
+            instrument = value;
+            detector.SetInstrument(value);
+        }
+    }
     public bool Polyphonic => CheckChords;
     public double LatencySeconds => AudioNoteDetector.LatencySeconds;
 
@@ -72,7 +84,7 @@ sealed class MicrophoneNoteSource : INoteSource, IExpectedNotesListener
         Enumerable.Range(0, WaveIn.DeviceCount).Select(i => WaveIn.GetCapabilities(i).ProductName).ToList();
 
     /// <summary>-1 is WAVE_MAPPER, i.e. whatever Windows has as the default recording device.</summary>
-    static int FindDevice(string? name)
+    public static int FindDevice(string? name)
     {
         if (name == null)
             return -1;

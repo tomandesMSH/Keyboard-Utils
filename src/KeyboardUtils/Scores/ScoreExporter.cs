@@ -20,13 +20,15 @@ static class ScoreExporter
 
     /// <summary>Picks the format by extension. Throws IOException/UnauthorizedAccessException on write errors.</summary>
     /// <param name="bpm">Tempo for a score without its own (<see cref="Score.Timing"/> null).</param>
-    public static void Save(Score score, string path, int bpm)
+    /// <param name="instrument">MusicXML only: not piano = one staff in its clef, written as the player reads it, with
+    /// a &lt;transpose&gt; so other programs play it at the right pitch. MIDI always holds the sounding notes.</param>
+    public static void Save(Score score, string path, int bpm, Instrument? instrument = null)
     {
         if (Path.GetExtension(path).Equals(".mid", StringComparison.OrdinalIgnoreCase)
             || Path.GetExtension(path).Equals(".midi", StringComparison.OrdinalIgnoreCase))
             SaveMidi(score, path, bpm);
         else
-            SaveMusicXml(score, path, bpm);
+            SaveMusicXml(score, path, bpm, instrument);
     }
 
     static ScoreTiming TimingOf(Score score, int bpm) => score.Timing ?? ScoreTiming.Constant(bpm);
@@ -82,17 +84,21 @@ static class ScoreExporter
 
     const int Divisions = SheetQuantizer.Divisions;
 
-    public static void SaveMusicXml(Score score, string path, int bpm)
+    public static void SaveMusicXml(Score score, string path, int bpm, Instrument? instrument = null)
     {
+        instrument ??= Instrument.Piano;
+        bool single = !instrument.IsPiano;
         var timing = TimingOf(score, bpm);
         int measureLength = timing.MeasureSixteenths;
-        int fifths = KeySignature.Of(score);
+        int fifths = single ? instrument.WrittenFifths(KeySignature.Of(score)) : KeySignature.Of(score);
         bool minor = KeySignature.IsMinor(score);
         var spelling = KeySignature.Spelling(fifths, minor);
         double ToUnits(double seconds) => timing.ToQuarters(seconds) * Divisions;
 
         var notes = score.Parts.SelectMany((p, index) => p.Notes.Select(n => (n, index)));
-        var (treble, bass, measures, _) = SheetQuantizer.Quantize(notes, ToUnits, measureLength, i => score.Parts[i].Staff);
+        var (treble, bass, measures, _) = single
+            ? SheetQuantizer.Quantize(notes, ToUnits, measureLength, _ => PartStaff.Treble, instrument.Transpose)
+            : SheetQuantizer.Quantize(notes, ToUnits, measureLength, i => score.Parts[i].Staff);
 
         // Tempo changes, on the grid, by bar: the first one is written with the opening attributes.
         var tempoChanges = timing.Tempo
@@ -107,7 +113,22 @@ static class ScoreExporter
         for (int m = 0; m < measures; m++)
         {
             var measure = new XElement("measure", new XAttribute("number", m + 1));
-            if (m == 0)
+            if (m == 0 && single)
+            {
+                var attributes = new XElement("attributes",
+                    new XElement("divisions", Divisions),
+                    new XElement("key", new XElement("fifths", fifths), new XElement("mode", minor ? "minor" : "major")),
+                    new XElement("time", new XElement("beats", timing.Beats), new XElement("beat-type", timing.BeatType)),
+                    ClefElement(instrument.Clef));
+                if (instrument.Transpose != 0)
+                {
+                    // Sounding = written + chromatic + 12 × octave-change.
+                    int chromatic = -(instrument.Transpose % 12), octaves = -(instrument.Transpose / 12);
+                    attributes.Add(new XElement("transpose", new XElement("chromatic", chromatic), new XElement("octave-change", octaves)));
+                }
+                measure.Add(attributes);
+            }
+            else if (m == 0)
                 measure.Add(new XElement("attributes",
                     new XElement("divisions", Divisions),
                     new XElement("key", new XElement("fifths", fifths), new XElement("mode", minor ? "minor" : "major")),
@@ -133,8 +154,11 @@ static class ScoreExporter
             }
 
             WriteMeasure(measure, treble, m, measureLength, trebleAccidentals, spelling, staff: 1, voice: 1);
-            measure.Add(new XElement("backup", new XElement("duration", measureLength)));
-            WriteMeasure(measure, bass, m, measureLength, bassAccidentals, spelling, staff: 2, voice: 5);
+            if (!single)
+            {
+                measure.Add(new XElement("backup", new XElement("duration", measureLength)));
+                WriteMeasure(measure, bass, m, measureLength, bassAccidentals, spelling, staff: 2, voice: 5);
+            }
             part.Add(measure);
         }
 
@@ -143,9 +167,25 @@ static class ScoreExporter
             new XDocumentType("score-partwise", "-//Recordare//DTD MusicXML 4.0 Partwise//EN", "http://www.musicxml.org/dtds/partwise.dtd", null),
             new XElement("score-partwise", new XAttribute("version", "4.0"),
                 new XElement("work", new XElement("work-title", score.Title)),
-                new XElement("part-list", new XElement("score-part", new XAttribute("id", "P1"), new XElement("part-name", "Piano"))),
+                new XElement("part-list", new XElement("score-part", new XAttribute("id", "P1"), new XElement("part-name", single ? instrument.Name : "Piano"))),
                 part));
         document.Save(path);
+    }
+
+    static XElement ClefElement(Clef clef)
+    {
+        var element = new XElement("clef");
+        var (sign, line) = clef switch
+        {
+            Clef.Bass => ("F", 4),
+            Clef.Alto => ("C", 3),
+            Clef.Tenor => ("C", 4),
+            _ => ("G", 2),
+        };
+        element.Add(new XElement("sign", sign), new XElement("line", line));
+        if (clef == Clef.Treble8)
+            element.Add(new XElement("clef-octave-change", -1));
+        return element;
     }
 
     static void WriteMeasure(XElement measure, List<Segment> staffSegments, int measureIndex, int measureLength,

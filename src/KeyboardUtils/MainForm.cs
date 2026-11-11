@@ -227,6 +227,7 @@ sealed partial class MainForm : AntdUI.Window
             WireInterceptor();
 
         enabledBox.Checked = config.MacroEnabled;
+        LoadInstrument();
         playbackEngine.SetOutputDevice(config.MidiOutputDevice);
         playbackEngine.Finished += () => Post(() => SetStatus(T("Konec skladby.", "End of song.")));
         stemPlaybackEngine.Finished += () => Post(() => SetStatus(T("Konec skladby.", "End of song.")));
@@ -407,6 +408,7 @@ sealed partial class MainForm : AntdUI.Window
             MenuItem(T("Hledat noty zdarma...", "Find free sheet music..."), FindFreeScores),
             MenuItem(T("Stupnice a rozcvičky...", "Scales and warm-ups..."), OpenExercise),
             MenuItem(T("Trénink čtení not...", "Note-reading trainer..."), OpenNoteTrainer),
+            MenuItem(T("Ladička...", "Tuner..."), OpenTuner),
             MenuItem(T("Importovat stopy...", "Import stems..."), ImportStems),
             MenuItem(T("Uložit skladbu jako...", "Save song as..."), SaveCurrentSong),
             new AntdUI.ContextMenuStripItemDivider(),
@@ -679,6 +681,7 @@ sealed partial class MainForm : AntdUI.Window
                 Checked = config.BigNotices,
                 Tag = (Action)(() => { config.BigNotices = !config.BigNotices; config.Save(); }),
             },
+            new AntdUI.ContextMenuStripItem(T("Můj nástroj", "My instrument")) { Sub = BuildInstrumentItems() },
             new AntdUI.ContextMenuStripItem(T("MIDI výstup", "MIDI output")) { Sub = deviceItems.ToArray() },
             new AntdUI.ContextMenuStripItem(T("Vstup not", "Note input")) { Sub = BuildNoteInputItems() },
             new AntdUI.ContextMenuStripItem(T("Mikrofon a citlivost...", "Microphone and sensitivity...")) { Tag = (Action)ShowMicrophoneSetup },
@@ -703,7 +706,7 @@ sealed partial class MainForm : AntdUI.Window
         };
         var items = new List<AntdUI.IContextMenuStripItem>
         {
-            Item(T("Mikrofon (akustické piano)", "Microphone (acoustic piano)"), NoteInputKind.Microphone),
+            Item(T("Mikrofon (akustický nástroj)", "Microphone (acoustic instrument)"), NoteInputKind.Microphone),
             Item(T("Zvuk z počítače (YouTube, Spotify...)", "Computer sound (YouTube, Spotify...)"), NoteInputKind.SystemAudio),
             Item(T("Klikání na klaviaturu v appce", "Clicking the on-screen keyboard"), NoteInputKind.ScreenKeyboard),
         };

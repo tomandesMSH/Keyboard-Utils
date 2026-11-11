@@ -42,8 +42,10 @@ static class SheetQuantizer
     /// <param name="toUnits">Seconds to 16th notes since the start (the score's tempo).</param>
     /// <param name="measureLength">A bar in 16ths (16 = 4/4).</param>
     /// <param name="staffOf">A part's <see cref="ScorePart.Staff"/> by its index; null = every part split by pitch.</param>
+    /// <param name="transpose">Added to each pitch: the written pitch of a transposing instrument
+    /// (<see cref="Instrument.Transpose"/>). <see cref="SheetNote.Source"/> keeps the sounding note.</param>
     public static GrandStaff Quantize(IEnumerable<(ScoreNote Note, int Part)> notes, Func<double, double> toUnits, int measureLength,
-        Func<int, PartStaff>? staffOf = null)
+        Func<int, PartStaff>? staffOf = null, int transpose = 0)
     {
         bool OnTreble(SheetNote note) => (staffOf?.Invoke(note.PartIndex) ?? PartStaff.Auto) switch
         {
@@ -56,7 +58,7 @@ static class SheetQuantizer
             {
                 int start = (int)Math.Round(toUnits(n.Note.StartSeconds));
                 int end = Math.Max(start + 1, (int)Math.Round(toUnits(n.Note.StartSeconds + n.Note.DurationSeconds)));
-                return (Note: new SheetNote(n.Note.Pitch, n.Note, n.Part), Start: Math.Max(0, start), End: Math.Max(1, end));
+                return (Note: new SheetNote(Math.Clamp(n.Note.Pitch + transpose, 0, 127), n.Note, n.Part), Start: Math.Max(0, start), End: Math.Max(1, end));
             })
             .ToList();
 

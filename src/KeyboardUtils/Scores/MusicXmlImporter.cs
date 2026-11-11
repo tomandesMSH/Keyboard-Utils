@@ -74,6 +74,7 @@ static class MusicXmlImporter
         double currentQuarters = 0;
         double lastNoteStartSeconds = 0;
         var tiedNotes = new Dictionary<int, int>(); // pitch -> index in part.Notes of a note whose tie hasn't stopped yet
+        int transpose = 0; // semitones from written to sounding (<transpose>)
 
         double SecondsPerDivision() => microsecondsPerQuarter / 1_000_000.0 / divisions;
         void Advance(double durationDivisions)
@@ -97,9 +98,16 @@ static class MusicXmlImporter
                     case "attributes":
                         if (element.Element("divisions") is { } div)
                             divisions = (int)ParseDouble(div.Value);
+                        // A transposing instrument (B♭ clarinet: chromatic -2) is written as it's read; the score
+                        // holds what sounds.
+                        if (element.Element("transpose") is { } transposeElement)
+                            transpose = (int)Math.Round(ParseDouble((string?)transposeElement.Element("chromatic") ?? "0"))
+                                + 12 * (int)Math.Round(ParseDouble((string?)transposeElement.Element("octave-change") ?? "0"));
                         if (timing is { KeyFifths: null } && int.TryParse((string?)element.Element("key")?.Element("fifths"), out int fifths))
                         {
-                            timing.KeyFifths = Math.Clamp(fifths, -7, 7);
+                            timing.KeyFifths = transpose % 12 == 0
+                                ? Math.Clamp(fifths, -7, 7)
+                                : KeySignature.Transposed(fifths, transpose);
                             timing.KeyMinor = (string?)element.Element("key")?.Element("mode") == "minor";
                         }
                         if (timing is { HasTimeSignature: false } && element.Element("time") is { } time
@@ -139,7 +147,7 @@ static class MusicXmlImporter
 
                         if (!isRest && element.Element("pitch") is { } pitch)
                         {
-                            int midi = ToMidiNumber(pitch);
+                            int midi = Math.Clamp(ToMidiNumber(pitch) + transpose, 0, 127);
                             var ties = element.Elements("tie").Select(t => t.Attribute("type")?.Value).ToList();
                             // A tie continues the same sounding note (across a bar line, or a length with no single
                             // symbol): extend it instead of striking the key again.

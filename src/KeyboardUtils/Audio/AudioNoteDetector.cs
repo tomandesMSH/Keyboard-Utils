@@ -56,6 +56,17 @@ sealed class AudioNoteDetector
         set => tracker.ThresholdDb = value;
     }
 
+    /// <summary>Listens for this instrument: legato and vibrato for bowed and wind ones, and only within its range.</summary>
+    public void SetInstrument(Instrument instrument)
+    {
+        lock (gate)
+        {
+            tracker.Sustained = instrument.Sustained;
+            tracker.Lowest = instrument.IsPiano ? 0 : instrument.Low;
+            tracker.Highest = instrument.IsPiano ? 127 : instrument.High;
+        }
+    }
+
     /// <summary>
     /// The notes the player should be playing now (learning mode); empty turns chord checking off. Callable from
     /// any thread - the capture thread picks up the new set at its next frame.

@@ -26,8 +26,47 @@ sealed class SheetMusicControl : Control, IThemed
     static readonly int[] SharpSteps = [8, 5, 9, 6, 3, 7, 4];
     static readonly int[] FlatSteps = [4, 7, 3, 6, 2, 5, 1];
 
-    /// <summary>The note on the bottom line of each staff, as a diatonic step: E4 (treble) and G2 (bass).</summary>
-    static readonly int[] BottomLine = [4 * 7 + 2, 2 * 7 + 4];
+    /// <summary>
+    /// The note on the bottom line of each staff, as a diatonic step: E4 (treble) and G2 (bass) for piano; a single
+    /// staff in the instrument's clef uses only the first.
+    /// </summary>
+    readonly int[] bottomLine = [4 * 7 + 2, 2 * 7 + 4];
+
+    Instrument instrument = Instrument.Piano;
+
+    /// <summary>
+    /// Piano: the grand staff. Any other instrument: one staff in its clef, with the notes and the key signature as
+    /// the player reads them (a B♭ clarinet a tone higher than it sounds).
+    /// </summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public Instrument Instrument
+    {
+        get => instrument;
+        set
+        {
+            if (value == instrument)
+                return;
+            instrument = value;
+            Rebuild();
+        }
+    }
+
+    /// <summary>One staff (an instrument other than piano) instead of the grand staff.</summary>
+    bool SingleStaff => !instrument.IsPiano;
+
+    /// <summary>Staff steps of the key signature's sharps or flats on a staff in <paramref name="clef"/>.</summary>
+    static int[] KeySteps(Clef clef, bool sharps)
+    {
+        var treble = sharps ? SharpSteps : FlatSteps;
+        return clef switch
+        {
+            Clef.Bass => treble.Select(s => s - 2).ToArray(),
+            Clef.Alto => treble.Select(s => s - 1).ToArray(),
+            // Tenor clef has its own pattern for sharps (low F♯) so none go above the staff.
+            Clef.Tenor => sharps ? [2, 6, 3, 7, 4, 8, 5] : FlatSteps.Select(s => s + 1).ToArray(),
+            _ => treble,
+        };
+    }
 
     sealed class StaffEvent(int staff, int measure, int offset, NoteValue value, IReadOnlyList<SheetNote> notes)
     {
@@ -225,7 +264,9 @@ sealed class SheetMusicControl : Control, IThemed
     {
         staffEvents[0].Clear();
         staffEvents[1].Clear();
-        SetKey(score == null ? 0 : KeySignature.Of(score), score != null && KeySignature.IsMinor(score));
+        bottomLine[0] = SingleStaff ? Instrument.BottomLine(instrument.Clef) : 4 * 7 + 2;
+        int concertKey = score == null ? 0 : KeySignature.Of(score);
+        SetKey(SingleStaff ? instrument.WrittenFifths(concertKey) : concertKey, score != null && KeySignature.IsMinor(score));
         if (score == null)
         {
             measureCount = 0;
@@ -239,12 +280,16 @@ sealed class SheetMusicControl : Control, IThemed
         var notes = score.Parts.SelectMany((part, index) => part.Muted && !(Learning?.PracticedParts.Contains(index) ?? false)
             ? []
             : part.Notes.Select(n => (n, index)));
-        var grandStaff = SheetQuantizer.Quantize(notes, s => timing.ToQuarters(s) * SheetQuantizer.Divisions, measureLength,
-            i => score.Parts[i].Staff);
+        var grandStaff = SingleStaff
+            ? SheetQuantizer.Quantize(notes, s => timing.ToQuarters(s) * SheetQuantizer.Divisions, measureLength,
+                _ => PartStaff.Treble, instrument.Transpose)
+            : SheetQuantizer.Quantize(notes, s => timing.ToQuarters(s) * SheetQuantizer.Divisions, measureLength,
+                i => score.Parts[i].Staff);
         measureCount = grandStaff.Measures;
 
         BuildEvents(0, grandStaff.Treble);
-        BuildEvents(1, grandStaff.Bass);
+        if (!SingleStaff)
+            BuildEvents(1, grandStaff.Bass); // one staff: no second staff of whole-bar rests
         eventsByMeasure = Enumerable.Range(0, measureCount).Select(_ => new List<StaffEvent>()).ToArray();
         foreach (var e in staffEvents.SelectMany(list => list))
             eventsByMeasure[e.Measure].Add(e);
@@ -266,7 +311,7 @@ sealed class SheetMusicControl : Control, IThemed
     int Diatonic(int pitch) => KeySignature.Diatonic(pitch, spelling[pitch % 12]);
 
     /// <summary>Staff position: 0 = bottom line, 1 = the space above it, ..., 8 = top line.</summary>
-    int StepOf(int pitch, int staff) => Diatonic(pitch) - BottomLine[staff];
+    int StepOf(int pitch, int staff) => Diatonic(pitch) - bottomLine[staff];
 
     void BuildEvents(int staff, List<Segment> segments)
     {
@@ -469,6 +514,16 @@ sealed class SheetMusicControl : Control, IThemed
         }
 
         float above = Math.Max(4 * s, (Extreme(0, true) - 8) * s / 2 + 4 * s);
+        if (SingleStaff)
+        {
+            float under = Math.Max(4 * s, Math.Max(0, -Extreme(0, false)) * s / 2 + 4 * s);
+            line.Top = y;
+            line.TrebleTop = y + above;
+            line.BassTop = line.TrebleTop; // no second staff
+            line.Bottom = line.TrebleTop + 4 * s + under;
+            y = line.Bottom;
+            return;
+        }
         float trebleBelow = Math.Max(0, -Extreme(0, false)) * s / 2;
         float bassAbove = Math.Max(0, Extreme(1, true) - 8) * s / 2;
         float gap = Math.Max(7 * s, trebleBelow + bassAbove + 5 * s);
@@ -693,7 +748,8 @@ sealed class SheetMusicControl : Control, IThemed
         DrawPlayhead(g, line);
 
         // Staff lines, the bracket line joining the staves, bar lines.
-        foreach (float top in staffTop)
+        int staves = SingleStaff ? 1 : 2;
+        foreach (float top in staffTop.Take(staves))
             for (int i = 0; i < 5; i++)
                 g.DrawLine(staffPen, line.Left, top + i * s, line.Right, top + i * s);
         float systemBottom = line.BassTop + 4 * s;
@@ -714,22 +770,23 @@ sealed class SheetMusicControl : Control, IThemed
 
         // Clefs, the time signature on the first line, the bar number at the start of the others.
         float clefX = line.Left + 0.8f * s;
-        DrawGlyph(g, ink, "\U0001D11E", 7.2f * s, clefX, line.TrebleTop - 1.55f * s, fallback: "G");
-        DrawGlyph(g, ink, "\U0001D122", 3.3f * s, clefX + 0.2f * s, line.BassTop - 0.05f * s, fallback: "F");
+        Clef[] clefs = SingleStaff ? [instrument.Clef] : [Clef.Treble, Clef.Bass];
+        for (int staff = 0; staff < staves; staff++)
+            MusicGlyphs.DrawClef(g, ink, clefs[staff], clefX, staffTop[staff], s);
         float keyX = clefX + 3.6f * s;
-        for (int i = 0; i < Math.Abs(keyFifths); i++)
+        for (int staff = 0; staff < staves; staff++)
         {
-            int step = keyFifths > 0 ? SharpSteps[i] : FlatSteps[i];
-            for (int staff = 0; staff < 2; staff++)
+            var steps = KeySteps(clefs[staff], keyFifths > 0);
+            for (int i = 0; i < Math.Abs(keyFifths); i++)
             {
-                float y = staffTop[staff] + 4 * s - (step - 2 * staff) * s / 2;
+                float y = staffTop[staff] + 4 * s - steps[i] * s / 2;
                 DrawAccidental(g, ink, keyFifths > 0 ? Sharp : Flat, keyX + (i + 1) * 1.0f * s, y);
             }
         }
         if (line.ShowTimeSignature)
         {
             float timeX = keyX + KeyWidth * s;
-            foreach (float top in staffTop)
+            foreach (float top in staffTop.Take(staves))
             {
                 DrawNumber(g, ink, timing.Beats, timeX, top, 2 * s);
                 DrawNumber(g, ink, timing.BeatType, timeX, top + 2 * s, 2 * s);

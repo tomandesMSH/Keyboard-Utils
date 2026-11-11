@@ -35,7 +35,8 @@ sealed class PlaybackEngine : IDisposable
     {
         (outputDevice as IDisposable)?.Dispose();
         outputDevice = null;
-        if (deviceName == PianoSoundModule.DeviceName && PianoSoundModule.IsInstalled)
+        // The sound pack is a piano only: another instrument plays on the default synth, which has them all.
+        if (deviceName == PianoSoundModule.DeviceName && PianoSoundModule.IsInstalled && program == 0)
         {
             try
             {
@@ -50,6 +51,33 @@ sealed class PlaybackEngine : IDisposable
         var all = OutputDevice.GetAll().ToList();
         var chosen = deviceName != null ? all.FirstOrDefault(d => d.Name == deviceName) : all.FirstOrDefault();
         outputDevice = chosen ?? all.FirstOrDefault();
+        SendProgram();
+    }
+
+    int program;
+
+    /// <summary>
+    /// The General MIDI instrument every part plays with (0 = piano; <see cref="Instrument.GmProgram"/>). Set it before
+    /// <see cref="SetOutputDevice"/>, which picks the piano sound pack only for program 0.
+    /// </summary>
+    public int Program
+    {
+        get => program;
+        set
+        {
+            program = Math.Clamp(value, 0, 127);
+            SendProgram();
+        }
+    }
+
+    /// <summary>The instrument on every channel but the metronome's - synths keep it until told otherwise.</summary>
+    void SendProgram()
+    {
+        if (outputDevice is not { } device)
+            return;
+        for (int channel = 0; channel < 16; channel++)
+            if (channel != ClickChannel)
+                device.SendEvent(new ProgramChangeEvent((SevenBitNumber)program) { Channel = (FourBitNumber)channel });
     }
 
     public static IReadOnlyList<string> GetOutputDeviceNames() => OutputDevice.GetAll().Select(d => d.Name).ToList();
@@ -119,7 +147,8 @@ sealed class PlaybackEngine : IDisposable
         // When jumping (seek), end notes left hanging and start the ones already sounding at the new spot.
         playback.TrackNotes = true;
 
-        // The synth keeps channel volumes from whatever played before - set every part's own.
+        // The synth keeps channel volumes and instruments from whatever played before - set every part's own.
+        SendProgram();
         for (int partIndex = 0; partIndex < score.Parts.Count; partIndex++)
             SetPartVolume(partIndex, score.Parts[partIndex].Volume);
         playback.Finished += (_, _) => Finished?.Invoke();

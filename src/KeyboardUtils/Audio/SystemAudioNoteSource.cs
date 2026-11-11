@@ -9,7 +9,7 @@ namespace KeyboardUtils;
 /// output device, mixed down to mono and fed to an <see cref="AudioNoteDetector"/>. Like the microphone it picks out
 /// one note at a time (chords only when told which notes to expect), so it suits a solo melody, not a full mix.
 /// </summary>
-sealed class SystemAudioNoteSource : INoteSource, IExpectedNotesListener
+sealed class SystemAudioNoteSource : INoteSource, IExpectedNotesListener, IInstrumentAware
 {
     /// <summary>KSDATAFORMAT_SUBTYPE_IEEE_FLOAT - how a WAVE_FORMAT_EXTENSIBLE mix format says "32-bit float".</summary>
     static readonly Guid IeeeFloatSubFormat = new("00000003-0000-0010-8000-00aa00389b71");
@@ -24,6 +24,18 @@ sealed class SystemAudioNoteSource : INoteSource, IExpectedNotesListener
     public string Name => T("Zvuk z počítače", "Computer sound");
     public bool Polyphonic => CheckChords;
     public double LatencySeconds => AudioNoteDetector.LatencySeconds;
+
+    Instrument instrument = Instrument.Piano;
+
+    public Instrument Instrument
+    {
+        get => instrument;
+        set
+        {
+            instrument = value;
+            detector?.SetInstrument(value);
+        }
+    }
 
     public bool CheckChords { get; set; }
 
@@ -58,6 +70,7 @@ sealed class SystemAudioNoteSource : INoteSource, IExpectedNotesListener
         detector.NoteOn += note => NoteOn?.Invoke(note);
         detector.NoteOff += note => NoteOff?.Invoke(note);
         detector.SetExpectedNotes(expected);
+        detector.SetInstrument(instrument);
         capture.DataAvailable += (buffer, _, _, _) => OnData(buffer, format, isFloat);
         try
         {

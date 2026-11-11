@@ -16,23 +16,36 @@ enum NoteQuizLevel
 
     /// <summary>Two notes on the treble staff: name the interval (second ... octave).</summary>
     Intervals,
+
+    /// <summary>Alto clef (viola), C3-A4, no accidentals.</summary>
+    Alto,
+
+    /// <summary>Tenor clef (cello, bassoon, trombone up high), C3-A4, no accidentals.</summary>
+    Tenor,
+
+    /// <summary>The player's instrument (not piano): its clef, the lowest octave and a half as written, no accidentals.</summary>
+    Instrument,
+
+    /// <summary>The player's instrument: its whole range (up to three ledger lines), sharps and flats.</summary>
+    InstrumentAdvanced,
 }
 
 /// <summary>
-/// A note to read: its pitch, how it's written (letter 0 = C ... 6 = B, alter -1/0/1) and on which clef. For an
-/// interval question, <see cref="Upper"/> is the second note above it.
+/// A note to read: its written pitch, how it's written (letter 0 = C ... 6 = B, alter -1/0/1) and on which clef. For
+/// an interval question, <see cref="Upper"/> is the second note above it.
 /// </summary>
-sealed record QuizNote(int Pitch, int Letter, int Alter, bool Treble, QuizNote? Upper = null)
+sealed record QuizNote(int Pitch, int Letter, int Alter, Clef Clef, QuizNote? Upper = null)
 {
+    /// <summary>On a treble staff (the guitar's too).</summary>
+    public bool Treble => Clef is Clef.Treble or Clef.Treble8;
+
     /// <summary>Line/space from the bottom line of its staff: 0 = bottom line, 8 = top line, negative = below.</summary>
-    public int Step => Diatonic - (Treble ? TrebleBottom : BassBottom);
+    public int Step => Diatonic - KeyboardUtils.Instrument.BottomLine(Clef);
 
     /// <summary>octave * 7 + letter (C4 = 28).</summary>
     public int Diatonic => ((Pitch - Alter - NaturalPitch[Letter]) / 12 - 1) * 7 + Letter;
 
     static readonly int[] NaturalPitch = [0, 2, 4, 5, 7, 9, 11];
-    const int TrebleBottom = 4 * 7 + 2; // E4
-    const int BassBottom = 2 * 7 + 4;   // G2
 
     /// <summary>The interval to <see cref="Upper"/> as a number: 2 = second ... 8 = octave; 0 without one.</summary>
     public int Interval => Upper == null ? 0 : Upper.Diatonic - Diatonic + 1;
@@ -41,7 +54,16 @@ sealed record QuizNote(int Pitch, int Letter, int Alter, bool Treble, QuizNote? 
     public string Name => Upper == null ? NoteQuiz.Name(Letter, Alter) : NoteQuiz.IntervalName(Interval);
 
     /// <summary>Identifies the written note (clef, key, spelling) for the per-note mistake statistics.</summary>
-    public string Key => $"{(Treble ? "T" : "B")}{Pitch}{(Alter > 0 ? "#" : Alter < 0 ? "b" : "")}";
+    public string Key => $"{ClefKey}{Pitch}{(Alter > 0 ? "#" : Alter < 0 ? "b" : "")}";
+
+    string ClefKey => Clef switch
+    {
+        Clef.Treble => "T",
+        Clef.Bass => "B",
+        Clef.Alto => "A",
+        Clef.Tenor => "N",
+        _ => "G",
+    };
 }
 
 /// <summary>
@@ -62,6 +84,10 @@ sealed class NoteQuiz
     readonly List<QuizNote> missed = [];
 
     public NoteQuizLevel Level { get; }
+
+    /// <summary>What the player plays: notes are shown as it reads them, a played note is compared as it sounds.</summary>
+    public Instrument Instrument { get; }
+
     public QuizNote? Current { get; private set; }
     public int Done { get; private set; }
     public int Correct { get; private set; }
@@ -81,19 +107,29 @@ sealed class NoteQuiz
     /// </summary>
     public Dictionary<string, int> Weakness { get; }
 
-    public NoteQuiz(NoteQuizLevel level, Random? random = null, Dictionary<string, int>? weakness = null)
+    public NoteQuiz(NoteQuizLevel level, Random? random = null, Dictionary<string, int>? weakness = null, Instrument? instrument = null)
     {
         Level = level;
+        Instrument = instrument ?? Instrument.Piano;
         this.random = random ?? new Random();
         Weakness = weakness ?? [];
-        candidates = Candidates(level);
+        candidates = Candidates(level, Instrument);
     }
 
-    /// <summary>Every note the level can ask for (for intervals: the lower notes).</summary>
-    public static List<QuizNote> Candidates(NoteQuizLevel level)
+    /// <summary>The levels for an instrument: its own two first (not for piano), then the clef levels.</summary>
+    public static NoteQuizLevel[] LevelsFor(Instrument instrument) => instrument.IsPiano
+        ? [NoteQuizLevel.Treble, NoteQuizLevel.Bass, NoteQuizLevel.Both, NoteQuizLevel.Advanced, NoteQuizLevel.Intervals, NoteQuizLevel.Alto, NoteQuizLevel.Tenor]
+        : [NoteQuizLevel.Instrument, NoteQuizLevel.InstrumentAdvanced, NoteQuizLevel.Treble, NoteQuizLevel.Bass, NoteQuizLevel.Alto, NoteQuizLevel.Tenor, NoteQuizLevel.Intervals];
+
+    /// <summary>Lowest and highest staff step an instrument level asks for: three ledger lines either side (and the note just below them, a clarinet's low E).</summary>
+    const int LowestStep = -7, HighestStep = 14;
+
+    /// <summary>Every note the level can ask for (for intervals: the lower notes). Pitches are as written.</summary>
+    public static List<QuizNote> Candidates(NoteQuizLevel level, Instrument? instrument = null)
     {
+        instrument ??= Instrument.Piano;
         var notes = new List<QuizNote>();
-        void Range(int from, int to, bool treble, bool accidentals)
+        void Range(int from, int to, Clef treble, bool accidentals)
         {
             for (int pitch = from; pitch <= to; pitch++)
             {
@@ -111,21 +147,35 @@ sealed class NoteQuiz
         switch (level)
         {
             case NoteQuizLevel.Treble:
-                Range(60, 79, true, false);
+                Range(60, 79, Clef.Treble, false);
                 break;
             case NoteQuizLevel.Bass:
-                Range(41, 60, false, false);
+                Range(41, 60, Clef.Bass, false);
                 break;
             case NoteQuizLevel.Both:
-                Range(60, 79, true, false);
-                Range(41, 60, false, false);
+                Range(60, 79, Clef.Treble, false);
+                Range(41, 60, Clef.Bass, false);
                 break;
             case NoteQuizLevel.Intervals:
-                Range(60, 72, true, false); // up to an octave above: C6 at most
+                Range(60, 72, Clef.Treble, false); // up to an octave above: C6 at most
+                break;
+            case NoteQuizLevel.Alto:
+                Range(48, 69, Clef.Alto, false);
+                break;
+            case NoteQuizLevel.Tenor:
+                Range(48, 69, Clef.Tenor, false);
+                break;
+            case NoteQuizLevel.Instrument:
+            case NoteQuizLevel.InstrumentAdvanced:
+                // As the player reads it: a clarinet's lowest note is written E3 though it sounds D3.
+                int low = instrument.Written(instrument.Low), high = instrument.Written(instrument.High);
+                bool advanced = level == NoteQuizLevel.InstrumentAdvanced;
+                Range(low, advanced ? high : Math.Min(high, low + 19), instrument.Clef, advanced);
+                notes.RemoveAll(n => n.Step is < LowestStep or > HighestStep);
                 break;
             default:
-                Range(57, 84, true, true);
-                Range(36, 64, false, true);
+                Range(57, 84, Clef.Treble, true);
+                Range(36, 64, Clef.Bass, true);
                 break;
         }
         return notes;
@@ -173,16 +223,17 @@ sealed class NoteQuiz
         int steps = random.Next(1, 8);                      // 1 = second ... 7 = octave
         int diatonic = lower.Diatonic + steps;
         int letter = diatonic % 7, octave = diatonic / 7; // Diatonic counts C4 as octave 4 (MIDI octave + 1)
-        var upper = new QuizNote((octave + 1) * 12 + WhitePitch[letter], letter, 0, true);
+        var upper = new QuizNote((octave + 1) * 12 + WhitePitch[letter], letter, 0, Clef.Treble);
         return lower with { Upper = upper };
     }
 
     /// <summary>
-    /// A key played on the instrument: right when it's the very key written (any spelling of it). Intervals aren't
-    /// answered by playing - a key then doesn't count at all.
+    /// A note played on the instrument (as it sounds): right when it's the very note written (any spelling of it) -
+    /// for a transposing instrument, what that written note sounds like. Intervals aren't answered by playing - a
+    /// note then doesn't count at all.
     /// </summary>
     public bool AnswerPitch(int pitch, double seconds) =>
-        Current is { Upper: null } note && Record(note.Pitch == pitch, seconds);
+        Current is { Upper: null } note && Record(Instrument.Sounding(note.Pitch) == pitch, seconds);
 
     /// <summary>A name picked (letter 0 = C ... 6 = B/H): right when it's the written letter.</summary>
     public bool AnswerLetter(int letter, double seconds) => Record(Current is { Upper: null } note && note.Letter == letter, seconds);

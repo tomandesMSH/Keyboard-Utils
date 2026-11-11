@@ -457,7 +457,7 @@ sealed partial class MainForm
         }
         try
         {
-            ScoreExporter.Save(score, dialog.FileName, bpm);
+            ScoreExporter.Save(score, dialog.FileName, bpm, instrument);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
