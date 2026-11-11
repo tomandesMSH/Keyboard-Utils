@@ -122,12 +122,17 @@ sealed partial class MainForm
         trackLoadTimer.Start();
     }
 
-    /// <summary>The Library menu's item that plays through the folder: with its name once one is chosen.</summary>
-    string MySongsFolderLabel => config.SongsFolder is { } folder && Directory.Exists(folder)
-        ? T($"Moje složka se skladbami ({Path.GetFileName(folder.TrimEnd('\\', '/'))})", $"My songs folder ({Path.GetFileName(folder.TrimEnd('\\', '/'))})")
-        : T("Moje složka se skladbami", "My songs folder");
+    /// <summary>Knihovna > Moje složka se skladbami: which folder it is, play it, change it, open it.</summary>
+    void ShowSongsFolder()
+    {
+        using var form = new SongsFolderForm(() => config.SongsFolder, AskForSongsFolder, CountSongs);
+        form.ShowDialog(this);
+        if (form.PlayRequested)
+            LoadSongsFolder();
+    }
 
-    void PickSongsFolder()
+    /// <summary>Asks for the songs folder; true when one was picked (and saved).</summary>
+    bool AskForSongsFolder()
     {
         using var dialog = new FolderBrowserDialog
         {
@@ -137,19 +142,32 @@ sealed partial class MainForm
             InitialDirectory = config.SongsFolder ?? "",
         };
         if (dialog.ShowDialog(this) != DialogResult.OK)
-            return;
+            return false;
         config.SongsFolder = dialog.SelectedPath;
         config.Save();
-        LoadSongsFolder();
+        return true;
+    }
+
+    static int CountSongs(string folder)
+    {
+        try
+        {
+            return Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
+                .Count(f => SongExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return 0;
+        }
     }
 
     /// <summary>The songs folder (with its subfolders) as the playlist, the first song loaded.</summary>
     void LoadSongsFolder()
     {
-        // Not chosen yet: choose it now (that loads it too).
+        // Not chosen yet: the folder window, to choose it (and play it from there).
         if (config.SongsFolder is not { } folder || !Directory.Exists(folder))
         {
-            PickSongsFolder();
+            ShowSongsFolder();
             return;
         }
         if (!SetFolderPlaylist())
@@ -164,8 +182,8 @@ sealed partial class MainForm
     {
         if (config.SongsFolder is not { } folder || !Directory.Exists(folder))
         {
-            SetStatus(T("Nejdřív vyber svoji složku se skladbami: Knihovna > Vybrat moji složku se skladbami...",
-                "Choose your songs folder first: Library > Choose my songs folder..."));
+            SetStatus(T("Nejdřív vyber svoji složku se skladbami: Knihovna > Moje složka se skladbami...",
+                "Choose your songs folder first: Library > My songs folder..."));
             return false;
         }
         List<string> files;

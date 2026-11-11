@@ -34,12 +34,13 @@ static class Program
         var config = AppConfig.Load();
         if (config.Language == null)
         {
+            // First start: light or dark as Windows has it; the picker can switch it, and that's what's kept.
+            AppTheme.SetDark(AppTheme.WindowsPrefersDark());
             using var picker = new LanguagePickerForm();
             if (picker.ShowDialog() == DialogResult.OK && picker.Result is { } language)
-            {
                 config.Language = language;
-                config.Save();
-            }
+            config.DarkMode = AppTheme.Dark;
+            config.Save();
         }
         Lang.Current = config.Language ?? AppLanguage.Czech;
         AppTheme.SetDark(config.DarkMode);

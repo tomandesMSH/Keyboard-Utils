@@ -417,9 +417,8 @@ sealed partial class MainForm : AntdUI.Window
 
         libraryMenuButton.Click += (_, _) => ShowMenu(libraryMenuButton,
             [
-                // "My songs folder": play through it, or pick which folder it is - side by side, nowhere else.
-                new AntdUI.ContextMenuStripItem(MySongsFolderLabel) { Tag = (Action)(() => LoadSongsFolder()) },
-                new AntdUI.ContextMenuStripItem(T("Vybrat moji složku se skladbami...", "Choose my songs folder...")) { Tag = (Action)PickSongsFolder },
+                // "My songs folder": one item, a small window to play it, change it or open it.
+                MenuItem(T("Moje složka se skladbami...", "My songs folder..."), ShowSongsFolder),
                 new AntdUI.ContextMenuStripItem(T("Předchozí skladba", "Previous song")) { Enabled = playlist.Count > 1, Tag = (Action)DoPreviousTrack },
                 new AntdUI.ContextMenuStripItem(T("Další skladba", "Next song")) { Enabled = playlist.Count > 1, Tag = (Action)DoNextTrack },
                 MenuItem(T("Hledat noty zdarma...", "Find free sheet music..."), FindFreeScores),

@@ -48,8 +48,8 @@ Makro klávesnice je volitelná a nic dalšího k běhu aplikace nepotřebuje �
   **Zvolit jinou aplikaci > Keyboard Utils > Vždy**. Když už appka běží, soubor se otevře v ní.
 - **Otevřít skladbu...** načte MIDI (`.mid`) nebo MusicXML (`.musicxml`, `.mxl`). Vybrat můžeš víc souborů najednou,
   mezi nimi pak přepínáš v **Knihovna > Předchozí skladba / Další skladba**.
-- **Moje složka se skladbami** (vybereš ji v **Knihovna > Vybrat moji složku se skladbami...**) – všechny MIDI /
-  MusicXML v ní (i v podsložkách) jsou playlist; **Knihovna > Moje složka se skladbami** ho načte a další / předchozí
+- **Moje složka se skladbami** (**Knihovna > Moje složka se skladbami...**: vybereš ji tam) – všechny MIDI /
+  MusicXML v ní (i v podsložkách) jsou playlist; tlačítko **Přehrát skladby** ho načte a další / předchozí
   skladba jím listuje bez dialogu.
   **Soubor > Nedávné skladby** ukáže posledních 10 otevřených.
 - **Knihovna** – otevřenou skladbu přidáš do **oblíbených** nebo jí dáš **štítky** (oddělené čárkou).

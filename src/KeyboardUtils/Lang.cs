@@ -80,10 +80,26 @@ sealed class LanguagePickerForm : AntdUI.Window
             buttons.Controls.Add(button);
         }
 
+        // Light or dark right away - before anything else is seen (it starts as Windows has it).
+        var theme = new AntdUI.Button
+        {
+            Size = new Size(240, 34),
+            Font = new Font("Segoe UI", 10f),
+            Radius = 8,
+            Margin = new Padding(0, 0, 0, 18),
+        };
+        void ShowTheme() => theme.Text = AppTheme.Dark ? "☀  Světlý režim / Light mode" : "🌙  Tmavý režim / Dark mode";
+        theme.Click += (_, _) =>
+        {
+            AppTheme.SetDark(!AppTheme.Dark);
+            ShowTheme();
+        };
+        ShowTheme();
+
         // WrapContents=false: a wrapping TopDown panel that runs out of height moves the buttons into a second
         // column to the right, clipped by the window edge.
         var layout = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = false, FlowDirection = FlowDirection.TopDown, Padding = new Padding(8) };
-        layout.Controls.AddRange([prompt, buttons]);
+        layout.Controls.AddRange([prompt, buttons, theme]);
         var titleBar = new TitleBar(this);
         Controls.Add(layout);
         Controls.Add(titleBar);
@@ -98,6 +114,7 @@ sealed class LanguagePickerForm : AntdUI.Window
             prompt.Margin = new Padding(Math.Max(0, (inner - prompt.Width) / 2), prompt.Margin.Top, 0, prompt.Margin.Bottom);
             var row = buttons.GetPreferredSize(Size.Empty);
             buttons.Margin = new Padding(Math.Max(0, (inner - row.Width) / 2), 0, 0, 0);
+            theme.Margin = new Padding(Math.Max(0, (inner - theme.Width) / 2), 0, 0, theme.Margin.Bottom);
             CenterToScreen();
         };
     }

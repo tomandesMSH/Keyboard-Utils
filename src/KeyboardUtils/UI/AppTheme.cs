@@ -26,6 +26,20 @@ static class AppTheme
         Changed?.Invoke();
     }
 
+    /// <summary>Windows' own setting for apps (Settings > Personalisation > Colours): dark or light.</summary>
+    public static bool WindowsPrefersDark()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            return key?.GetValue("AppsUseLightTheme") is int light && light == 0;
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+        {
+            return false;
+        }
+    }
+
     // --- Palette --------------------------------------------------------------------------------
 
     public static Color Window => Dark ? Color.FromArgb(24, 24, 27) : Color.White;
