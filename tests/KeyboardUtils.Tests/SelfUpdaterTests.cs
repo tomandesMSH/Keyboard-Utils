@@ -169,4 +169,56 @@ public class SelfUpdaterTests
         // A process id that is long gone: no waiting.
         Assert.True(SelfUpdater.WaitForPreviousInstance([SelfUpdater.UpdatedFlag, "999999"]));
     }
+
+    /// <summary>A long-running stand-in process: ping.exe, copied under <paramref name="name"/> to look like it.</summary>
+    static System.Diagnostics.Process StartStandIn(string dir, string name)
+    {
+        string exe = Path.Combine(dir, name + ".exe");
+        File.Copy(Path.Combine(Environment.SystemDirectory, "PING.EXE"), exe);
+        return System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, "-n 30 127.0.0.1")
+        {
+            UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true,
+        })!;
+    }
+
+    [Fact]
+    public void Ends_an_old_version_that_does_not_quit()
+    {
+        string dir = TempDir();
+        using var stuck = StartStandIn(dir, "KeyboardUtilsTest");
+        try
+        {
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            Assert.True(SelfUpdater.WaitForPreviousInstance([SelfUpdater.UpdatedFlag, stuck.Id.ToString()],
+                TimeSpan.FromMilliseconds(300), "KeyboardUtilsTest"));
+            Assert.True(stuck.HasExited);
+            Assert.InRange(watch.ElapsedMilliseconds, 250, 10_000);
+        }
+        finally
+        {
+            if (!stuck.HasExited)
+                stuck.Kill();
+            stuck.WaitForExit();
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Never_ends_some_other_process_with_that_id()
+    {
+        string dir = TempDir();
+        using var other = StartStandIn(dir, "SomethingElse");
+        try
+        {
+            Assert.True(SelfUpdater.WaitForPreviousInstance([SelfUpdater.UpdatedFlag, other.Id.ToString()],
+                TimeSpan.FromMilliseconds(300), "KeyboardUtilsTest"));
+            Assert.False(other.HasExited);
+        }
+        finally
+        {
+            other.Kill();
+            other.WaitForExit();
+            Directory.Delete(dir, recursive: true);
+        }
+    }
 }

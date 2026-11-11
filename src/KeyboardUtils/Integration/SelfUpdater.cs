@@ -132,7 +132,15 @@ static class SelfUpdater
     /// In the new exe, before anything else: waits for the old process (<c>--updated &lt;pid&gt;</c>) to quit. True
     /// when this start is the end of an update.
     /// </summary>
-    public static bool WaitForPreviousInstance(string[] args)
+    /// <remarks>
+    /// The old process asked for the update itself (and already stopped learning / recording, asking about an
+    /// unsaved recording first), so if it doesn't quit in time it is ended: 1.1.0 swaps the exe but then can't close
+    /// its window, and would otherwise keep the single-instance mutex forever. Only a process whose name says it's
+    /// Keyboard Utils is ever ended - never something that just got the same id.
+    /// </remarks>
+    /// <param name="wait">How long the old process gets to quit on its own.</param>
+    /// <param name="expectedName">The old process's name (tests pass another).</param>
+    public static bool WaitForPreviousInstance(string[] args, TimeSpan? wait = null, string expectedName = "KeyboardUtils")
     {
         int index = Array.IndexOf(args, UpdatedFlag);
         if (index < 0)
@@ -142,11 +150,17 @@ static class SelfUpdater
             try
             {
                 using var previous = Process.GetProcessById(pid);
-                previous.WaitForExit(30_000);
+                if (!previous.WaitForExit(wait ?? TimeSpan.FromSeconds(15))
+                    && previous.ProcessName.StartsWith(expectedName, StringComparison.OrdinalIgnoreCase))
+                {
+                    previous.Kill();
+                    previous.WaitForExit(5_000);
+                }
             }
             catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
             {
-                // Already gone.
+                // Already gone, or can't be ended: the new start just goes on (and, if the old one still runs,
+                // hands over to it like any second start).
             }
         }
         return true;
