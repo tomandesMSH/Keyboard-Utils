@@ -241,6 +241,7 @@ sealed partial class MainForm
             HardSpots.CountMistakes(session.WrongNotes.Select(n => n.StartSeconds), ClickTiming)));
         practiceHistory.Save();
         UpdateHardSpots();
+        UpdateGoal();
         return true;
     }
 
@@ -366,8 +367,9 @@ sealed partial class MainForm
     void CycleLearningSpeed()
     {
         var speeds = LearningSetupForm.Speeds;
-        int index = Array.IndexOf(speeds, config.LearningSpeedPercent);
-        config.LearningSpeedPercent = speeds[(index + 1) % speeds.Length];
+        // From a speed a loop was sped up to (60 %...): the next one of the usual ones above it.
+        int next = Array.FindIndex(speeds, s => s > config.LearningSpeedPercent);
+        config.LearningSpeedPercent = speeds[next < 0 ? 0 : next];
         config.Save();
         SetStatus(T($"Učení - rychlost: {config.LearningSpeedPercent} %", $"Learning - speed: {config.LearningSpeedPercent} %") + LearningSettingNote);
     }

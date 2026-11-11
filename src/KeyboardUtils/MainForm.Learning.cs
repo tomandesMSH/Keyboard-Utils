@@ -21,6 +21,7 @@ sealed partial class MainForm
         {
             loopPass = 1;
             lastPassPercent = null;
+            rampNote = null;
         }
         if (currentScore is not { } score)
         {
@@ -31,7 +32,7 @@ sealed partial class MainForm
         List<int> parts;
         if (showSetup)
         {
-            using var setup = new LearningSetupForm(score, config, audioAccompaniment: StemsPlay);
+            using var setup = new LearningSetupForm(score, config, audioAccompaniment: StemsPlay, loop: loopOn && LoopRange != null);
             if (setup.ShowDialog(this) != DialogResult.OK)
                 return;
             parts = setup.PracticedParts;
@@ -39,6 +40,7 @@ sealed partial class MainForm
             config.LearningSpeedPercent = setup.SpeedPercent;
             config.LearningAccompaniment = setup.Accompaniment;
             config.LearningCheckChords = setup.CheckChords;
+            config.LearningRampUp = setup.RampUp;
             config.LearningPartNames = parts.Select(i => score.Parts[i].Name).ToList();
             config.Save();
         }
@@ -100,6 +102,7 @@ sealed partial class MainForm
                 RecordPractice(session, pass);
                 lastPassPercent = pass.Percent;
                 loopPass++;
+                RampUpAfterPass(pass);
                 StartLearningMode(showSetup: false, nextPass: true);
                 return;
             }
@@ -130,11 +133,36 @@ sealed partial class MainForm
                 $"Learning: {session.DoneNotes}/{session.TotalNotes} notes, {session.CorrectNotes} correct, {session.WrongPresses} wrong keys");
         if (session.Range != null)
             status = T($"Smyčka, kolo {loopPass}", $"Loop, pass {loopPass}")
-                + (lastPassPercent is { } last ? T($" (minule {last:0} %)", $" (last {last:0} %)") : "") + " - " + status;
+                + (lastPassPercent is { } last ? T($" (minule {last:0} %)", $" (last {last:0} %)") : "")
+                + (rampNote is { } note ? " · " + note : "") + " - " + status;
         if (session.Paused)
             status = T("Pozastaveno - ", "Paused - ") + status;
         if (status != learningStatus)
             SetStatus(learningStatus = status);
+    }
+
+    /// <summary>What the last loop pass did to the speed, for the status line ("zrychleno na 60 %"); null = nothing.</summary>
+    string? rampNote;
+
+    /// <summary>
+    /// Learning a loop with speeding up on: a good pass makes the next one faster (<see cref="SpeedRamp"/>). The
+    /// session's speed is fixed, so it's changed here, between passes - the next pass starts at the new speed.
+    /// </summary>
+    void RampUpAfterPass(LearningResult pass)
+    {
+        rampNote = null;
+        // With stems, tempo mode can only play at 100 %.
+        if (!config.LearningRampUp || (config.LearningMode == LearningMode.InTempo && StemsPlay))
+            return;
+        int now = config.LearningSpeedPercent;
+        int next = SpeedRamp.Next(now, pass.Percent);
+        if (next == now)
+            return;
+        config.LearningSpeedPercent = next;
+        config.Save();
+        rampNote = next >= SpeedRamp.FullSpeedPercent
+            ? T("smyčka je v plném tempu 🎉", "the loop is at full speed 🎉")
+            : T($"zrychleno na {next} %", $"sped up to {next} %");
     }
 
     void StopLearningMode(bool showResult)

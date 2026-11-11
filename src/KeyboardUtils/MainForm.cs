@@ -254,6 +254,7 @@ sealed partial class MainForm : AntdUI.Window
                 _ = CheckForUpdatesAsync(manual: false);
         };
         InitIntegration();
+        InitGoal();
     }
 
     void BuildLayout()
@@ -383,6 +384,8 @@ sealed partial class MainForm : AntdUI.Window
         keyboardSizeGroup.Controls.AddRange([keyboardSizeLabel, keyboardSizeSlider]);
         var statusRow = new Panel { Dock = DockStyle.Bottom, Height = 32 };
         statusRow.Controls.Add(statusLabel);
+        // Docked right: the last added sits furthest right - goal, update button, keyboard size.
+        statusRow.Controls.Add(goalLabel);
         updateGroup.Controls.Add(updateButton);
         statusRow.Controls.Add(updateGroup);
         statusRow.Controls.Add(keyboardSizeGroup);
@@ -425,6 +428,7 @@ sealed partial class MainForm : AntdUI.Window
 
         helpMenuButton.Click += (_, _) => ShowMenu(helpMenuButton,
             MenuItem(T("O aplikaci", "About"), () => { using var about = new AboutForm(); about.ShowDialog(this); }),
+            MenuItem(T("Co je nového...", "What's new..."), () => _ = WhatsNewForm.ShowAsync(this)),
             MenuItem(T("Nahlásit chybu...", "Report a bug..."), () => AboutForm.Open(AboutForm.IssuesUrl)));
 
         learnButton.Click += (_, _) => StartLearning();
@@ -639,6 +643,7 @@ sealed partial class MainForm : AntdUI.Window
                 Tag = (Action)(() => { config.CheckForUpdates = !config.CheckForUpdates; config.Save(); }),
             },
             new AntdUI.ContextMenuStripItem(T("Zkontrolovat aktualizace teď", "Check for updates now")) { Tag = (Action)(() => _ = CheckForUpdatesAsync(manual: true)) },
+            new AntdUI.ContextMenuStripItem(T("Denní cíl...", "Daily goal...")) { Tag = (Action)SetDailyGoal },
             new AntdUI.ContextMenuStripItem(T("Velké hlášky (makro klávesy, zkratky)", "Big messages (macro keys, shortcuts)"))
             {
                 Checked = config.BigNotices,
@@ -745,6 +750,7 @@ sealed partial class MainForm : AntdUI.Window
         UpdatePlayPauseButton();
         // Its header and the stems' "Notes" buttons are created with the language of the moment.
         RebuildPartsPanel();
+        UpdateGoal();
     }
 
     /// <summary>Brings the main window to front, restoring it first if it's minimized.</summary>

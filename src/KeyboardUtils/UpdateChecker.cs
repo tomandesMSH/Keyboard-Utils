@@ -63,6 +63,38 @@ static class UpdateChecker
         }
     }
 
+    /// <summary>The page of release <paramref name="version"/> (the project's own, always).</summary>
+    public static string ReleasePage(Version version) =>
+        $"https://github.com/tomandesMSH/Keyboard-Utils/releases/tag/v{version.ToString(3)}";
+
+    /// <summary>The notes (Markdown) of release <paramref name="version"/>; null when GitHub can't be reached or there are none.</summary>
+    public static async Task<string?> ReleaseNotesAsync(Version version, CancellationToken token = default)
+    {
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
+            http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("KeyboardUtils", CurrentVersion.ToString(3)));
+            http.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+            using var response = await http.GetAsync(
+                $"https://api.github.com/repos/tomandesMSH/Keyboard-Utils/releases/tags/v{version.ToString(3)}", token);
+            if (!response.IsSuccessStatusCode)
+                return null;
+            return NotesOf(await response.Content.ReadAsStringAsync(token));
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>A release's notes from GitHub's JSON: its <c>body</c>, null when empty.</summary>
+    public static string? NotesOf(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.TryGetProperty("body", out var body) && body.ValueKind == JsonValueKind.String
+            && body.GetString() is { Length: > 0 } text ? text : null;
+    }
+
     /// <summary>The release GitHub describes in <paramref name="json"/>, if it's newer than <paramref name="current"/>.</summary>
     public static AvailableUpdate? ParseRelease(string json, Version current)
     {

@@ -112,6 +112,9 @@ sealed class LearningSession
 
     public LearningMode Mode { get; }
     public double Speed { get; }
+
+    /// <summary>Time spent in this session so far, pauses left out (what the result's Duration will be).</summary>
+    public TimeSpan Elapsed => elapsed.Elapsed;
     public bool PolyphonicInput { get; }
     public double InputLatencySeconds { get; }
     public IReadOnlySet<int> PracticedParts { get; }

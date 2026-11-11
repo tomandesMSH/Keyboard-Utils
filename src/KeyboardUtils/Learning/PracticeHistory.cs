@@ -47,6 +47,9 @@ sealed class PracticeHistory
     /// <summary>Oldest first.</summary>
     public IReadOnlyList<PracticeEntry> For(string key) => Songs.TryGetValue(key, out var entries) ? entries : [];
 
+    /// <summary>Every song's attempts (the daily goal counts them all). A method, so it isn't saved in history.json.</summary>
+    public IEnumerable<PracticeEntry> AllEntries() => Songs.Values.SelectMany(e => e);
+
     public void Add(string key, PracticeEntry entry)
     {
         if (!Songs.TryGetValue(key, out var entries))

@@ -11,25 +11,33 @@ sealed class LearningSetupForm : AntdUI.Window
     readonly AntdUI.Select speedBox = new() { Size = new Size(120, 36), List = true };
     readonly AntdUI.Checkbox accompanimentBox = new() { AutoSize = true, Margin = new Padding(0, 6, 0, 0) };
     readonly AntdUI.Checkbox chordsBox = new() { AutoSize = true, Margin = new Padding(0, 6, 0, 0) };
+    readonly AntdUI.Checkbox rampBox = new() { AutoSize = true, Margin = new Padding(0, 6, 0, 0) };
     readonly AntdUI.Label micHint = new() { AutoSize = false, Size = new Size(470, 40), ForeColor = SystemColors.GrayText };
     readonly AntdUI.Button start = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly bool microphone;
     readonly bool audioInput;
     readonly bool audioAccompaniment;
+    readonly bool loop;
+
+    /// <summary>The speeds in <see cref="speedBox"/>: <see cref="Speeds"/>, plus one reached by speeding a loop up.</summary>
+    readonly List<int> offeredSpeeds = [.. Speeds];
 
     public List<int> PracticedParts { get; } = [];
     public LearningMode SelectedMode => modeBox.SelectedIndex == 1 ? LearningMode.InTempo : LearningMode.WaitForNote;
-    public int SpeedPercent => Speeds[Math.Max(0, speedBox.SelectedIndex)];
+    public int SpeedPercent => offeredSpeeds[Math.Max(0, speedBox.SelectedIndex)];
     public bool Accompaniment => accompanimentBox.Checked;
     public bool CheckChords => chordsBox.Checked;
+    public bool RampUp => rampBox.Checked;
 
     /// <param name="audioAccompaniment">
     /// The song is loaded stems with notes converted from them: in tempo mode the accompaniment is the original
     /// recording, which can only play at 100 %.
     /// </param>
-    public LearningSetupForm(Score score, AppConfig config, bool audioAccompaniment = false)
+    /// <param name="loop">A loop is on: speeding it up pass by pass is offered.</param>
+    public LearningSetupForm(Score score, AppConfig config, bool audioAccompaniment = false, bool loop = false)
     {
         this.audioAccompaniment = audioAccompaniment;
+        this.loop = loop;
         Text = T("Režim učení", "Learning mode");
         Icon = AppIcon.Icon;
         StartPosition = FormStartPosition.CenterParent;
@@ -68,11 +76,23 @@ sealed class LearningSetupForm : AntdUI.Window
         layout.Controls.Add(modeBox);
 
         layout.Controls.Add(Heading(T("Rychlost:", "Speed:")));
-        foreach (int speed in Speeds)
+        // A speed a loop was sped up to (60 %, 85 %...) stays selectable, so the next session picks up from there.
+        if (config.LearningSpeedPercent is > 0 and <= 100 && !offeredSpeeds.Contains(config.LearningSpeedPercent))
+        {
+            offeredSpeeds.Add(config.LearningSpeedPercent);
+            offeredSpeeds.Sort();
+        }
+        foreach (int speed in offeredSpeeds)
             speedBox.Items.Add($"{speed} %");
-        int speedIndex = Array.IndexOf(Speeds, config.LearningSpeedPercent);
-        speedBox.SelectedIndex = speedIndex >= 0 ? speedIndex : Speeds.Length - 1;
+        int speedIndex = offeredSpeeds.IndexOf(config.LearningSpeedPercent);
+        speedBox.SelectedIndex = speedIndex >= 0 ? speedIndex : offeredSpeeds.Count - 1;
         layout.Controls.Add(speedBox);
+
+        rampBox.Text = T($"Postupně zrychlovat smyčku (kolo za {SpeedRamp.GoodPassPercent:0} % a víc → +{SpeedRamp.StepPercent} %, až do 100 %)",
+            $"Speed the loop up step by step (a pass of {SpeedRamp.GoodPassPercent:0} % or more → +{SpeedRamp.StepPercent} %, up to 100 %)");
+        rampBox.Checked = config.LearningRampUp;
+        rampBox.CheckedChanged += (_, _) => UpdateState();
+        layout.Controls.Add(rampBox);
 
         accompanimentBox.Text = audioAccompaniment
             ? T("Přehrávat ostatní stopy (originální nahrávku) jako doprovod", "Play the other tracks (the original recording) as accompaniment")
@@ -141,11 +161,16 @@ sealed class LearningSetupForm : AntdUI.Window
         // Waiting would stall the accompaniment on every note, so it's tempo-only.
         accompanimentBox.Enabled = tempo;
         speedBox.Enabled = !(tempo && audioAccompaniment);
+        // Only a loop goes round pass after pass; with stems in tempo the speed is fixed at 100 %.
+        rampBox.Enabled = loop && speedBox.Enabled;
         bool anyPart = partBoxes.Any(b => b.Checked);
         start.Enabled = anyPart;
 
         micHint.Text = !anyPart
             ? T("Vyber aspoň jednu část.", "Pick at least one part.")
+            : !loop && RampUp
+                ? T("Zrychlování funguje jen se smyčkou - označ úsek v notách a zapni Smyčku (L).",
+                    "Speeding up only works with a loop - pick a section in the notes and turn the Loop on (L).")
             : tempo && audioAccompaniment
                 ? T("Se stopami jede režim v tempu vždy na 100 % - originální nahrávka zpomalit nejde.",
                     "With stems, tempo mode always runs at 100 % - the original recording can't be slowed down.")

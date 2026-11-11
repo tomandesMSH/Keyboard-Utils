@@ -19,7 +19,11 @@ sealed partial class MainForm
         Shown += (_, _) =>
         {
             if (JustUpdated)
+            {
                 SetStatus(T($"Aktualizováno na verzi {UpdateChecker.CurrentVersion.ToString(3)}.", $"Updated to version {UpdateChecker.CurrentVersion.ToString(3)}."));
+                // What the update brought (quietly skipped when offline).
+                _ = WhatsNewForm.ShowAsync(this, onlyWithNotes: true);
+            }
             _ = ProtocolHandler.ListenAsync(argument => Post(() => _ = OpenRequestAsync(argument)), openListener.Token);
             if (!string.IsNullOrWhiteSpace(StartupRequest))
                 _ = OpenRequestAsync(StartupRequest);

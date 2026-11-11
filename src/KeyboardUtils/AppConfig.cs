@@ -252,6 +252,12 @@ sealed class AppConfig
     /// <summary>With an audio input (microphone, computer sound): require every note of a chord, checked in the spectrum.</summary>
     public bool LearningCheckChords { get; set; } = true;
 
+    /// <summary>Learning a loop: each pass played well enough makes the next one a bit faster (<see cref="SpeedRamp"/>).</summary>
+    public bool LearningRampUp { get; set; }
+
+    /// <summary>Minutes of learning a day to aim for (<see cref="PracticeGoal"/>); 0 = no goal, nothing shown.</summary>
+    public int DailyGoalMinutes { get; set; } = 20;
+
     /// <summary>"No" to downloading the chord detection add-on: don't offer it again on every conversion.</summary>
     public bool ChordAddonDeclined { get; set; }
 
