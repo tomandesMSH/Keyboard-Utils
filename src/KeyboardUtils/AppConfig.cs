@@ -269,6 +269,12 @@ sealed class AppConfig
     public NoteQuizLevel NoteQuizLevel { get; set; } = NoteQuizLevel.Treble;
     public Dictionary<NoteQuizLevel, int> NoteQuizBest { get; set; } = [];
 
+    /// <summary>Seconds to answer each note; 0 = no limit.</summary>
+    public int NoteQuizSeconds { get; set; }
+
+    /// <summary>Mistakes per written note (<see cref="QuizNote.Key"/>): those come up more often (<see cref="NoteQuiz.Weakness"/>).</summary>
+    public Dictionary<string, int> NoteQuizWeakness { get; set; } = [];
+
     /// <summary>Learning mode records the player (microphone: sound, MIDI / on-screen keys: notes) to listen back.</summary>
     public bool LearningRecordTake { get; set; }
 

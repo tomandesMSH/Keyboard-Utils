@@ -5,6 +5,8 @@ sealed class ExerciseForm : AntdUI.Window
 {
     readonly AntdUI.Select kindBox = new() { Size = new Size(320, 36), List = true };
     readonly AntdUI.Select keyBox = new() { Size = new Size(320, 36), List = true, MaxCount = 12 };
+    readonly AntdUI.Select minorFormBox = new() { Size = new Size(320, 36), List = true };
+    readonly FlowLayoutPanel minorFormRow = new() { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(0) };
     readonly AntdUI.Select octavesBox = new() { Size = new Size(150, 36), List = true };
     readonly AntdUI.Select handsBox = new() { Size = new Size(150, 36), List = true };
     readonly AntdUI.InputNumber bpmBox = new() { Size = new Size(150, 36), Minimum = 30, Maximum = 200, SuffixText = "BPM" };
@@ -16,9 +18,9 @@ sealed class ExerciseForm : AntdUI.Window
         {
             var key = ExerciseGenerator.Keys[Math.Max(0, keyBox.SelectedIndex)];
             return new ExerciseSpec(
-                (ExerciseKind)Math.Max(0, kindBox.SelectedIndex), key.Fifths, key.Minor,
+                ExerciseGenerator.Kinds[Math.Max(0, kindBox.SelectedIndex)], key.Fifths, key.Minor,
                 octavesBox.SelectedIndex + 1, (ExerciseHands)Math.Max(0, handsBox.SelectedIndex),
-                (int)bpmBox.Value, eighthsBox.Checked);
+                (int)bpmBox.Value, eighthsBox.Checked, (MinorForm)Math.Max(0, minorFormBox.SelectedIndex));
         }
     }
 
@@ -31,9 +33,21 @@ sealed class ExerciseForm : AntdUI.Window
         MaximizeBox = MinimizeBox = false;
         TopMost = true;
 
-        kindBox.Items.AddRange([T("Stupnice (nahoru a dolů)", "Scale (up and down)"), T("Rozložený akord (arpeggio)", "Arpeggio"),
-            T("Kadence T–S–D–T (akordy)", "Cadence I–IV–V–I (chords)")]);
-        kindBox.SelectedIndex = (int)last.Kind;
+        foreach (var kind in ExerciseGenerator.Kinds)
+            kindBox.Items.Add(kind switch
+            {
+                ExerciseKind.Chromatic => T("Chromatická stupnice", "Chromatic scale"),
+                ExerciseKind.Arpeggio => T("Rozložený akord (arpeggio)", "Arpeggio"),
+                ExerciseKind.Inversions => T("Obraty akordu (základní tvar, 1. a 2. obrat)", "Chord inversions (root, 1st, 2nd)"),
+                ExerciseKind.Cadence => T("Kadence T–S–D–T (akordy)", "Cadence I–IV–V–I (chords)"),
+                ExerciseKind.Hanon => T("Hanon č. 1 (prstová cvičení)", "Hanon No. 1 (finger exercise)"),
+                _ => T("Stupnice (nahoru a dolů)", "Scale (up and down)"),
+            });
+        kindBox.SelectedIndex = Math.Max(0, Array.IndexOf(ExerciseGenerator.Kinds, last.Kind));
+        minorFormBox.Items.AddRange([T("Harmonická (zvýšený 7. stupeň)", "Harmonic (raised 7th)"),
+            T("Melodická (nahoru zvýšený 6. a 7. stupeň)", "Melodic (6th and 7th raised going up)"),
+            T("Přirozená (aiolská)", "Natural (Aeolian)")]);
+        minorFormBox.SelectedIndex = (int)last.MinorForm;
         foreach (var key in ExerciseGenerator.Keys)
             keyBox.Items.Add(key.Name + Signature(key.Fifths));
         keyBox.SelectedIndex = Math.Max(0, Array.FindIndex(ExerciseGenerator.Keys, k => k.Fifths == last.Fifths && k.Minor == last.Minor));
@@ -50,6 +64,9 @@ sealed class ExerciseForm : AntdUI.Window
         layout.Controls.Add(kindBox);
         layout.Controls.Add(Heading(T("Tónina:", "Key:")));
         layout.Controls.Add(keyBox);
+        minorFormRow.Controls.Add(Heading(T("Moll stupnice:", "Minor scale:")));
+        minorFormRow.Controls.Add(minorFormBox);
+        layout.Controls.Add(minorFormRow);
         var row = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0) };
         row.Controls.Add(Column(T("Rozsah:", "Range:"), octavesBox));
         row.Controls.Add(Column(T("Ruce:", "Hands:"), handsBox));
@@ -72,22 +89,40 @@ sealed class ExerciseForm : AntdUI.Window
         create.Click += (_, _) => { DialogResult = DialogResult.OK; Close(); };
         cancel.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
         kindBox.SelectedIndexChanged += (_, _) => UpdateState();
+        keyBox.SelectedIndexChanged += (_, _) => UpdateState();
         UpdateState();
-        Load += (_, _) =>
+        FitToContent = () =>
         {
             var content = layout.GetPreferredSize(Size.Empty);
             ClientSize = new Size(Math.Max(380, content.Width), titleBar.Height + content.Height + buttons.GetPreferredSize(Size.Empty).Height);
+        };
+        Load += (_, _) =>
+        {
+            FitToContent?.Invoke();
             CenterToParent();
         };
     }
 
-    /// <summary>A cadence is chords in half notes over one octave: range and eighths don't apply.</summary>
+    /// <summary>Chords come in half notes over one octave (range and eighths don't apply); the minor form only for minor scales.</summary>
     void UpdateState()
     {
-        bool cadence = kindBox.SelectedIndex == (int)ExerciseKind.Cadence;
-        octavesBox.Enabled = !cadence;
-        eighthsBox.Enabled = !cadence;
+        var kind = ExerciseGenerator.Kinds[Math.Max(0, kindBox.SelectedIndex)];
+        bool chordal = ExerciseGenerator.IsChordal(kind);
+        octavesBox.Enabled = !chordal;
+        eighthsBox.Enabled = !chordal;
+        bool minorScale = kind == ExerciseKind.Scale && ExerciseGenerator.Keys[Math.Max(0, keyBox.SelectedIndex)].Minor;
+        minorFormBox.Enabled = minorScale;
+        if (IsHandleCreated && minorFormRow.Visible != minorScale)
+        {
+            minorFormRow.Visible = minorScale;
+            FitToContent?.Invoke();
+        }
+        else
+            minorFormRow.Visible = minorScale;
     }
+
+    /// <summary>Resizes the window to its content (the minor-form row comes and goes).</summary>
+    Action? FitToContent;
 
     static string Signature(int fifths) => fifths switch
     {

@@ -74,6 +74,47 @@ public class ExerciseTests
     }
 
     [Fact]
+    public void Melodic_minor_goes_up_raised_and_down_natural()
+    {
+        var score = ExerciseGenerator.Generate(new ExerciseSpec(ExerciseKind.Scale, 0, true, MinorForm: MinorForm.Melodic));
+        // A minor: A B C D E F# G# A, then A G F E D C B A.
+        Assert.Equal([69, 71, 72, 74, 76, 78, 80, 81, 79, 77, 76, 74, 72, 71, 69], Pitches(score));
+        Assert.Equal("Stupnice a moll melodická, 1 oktáva, pravá ruka", score.Title);
+        var natural = ExerciseGenerator.Generate(new ExerciseSpec(ExerciseKind.Scale, 0, true, MinorForm: MinorForm.Natural));
+        Assert.Equal([69, 71, 72, 74, 76, 77, 79, 81], Pitches(natural).Take(8));
+    }
+
+    [Fact]
+    public void Chromatic_scale_every_semitone()
+    {
+        var score = ExerciseGenerator.Generate(new ExerciseSpec(ExerciseKind.Chromatic, Fifths: 2));
+        var pitches = Pitches(score);
+        Assert.Equal(25, pitches.Count);
+        Assert.Equal(Enumerable.Range(62, 13), pitches.Take(13));
+        Assert.Equal(62, pitches[^1]);
+    }
+
+    [Fact]
+    public void Inversions_root_first_second_and_back()
+    {
+        var score = ExerciseGenerator.Generate(new ExerciseSpec(ExerciseKind.Inversions, Fifths: 0));
+        var chords = score.Parts[0].Notes.GroupBy(n => Math.Round(n.StartSeconds, 3)).Select(g => g.Select(n => n.Pitch).Order().ToArray()).ToList();
+        Assert.Equal([[60, 64, 67], [64, 67, 72], [67, 72, 76], [72, 76, 79], [67, 72, 76], [64, 67, 72], [60, 64, 67]], chords);
+    }
+
+    [Fact]
+    public void Hanon_one_octave_up_and_down()
+    {
+        var score = ExerciseGenerator.Generate(new ExerciseSpec(ExerciseKind.Hanon, Fifths: 0, Eighths: true));
+        var pitches = Pitches(score);
+        Assert.Equal([60, 64, 65, 67, 69, 67, 65, 64], pitches.Take(8));     // C E F G A G F E
+        Assert.Equal([62, 65, 67, 69, 71, 69, 67, 65], pitches.Skip(8).Take(8)); // a step higher
+        Assert.Equal(7 * 8 * 2 + 1, pitches.Count);
+        Assert.Equal(60, pitches[^1]);
+        Assert.Equal(79, pitches.Max());                                       // the top: G5 (scale degree 5 an octave up)
+    }
+
+    [Fact]
     public void Every_offered_key_generates()
     {
         foreach (var key in ExerciseGenerator.Keys)
@@ -81,6 +122,24 @@ public class ExerciseTests
             {
                 var score = ExerciseGenerator.Generate(new ExerciseSpec(kind, key.Fifths, key.Minor, 2, ExerciseHands.Both));
                 Assert.All(score.Parts.SelectMany(p => p.Notes), n => Assert.InRange(n.Pitch, 21, 108));
+            }
+    }
+
+    [Fact]
+    public void Each_hand_stays_on_its_own_staff()
+    {
+        foreach (var kind in Enum.GetValues<ExerciseKind>())
+            foreach (int octaves in new[] { 1, 2 })
+            {
+                var score = ExerciseGenerator.Generate(new ExerciseSpec(kind, 5, false, octaves, ExerciseHands.Both));
+                var notes = score.Parts.SelectMany((p, i) => p.Notes.Select(n => (n, i)));
+                var staff = SheetQuantizer.Quantize(notes, s => s * 4, 16, i => score.Parts[i].Staff);
+                var treble = staff.Treble.SelectMany(s => s.Notes).ToList();
+                var bass = staff.Bass.SelectMany(s => s.Notes).ToList();
+                Assert.All(treble, n => Assert.Equal(0, n.PartIndex));
+                Assert.All(bass, n => Assert.Equal(1, n.PartIndex));
+                // ...and the left hand mostly within the bass staff's reach: at most a few ledger lines up.
+                Assert.True(bass.All(n => n.Pitch is >= 21 and <= 69), $"{kind} {octaves}: {string.Join(" ", bass.Select(n => n.Pitch))}");
             }
     }
 

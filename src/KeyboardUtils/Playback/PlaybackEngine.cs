@@ -14,7 +14,8 @@ sealed class PlaybackEngine : IDisposable
 {
     static readonly TempoMap TempoMap = TempoMap.Default;
 
-    OutputDevice? outputDevice;
+    /// <summary>A MIDI port (Windows' synth, a digital piano...) or the piano sound pack (<see cref="SoundFontOutputDevice"/>).</summary>
+    IOutputDevice? outputDevice;
     Playback? playback;
 
     // Swapped wholesale so the NoteCallback (called on the playback thread) never sees a half-updated set.
@@ -26,11 +27,26 @@ sealed class PlaybackEngine : IDisposable
 
     public double CurrentSeconds => playback?.GetCurrentTime<MetricTimeSpan>().TotalSeconds ?? 0;
 
-    /// <summary>Null picks the system's default output (e.g. Microsoft GS Wavetable Synth).</summary>
+    /// <summary>
+    /// Null picks the system's default output (e.g. Microsoft GS Wavetable Synth); <see cref="PianoSoundModule.DeviceName"/>
+    /// the piano sound pack (the default again while it isn't downloaded, or can't be played).
+    /// </summary>
     public void SetOutputDevice(string? deviceName)
     {
-        outputDevice?.Dispose();
+        (outputDevice as IDisposable)?.Dispose();
         outputDevice = null;
+        if (deviceName == PianoSoundModule.DeviceName && PianoSoundModule.IsInstalled)
+        {
+            try
+            {
+                outputDevice = new SoundFontOutputDevice(PianoSoundModule.SoundFontPath);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or NAudio.MmException or UnauthorizedAccessException)
+            {
+                // A broken download or no sound card: the default MIDI output instead.
+            }
+        }
         var all = OutputDevice.GetAll().ToList();
         var chosen = deviceName != null ? all.FirstOrDefault(d => d.Name == deviceName) : all.FirstOrDefault();
         outputDevice = chosen ?? all.FirstOrDefault();

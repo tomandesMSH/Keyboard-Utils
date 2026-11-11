@@ -67,6 +67,68 @@ public class TakeTests
         }
     }
 
+    /// <summary>1 s of quiet hiss, 2 s of a tone at <paramref name="amplitude"/>, 1.5 s of hiss.</summary>
+    static short[] HissToneHiss(double amplitude)
+    {
+        const int rate = 8000;
+        var random = new Random(1);
+        var samples = new short[(int)(4.5 * rate)];
+        for (int i = 0; i < samples.Length; i++)
+        {
+            double t = (double)i / rate;
+            double tone = t >= 1 && t < 3 ? amplitude * Math.Sin(2 * Math.PI * 440 * t) : 0;
+            samples[i] = (short)(tone * 32767 + random.Next(-30, 31));
+        }
+        return samples;
+    }
+
+    [Fact]
+    public void Cuts_the_silence_before_and_after()
+    {
+        var samples = HissToneHiss(0.3);
+        var (start, end) = TakeProcessing.Trim(samples, 8000);
+        // The tone runs 1 s - 3 s; 0.3 s of air before, 0.6 s after.
+        Assert.InRange(start / 8000.0, 0.65, 0.75);
+        Assert.InRange(end / 8000.0, 3.55, 3.65);
+    }
+
+    [Fact]
+    public void Makes_quiet_takes_louder_but_not_too_much()
+    {
+        Assert.Equal(0.89 / 0.3, TakeProcessing.Gain(HissToneHiss(0.3)), 1);
+        Assert.Equal(8, TakeProcessing.Gain(HissToneHiss(0.01)), 6); // capped at +18 dB
+        Assert.Equal(1, TakeProcessing.Gain(HissToneHiss(0.99)), 6); // loud already: never quieter
+    }
+
+    [Fact]
+    public void Processes_a_take_file_and_saves_it_compressed()
+    {
+        string dir = TempDir();
+        try
+        {
+            string path = Path.Combine(dir, "take.wav");
+            var samples = HissToneHiss(0.2);
+            using (var writer = new WaveFileWriter(path, new WaveFormat(8000, 16, 1)))
+            {
+                var bytes = new byte[samples.Length * 2];
+                Buffer.BlockCopy(samples, 0, bytes, 0, bytes.Length);
+                writer.Write(bytes, 0, bytes.Length);
+            }
+            double seconds = TakeProcessing.Process(path);
+            Assert.InRange(seconds, 2.8, 3.0);
+            using (var reader = new WaveFileReader(path))
+                Assert.Equal(seconds, reader.TotalTime.TotalSeconds, 2);
+
+            string saved = TakeProcessing.SaveCompressed(path, Path.Combine(dir, "zkouska"));
+            Assert.True(File.Exists(saved));
+            Assert.Contains(Path.GetExtension(saved), new[] { ".mp3", ".wav" });
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
     [Fact]
     public void File_names_from_the_song_title()
     {

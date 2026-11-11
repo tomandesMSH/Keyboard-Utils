@@ -65,8 +65,20 @@ sealed partial class MainForm
             var notes = recorder.Finish(currentScore?.Title ?? T("Nahrávka", "Recording"));
             return notes.Parts[0].Notes.Count > 0 ? new NotesTake(notes, playbackEngine, RestorePlayback) : null;
         }
-        if (noteSource is MicrophoneNoteSource microphone && microphone.StopTake() is { } wav)
-            return wav.Seconds >= 1 ? new WavTake(wav.Path) : null;
+        if (noteSource is MicrophoneNoteSource microphone && microphone.StopTake() is { } wav && wav.Seconds >= 1)
+        {
+            // The silence before and after cut off, a quiet take made louder.
+            try
+            {
+                if (TakeProcessing.Process(wav.Path) < 0.5)
+                    return null;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException)
+            {
+                // Unprocessed is still fine to listen to.
+            }
+            return new WavTake(wav.Path);
+        }
         return null;
     }
 

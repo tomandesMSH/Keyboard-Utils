@@ -18,7 +18,16 @@ sealed class ScorePart
 
     /// <summary>0-1, the part's playback volume (its slider in the parts panel).</summary>
     public double Volume { get; set; } = 1;
+
+    /// <summary>Which staff of the grand staff the part is written on; Auto splits by pitch at middle C.</summary>
+    public PartStaff Staff { get; set; }
 }
+
+/// <summary>
+/// Where a part goes on the grand staff. Auto suits songs; a hand of an exercise is pinned, so a left hand climbing
+/// above middle C stays on the bass staff (with ledger lines) instead of jumping to the treble.
+/// </summary>
+enum PartStaff { Auto, Treble, Bass }
 
 /// <summary>
 /// The common representation both importers (MIDI, MusicXML) produce and the piano roll / playback /

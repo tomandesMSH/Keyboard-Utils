@@ -70,23 +70,31 @@ sealed class NoteFlashControl : Control, IThemed
             _ => AppTheme.Ink,
         };
         using var brush = new SolidBrush(color);
-        int step = shown.Step;
         float headWidth = MusicGlyphs.HeadWidth * s;
         float x = Width / 2f + s - headWidth / 2;
-        float y = staffTop + 4 * s - step * s / 2;
         using var ledger = new Pen(AppTheme.Ink, Math.Max(1, 0.16f * s));
-        for (int l = -2; l >= step; l -= 2)
-            Ledger(l);
-        for (int l = 10; l <= step; l += 2)
-            Ledger(l);
-        void Ledger(int lineStep)
+        DrawNote(shown, x);
+        // An interval: the upper note on the same stem position - beside it when they're a second apart (no room above).
+        if (shown.Upper is { } upper)
+            DrawNote(upper, shown.Interval == 2 ? x + headWidth - 0.1f * s : x);
+
+        void DrawNote(QuizNote n, float noteX)
+        {
+            int step = n.Step;
+            float y = staffTop + 4 * s - step * s / 2;
+            for (int l = -2; l >= step; l -= 2)
+                Ledger(l, noteX);
+            for (int l = 10; l <= step; l += 2)
+                Ledger(l, noteX);
+            MusicGlyphs.Notehead(g, brush, noteX, y, s, 16);
+            if (n.Alter != 0)
+                MusicGlyphs.Accidental(g, brush, n.Alter > 0 ? MusicGlyphs.Sharp : MusicGlyphs.Flat, noteX - 0.4f * s, y, s);
+        }
+        void Ledger(int lineStep, float noteX)
         {
             float ly = staffTop + 4 * s - lineStep * s / 2;
-            g.DrawLine(ledger, x - 0.5f * s, ly, x + headWidth + 0.5f * s, ly);
+            g.DrawLine(ledger, noteX - 0.5f * s, ly, noteX + headWidth + 0.5f * s, ly);
         }
-        MusicGlyphs.Notehead(g, brush, x, y, s, 16);
-        if (shown.Alter != 0)
-            MusicGlyphs.Accidental(g, brush, shown.Alter > 0 ? MusicGlyphs.Sharp : MusicGlyphs.Flat, x - 0.4f * s, y, s);
 
         if (feedback != Feedback.None)
         {

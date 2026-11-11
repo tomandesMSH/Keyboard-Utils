@@ -1,8 +1,9 @@
 namespace KeyboardUtils;
 
+/// <summary>The kinds of exercise. Saved in the config by name, so new ones go anywhere; the dialog lists them in <see cref="ExerciseGenerator.Kinds"/> order.</summary>
 enum ExerciseKind
 {
-    /// <summary>Up and down; minor keys use harmonic minor (raised seventh).</summary>
+    /// <summary>Up and down; minor keys in the chosen <see cref="MinorForm"/>.</summary>
     Scale,
 
     /// <summary>The tonic triad broken, up and down.</summary>
@@ -10,9 +11,21 @@ enum ExerciseKind
 
     /// <summary>I - IV - V - I: close-position chords in the right hand, the roots in the left.</summary>
     Cadence,
+
+    /// <summary>Every semitone from the tonic, up and down.</summary>
+    Chromatic,
+
+    /// <summary>The tonic triad as a chord in root position and its inversions, up the octave and back.</summary>
+    Inversions,
+
+    /// <summary>Hanon's exercise No. 1 (C E F G A G F E, a step higher each bar) in the key, up and back down.</summary>
+    Hanon,
 }
 
 enum ExerciseHands { Right, Left, Both }
+
+/// <summary>Which minor scale: harmonic (raised 7th), melodic (raised 6th and 7th going up, natural going down) or natural.</summary>
+enum MinorForm { Harmonic, Melodic, Natural }
 
 /// <summary>What to generate: kind, key (fifths + major/minor), range, hands, tempo and note value.</summary>
 sealed record ExerciseSpec(
@@ -22,7 +35,8 @@ sealed record ExerciseSpec(
     int Octaves = 1,
     ExerciseHands Hands = ExerciseHands.Right,
     int Bpm = 80,
-    bool Eighths = false);
+    bool Eighths = false,
+    MinorForm MinorForm = MinorForm.Harmonic);
 
 /// <summary>A key offered for exercises, with its Czech and English name.</summary>
 sealed record ExerciseKey(int Fifths, bool Minor, string Czech, string English)
@@ -50,40 +64,126 @@ static class ExerciseGenerator
     public static ExerciseKey KeyOf(ExerciseSpec spec) =>
         Keys.FirstOrDefault(k => k.Fifths == spec.Fifths && k.Minor == spec.Minor) ?? Keys[0];
 
+    /// <summary>The kinds in the order the dialog offers them.</summary>
+    public static readonly ExerciseKind[] Kinds =
+        [ExerciseKind.Scale, ExerciseKind.Chromatic, ExerciseKind.Arpeggio, ExerciseKind.Inversions, ExerciseKind.Cadence, ExerciseKind.Hanon];
+
     static readonly int[] MajorSteps = [0, 2, 4, 5, 7, 9, 11];
     static readonly int[] HarmonicMinorSteps = [0, 2, 3, 5, 7, 8, 11];
+    static readonly int[] MelodicMinorSteps = [0, 2, 3, 5, 7, 9, 11];
+    static readonly int[] NaturalMinorSteps = [0, 2, 3, 5, 7, 8, 10];
+
+    /// <summary>Kinds with chords in fixed half notes: one octave, no eighths.</summary>
+    public static bool IsChordal(ExerciseKind kind) => kind is ExerciseKind.Cadence or ExerciseKind.Inversions;
 
     public static Score Generate(ExerciseSpec spec)
     {
         var key = KeyOf(spec);
         int octaves = Math.Clamp(spec.Octaves, 1, 2);
         int tonic = KeySignature.Tonic(key.Fifths, key.Minor);
-        // Right hand from the tonic above middle C; the left hand as many octaves lower as it spans, so each hand
-        // stays (mostly) on its own staff.
+        // Right hand from the tonic above middle C. The left hand goes down by octaves until its highest note is
+        // at most G4 (a few ledger lines over the bass staff) - but no lower than C1 - so it reads on its own staff; each hand is also pinned to
+        // its staff, so it never jumps to the other one.
         int rightBase = 60 + tonic;
-        int leftBase = rightBase - 12 * (spec.Kind == ExerciseKind.Cadence ? 1 : octaves);
-        double quarters = spec.Eighths && spec.Kind != ExerciseKind.Cadence ? 0.5 : 1;
+        int reach = spec.Kind switch
+        {
+            ExerciseKind.Cadence => 7,            // the roots: up to the dominant
+            ExerciseKind.Inversions => 19,        // second inversion an octave up: an octave and a fifth
+            ExerciseKind.Hanon => 12 * octaves + 9, // a sixth past the top tonic
+            _ => 12 * octaves,
+        };
+        int leftBase = rightBase - 12;
+        while (leftBase + reach > 67 && leftBase - 12 >= 24)
+            leftBase -= 12;
+        double quarters = spec.Eighths && !IsChordal(spec.Kind) ? 0.5 : 1;
         var timing = new ScoreTiming([new TempoPoint(0, 0, Math.Clamp(spec.Bpm, 20, 300) / 60.0)], 4, 4);
 
         var score = new Score { Title = Title(spec, key, octaves), Timing = timing, KeyFifths = key.Fifths, KeyMinor = key.Minor };
         if (spec.Hands != ExerciseHands.Left)
-            score.Parts.Add(new ScorePart { Name = T("Pravá ruka", "Right hand"), Notes = Part(spec.Kind, key.Minor, rightBase, octaves, quarters, timing, right: true) });
+            score.Parts.Add(new ScorePart { Name = T("Pravá ruka", "Right hand"), Staff = PartStaff.Treble, Notes = Part(spec, key.Minor, rightBase, octaves, quarters, timing, right: true) });
         if (spec.Hands != ExerciseHands.Right)
-            score.Parts.Add(new ScorePart { Name = T("Levá ruka", "Left hand"), Notes = Part(spec.Kind, key.Minor, leftBase, octaves, quarters, timing, right: false) });
+            score.Parts.Add(new ScorePart { Name = T("Levá ruka", "Left hand"), Staff = PartStaff.Bass, Notes = Part(spec, key.Minor, leftBase, octaves, quarters, timing, right: false) });
         return score;
     }
 
-    static List<ScoreNote> Part(ExerciseKind kind, bool minor, int basePitch, int octaves, double quarters, ScoreTiming timing, bool right)
+    static List<ScoreNote> Part(ExerciseSpec spec, bool minor, int basePitch, int octaves, double quarters, ScoreTiming timing, bool right)
     {
-        if (kind == ExerciseKind.Cadence)
-            return Cadence(minor, basePitch, timing, right);
-        var steps = kind == ExerciseKind.Arpeggio ? (minor ? [0, 3, 7] : [0, 4, 7]) : minor ? HarmonicMinorSteps : MajorSteps;
-        var up = new List<int>();
-        for (int octave = 0; octave < octaves; octave++)
-            up.AddRange(steps.Select(s => basePitch + 12 * octave + s));
-        up.Add(basePitch + 12 * octaves);
-        var pitches = up.Concat(Enumerable.Reverse(up).Skip(1)).ToList();
-        return Line(pitches, quarters, timing);
+        switch (spec.Kind)
+        {
+            case ExerciseKind.Cadence:
+                return Cadence(minor, basePitch, timing, right);
+            case ExerciseKind.Inversions:
+                return Inversions(minor, basePitch, timing);
+            case ExerciseKind.Hanon:
+                return Line(Hanon(minor ? NaturalMinorSteps : MajorSteps, basePitch, octaves), quarters, timing);
+        }
+        if (spec.Kind == ExerciseKind.Chromatic)
+        {
+            var chromaticUp = Enumerable.Range(0, 12 * octaves + 1).Select(i => basePitch + i).ToList();
+            return Line(chromaticUp.Concat(Enumerable.Reverse(chromaticUp).Skip(1)).ToList(), quarters, timing);
+        }
+        if (spec.Kind == ExerciseKind.Arpeggio)
+            return Line(UpAndDown(minor ? [0, 3, 7] : [0, 4, 7], null, basePitch, octaves), quarters, timing);
+        // Scales: melodic minor goes up melodic and comes down natural.
+        var (up, down) = !minor ? (MajorSteps, MajorSteps) : spec.MinorForm switch
+        {
+            MinorForm.Melodic => (MelodicMinorSteps, NaturalMinorSteps),
+            MinorForm.Natural => (NaturalMinorSteps, NaturalMinorSteps),
+            _ => (HarmonicMinorSteps, HarmonicMinorSteps),
+        };
+        return Line(UpAndDown(up, down, basePitch, octaves), quarters, timing);
+    }
+
+    /// <summary>The steps of each octave going up to the top tonic, then (with <paramref name="downSteps"/>, else the same) back down.</summary>
+    static List<int> UpAndDown(int[] upSteps, int[]? downSteps, int basePitch, int octaves)
+    {
+        List<int> Run(int[] steps)
+        {
+            var run = new List<int>();
+            for (int octave = 0; octave < octaves; octave++)
+                run.AddRange(steps.Select(s => basePitch + 12 * octave + s));
+            run.Add(basePitch + 12 * octaves);
+            return run;
+        }
+        var up = Run(upSteps);
+        var down = Enumerable.Reverse(Run(downSteps ?? upSteps)).Skip(1);
+        return up.Concat(down).ToList();
+    }
+
+    /// <summary>
+    /// Hanon No. 1 on the key's scale: degrees 1 3 4 5 6 5 4 3, a step higher each bar up through the octaves, then
+    /// mirrored back down (5 3 2 1 7 1 2 3, a step lower each bar), ending on the tonic.
+    /// </summary>
+    static List<int> Hanon(int[] steps, int basePitch, int octaves)
+    {
+        int Pitch(int degree) => basePitch + 12 * (int)Math.Floor(degree / 7.0) + steps[((degree % 7) + 7) % 7];
+        int[] upPattern = [0, 2, 3, 4, 5, 4, 3, 2];
+        int[] downPattern = [0, -2, -3, -4, -5, -4, -3, -2];
+        int bars = 7 * octaves;
+        var degrees = new List<int>();
+        for (int shift = 0; shift < bars; shift++)
+            degrees.AddRange(upPattern.Select(d => d + shift));
+        int top = bars + 4;
+        for (int shift = 0; shift < bars; shift++)
+            degrees.AddRange(downPattern.Select(d => top + d - shift));
+        degrees.Add(0);
+        return degrees.Select(Pitch).ToList();
+    }
+
+    /// <summary>The tonic triad in root position, first and second inversion and up the octave, then back - half notes.</summary>
+    static List<ScoreNote> Inversions(bool minor, int basePitch, ScoreTiming timing)
+    {
+        int third = minor ? 3 : 4;
+        int[][] shapes = [[0, third, 7], [third, 7, 12], [7, 12, 12 + third], [12, 12 + third, 19]];
+        var chords = shapes.Concat(shapes.Reverse().Skip(1)).ToList();
+        var notes = new List<ScoreNote>();
+        for (int c = 0; c < chords.Count; c++)
+        {
+            double start = c * 2;
+            double end = c == chords.Count - 1 ? BarEnd(start, timing) : start + 2;
+            notes.AddRange(chords[c].Select(step => Note(basePitch + step, start, end, timing)));
+        }
+        return notes;
     }
 
     /// <summary>One note after another, each <paramref name="quarters"/> long; the last held to the end of its bar.</summary>
@@ -133,13 +233,22 @@ static class ExerciseGenerator
 
     static string Title(ExerciseSpec spec, ExerciseKey key, int octaves)
     {
+        string form = spec.MinorForm switch
+        {
+            MinorForm.Melodic => T(" melodická", " melodic"),
+            MinorForm.Natural => T(" přirozená", " natural"),
+            _ => T(" harmonická", " harmonic"),
+        };
         string what = spec.Kind switch
         {
             ExerciseKind.Arpeggio => T($"Rozložený akord {key.Name}", $"Arpeggio, {key.Name}"),
             ExerciseKind.Cadence => T($"Kadence T–S–D–T {key.Name}", $"Cadence I–IV–V–I, {key.Name}"),
-            _ => key.Minor ? T($"Stupnice {key.Name} harmonická", $"Scale, {key.Name} harmonic") : T($"Stupnice {key.Name}", $"Scale, {key.Name}"),
+            ExerciseKind.Chromatic => T($"Chromatická stupnice od {key.Name}", $"Chromatic scale from {key.Name}"),
+            ExerciseKind.Inversions => T($"Obraty akordu {key.Name}", $"Inversions, {key.Name}"),
+            ExerciseKind.Hanon => T($"Hanon č. 1 {key.Name}", $"Hanon No. 1, {key.Name}"),
+            _ => key.Minor ? T($"Stupnice {key.Name}", $"Scale, {key.Name}") + form : T($"Stupnice {key.Name}", $"Scale, {key.Name}"),
         };
-        string range = spec.Kind == ExerciseKind.Cadence ? "" : octaves == 1 ? T(", 1 oktáva", ", 1 octave") : T($", {octaves} oktávy", $", {octaves} octaves");
+        string range = IsChordal(spec.Kind) ? "" : octaves == 1 ? T(", 1 oktáva", ", 1 octave") : T($", {octaves} oktávy", $", {octaves} octaves");
         string hands = spec.Hands switch
         {
             ExerciseHands.Left => T(", levá ruka", ", left hand"),

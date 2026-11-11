@@ -13,34 +13,53 @@ enum NoteQuizLevel
 
     /// <summary>Both clefs with ledger lines further out, sharps and flats.</summary>
     Advanced,
+
+    /// <summary>Two notes on the treble staff: name the interval (second ... octave).</summary>
+    Intervals,
 }
 
-/// <summary>A note to read: its pitch, how it's written (letter 0 = C ... 6 = B, alter -1/0/1) and on which clef.</summary>
-sealed record QuizNote(int Pitch, int Letter, int Alter, bool Treble)
+/// <summary>
+/// A note to read: its pitch, how it's written (letter 0 = C ... 6 = B, alter -1/0/1) and on which clef. For an
+/// interval question, <see cref="Upper"/> is the second note above it.
+/// </summary>
+sealed record QuizNote(int Pitch, int Letter, int Alter, bool Treble, QuizNote? Upper = null)
 {
     /// <summary>Line/space from the bottom line of its staff: 0 = bottom line, 8 = top line, negative = below.</summary>
-    public int Step => (Pitch - Alter - NaturalPitch[Letter]) / 12 * 7 - 7 + Letter - (Treble ? TrebleBottom : BassBottom);
+    public int Step => Diatonic - (Treble ? TrebleBottom : BassBottom);
+
+    /// <summary>octave * 7 + letter (C4 = 28).</summary>
+    public int Diatonic => ((Pitch - Alter - NaturalPitch[Letter]) / 12 - 1) * 7 + Letter;
 
     static readonly int[] NaturalPitch = [0, 2, 4, 5, 7, 9, 11];
     const int TrebleBottom = 4 * 7 + 2; // E4
     const int BassBottom = 2 * 7 + 4;   // G2
 
-    /// <summary>Its name: Czech (C, Cis, Es, H, B...) or English (C, C♯, E♭, B, B♭...), without the octave.</summary>
-    public string Name => NoteQuiz.Name(Letter, Alter);
+    /// <summary>The interval to <see cref="Upper"/> as a number: 2 = second ... 8 = octave; 0 without one.</summary>
+    public int Interval => Upper == null ? 0 : Upper.Diatonic - Diatonic + 1;
+
+    /// <summary>Its name: Czech (C, Cis, Es, H, B...) or English (C, C♯, E♭, B, B♭...), without the octave; an interval's name.</summary>
+    public string Name => Upper == null ? NoteQuiz.Name(Letter, Alter) : NoteQuiz.IntervalName(Interval);
+
+    /// <summary>Identifies the written note (clef, key, spelling) for the per-note mistake statistics.</summary>
+    public string Key => $"{(Treble ? "T" : "B")}{Pitch}{(Alter > 0 ? "#" : Alter < 0 ? "b" : "")}";
 }
 
 /// <summary>
 /// The note-reading trainer: a note on a staff, the player plays it (or picks its name), 20 notes a round. Answers
 /// from an instrument must be the exact key (so C♯ and D♭ are both right for that black key); answers by name only
-/// need the letter.
+/// need the letter. Notes the player keeps missing (<see cref="Weakness"/>) come up more often.
 /// </summary>
 sealed class NoteQuiz
 {
     public const int RoundLength = 20;
 
+    /// <summary>How much more often a note missed a lot comes up (its weight is 1 + misses, up to this).</summary>
+    public const int MaxWeakness = 4;
+
     readonly Random random;
     readonly List<QuizNote> candidates;
     readonly List<double> answerSeconds = [];
+    readonly List<QuizNote> missed = [];
 
     public NoteQuizLevel Level { get; }
     public QuizNote? Current { get; private set; }
@@ -49,14 +68,28 @@ sealed class NoteQuiz
     public bool Finished => Done >= RoundLength;
     public double AverageSeconds => answerSeconds.Count == 0 ? 0 : answerSeconds.Average();
 
-    public NoteQuiz(NoteQuizLevel level, Random? random = null)
+    /// <summary>Right answers in a row now, and the longest run this round.</summary>
+    public int Streak { get; private set; }
+    public int BestStreak { get; private set; }
+
+    /// <summary>The notes missed this round, in order.</summary>
+    public IReadOnlyList<QuizNote> Missed => missed;
+
+    /// <summary>
+    /// Mistakes per note (<see cref="QuizNote.Key"/>) carried over from earlier rounds: a miss adds one (up to
+    /// <see cref="MaxWeakness"/>), a right answer takes one off. Kept by the caller (in the config).
+    /// </summary>
+    public Dictionary<string, int> Weakness { get; }
+
+    public NoteQuiz(NoteQuizLevel level, Random? random = null, Dictionary<string, int>? weakness = null)
     {
         Level = level;
         this.random = random ?? new Random();
+        Weakness = weakness ?? [];
         candidates = Candidates(level);
     }
 
-    /// <summary>Every note the level can ask for.</summary>
+    /// <summary>Every note the level can ask for (for intervals: the lower notes).</summary>
     public static List<QuizNote> Candidates(NoteQuizLevel level)
     {
         var notes = new List<QuizNote>();
@@ -87,6 +120,9 @@ sealed class NoteQuiz
                 Range(60, 79, true, false);
                 Range(41, 60, false, false);
                 break;
+            case NoteQuizLevel.Intervals:
+                Range(60, 72, true, false); // up to an octave above: C6 at most
+                break;
             default:
                 Range(57, 84, true, true);
                 Range(36, 64, false, true);
@@ -103,37 +139,113 @@ sealed class NoteQuiz
         return index < 0 ? null : index;
     }
 
-    /// <summary>Picks the next note (never the same one twice in a row); null once the round is over.</summary>
+    /// <summary>
+    /// Picks the next note (never the same one twice in a row; missed ones more often); null once the round is over.
+    /// </summary>
     public QuizNote? Next()
     {
         if (Finished)
             return Current = null;
         QuizNote next;
         do
-            next = candidates[random.Next(candidates.Count)];
+            next = Level == NoteQuizLevel.Intervals ? RandomInterval() : Weighted();
         while (candidates.Count > 1 && next == Current);
         return Current = next;
     }
 
-    /// <summary>A key played on the instrument: right when it's the very key written (any spelling of it).</summary>
-    public bool AnswerPitch(int pitch, double seconds) => Record(Current is { } note && note.Pitch == pitch, seconds);
+    QuizNote Weighted()
+    {
+        var weights = candidates.Select(c => 1 + Math.Min(MaxWeakness, Weakness.GetValueOrDefault(c.Key))).ToList();
+        int pick = random.Next(weights.Sum());
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            pick -= weights[i];
+            if (pick < 0)
+                return candidates[i];
+        }
+        return candidates[^1];
+    }
+
+    /// <summary>A white-key lower note and a white key a second to an octave above it.</summary>
+    QuizNote RandomInterval()
+    {
+        var lower = candidates[random.Next(candidates.Count)];
+        int steps = random.Next(1, 8);                      // 1 = second ... 7 = octave
+        int diatonic = lower.Diatonic + steps;
+        int letter = diatonic % 7, octave = diatonic / 7; // Diatonic counts C4 as octave 4 (MIDI octave + 1)
+        var upper = new QuizNote((octave + 1) * 12 + WhitePitch[letter], letter, 0, true);
+        return lower with { Upper = upper };
+    }
+
+    /// <summary>
+    /// A key played on the instrument: right when it's the very key written (any spelling of it). Intervals aren't
+    /// answered by playing - a key then doesn't count at all.
+    /// </summary>
+    public bool AnswerPitch(int pitch, double seconds) =>
+        Current is { Upper: null } note && Record(note.Pitch == pitch, seconds);
 
     /// <summary>A name picked (letter 0 = C ... 6 = B/H): right when it's the written letter.</summary>
-    public bool AnswerLetter(int letter, double seconds) => Record(Current is { } note && note.Letter == letter, seconds);
+    public bool AnswerLetter(int letter, double seconds) => Record(Current is { Upper: null } note && note.Letter == letter, seconds);
+
+    /// <summary>An interval picked: 2 = second ... 8 = octave.</summary>
+    public bool AnswerInterval(int number, double seconds) => Record(Current is { Upper: not null } note && note.Interval == number, seconds);
+
+    /// <summary>The time for the note ran out: a miss.</summary>
+    public void TimeUp(double seconds) => Record(false, seconds);
 
     bool Record(bool right, double seconds)
     {
-        if (Current == null || Finished)
+        if (Current is not { } note || Finished)
             return false;
         Done++;
-        if (right)
-            Correct++;
         answerSeconds.Add(seconds);
+        if (right)
+        {
+            Correct++;
+            BestStreak = Math.Max(BestStreak, ++Streak);
+        }
+        else
+        {
+            Streak = 0;
+            missed.Add(note);
+        }
+        // The note's standing for the next rounds (single notes only - intervals are random pairs).
+        if (note.Upper == null)
+        {
+            int misses = Weakness.GetValueOrDefault(note.Key) + (right ? -1 : 1);
+            if (misses <= 0)
+                Weakness.Remove(note.Key);
+            else
+                Weakness[note.Key] = Math.Min(MaxWeakness, misses);
+        }
         return right;
     }
 
+    /// <summary>The notes missed most this round (names, worst first), for the summary.</summary>
+    public List<string> MostMissed(int count = 3) =>
+        // Grouped by what's shown: different octaves of one interval (or note) count as the same mistake.
+        missed.Select(n => n.Upper == null && Level is NoteQuizLevel.Both or NoteQuizLevel.Advanced
+                ? $"{n.Name} ({(n.Treble ? T("houslový", "treble") : T("basový", "bass"))})"
+                : n.Name)
+            .GroupBy(name => name).OrderByDescending(g => g.Count())
+            .Select(g => g.Key).Take(count)
+            .ToList();
+
     /// <summary>Letter buttons, in the reader's language: C D E F G A H (Czech) or C D E F G A B.</summary>
     public static string LetterName(int letter) => letter == 6 ? T("H", "B") : KeySignature.LetterNames[letter];
+
+    /// <summary>2 = second ... 8 = octave, in the reader's language.</summary>
+    public static string IntervalName(int number) => number switch
+    {
+        2 => T("Sekunda", "Second"),
+        3 => T("Tercie", "Third"),
+        4 => T("Kvarta", "Fourth"),
+        5 => T("Kvinta", "Fifth"),
+        6 => T("Sexta", "Sixth"),
+        7 => T("Septima", "Seventh"),
+        8 => T("Oktáva", "Octave"),
+        _ => "?",
+    };
 
     /// <summary>
     /// A note's name. Czech: Cis, Dis..., flats Des, Es, Ges, As, and B for B♭ (H flat). English: C♯, D♭, B♭...

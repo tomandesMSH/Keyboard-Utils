@@ -63,12 +63,11 @@ sealed class WavTake(string path) : RecordedTake
         reader = null;
     }
 
+    /// <summary>As MP3 (WAV where Windows has no MP3 encoder).</summary>
     public override string SaveTo(string folder, string name)
     {
         Directory.CreateDirectory(folder);
-        string target = System.IO.Path.Combine(folder, name + ".wav");
-        File.Copy(Path, target, overwrite: true);
-        return target;
+        return TakeProcessing.SaveCompressed(Path, System.IO.Path.Combine(folder, name));
     }
 }
 

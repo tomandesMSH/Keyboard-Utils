@@ -239,7 +239,8 @@ sealed class SheetMusicControl : Control, IThemed
         var notes = score.Parts.SelectMany((part, index) => part.Muted && !(Learning?.PracticedParts.Contains(index) ?? false)
             ? []
             : part.Notes.Select(n => (n, index)));
-        var grandStaff = SheetQuantizer.Quantize(notes, s => timing.ToQuarters(s) * SheetQuantizer.Divisions, measureLength);
+        var grandStaff = SheetQuantizer.Quantize(notes, s => timing.ToQuarters(s) * SheetQuantizer.Divisions, measureLength,
+            i => score.Parts[i].Staff);
         measureCount = grandStaff.Measures;
 
         BuildEvents(0, grandStaff.Treble);

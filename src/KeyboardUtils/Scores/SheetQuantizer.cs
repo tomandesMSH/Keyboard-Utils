@@ -41,8 +41,16 @@ static class SheetQuantizer
     /// <param name="notes">The notes to write, with the index of the part each is from.</param>
     /// <param name="toUnits">Seconds to 16th notes since the start (the score's tempo).</param>
     /// <param name="measureLength">A bar in 16ths (16 = 4/4).</param>
-    public static GrandStaff Quantize(IEnumerable<(ScoreNote Note, int Part)> notes, Func<double, double> toUnits, int measureLength)
+    /// <param name="staffOf">A part's <see cref="ScorePart.Staff"/> by its index; null = every part split by pitch.</param>
+    public static GrandStaff Quantize(IEnumerable<(ScoreNote Note, int Part)> notes, Func<double, double> toUnits, int measureLength,
+        Func<int, PartStaff>? staffOf = null)
     {
+        bool OnTreble(SheetNote note) => (staffOf?.Invoke(note.PartIndex) ?? PartStaff.Auto) switch
+        {
+            PartStaff.Treble => true,
+            PartStaff.Bass => false,
+            _ => note.Pitch >= SplitPitch,
+        };
         var grid = notes
             .Select(n =>
             {
@@ -55,8 +63,8 @@ static class SheetQuantizer
         int totalLength = grid.Count > 0 ? grid.Max(n => n.End) : measureLength;
         int measures = Math.Max(1, (totalLength + measureLength - 1) / measureLength);
         return new GrandStaff(
-            BuildStaff(grid.Where(n => n.Note.Pitch >= SplitPitch), measures, measureLength),
-            BuildStaff(grid.Where(n => n.Note.Pitch < SplitPitch), measures, measureLength),
+            BuildStaff(grid.Where(n => OnTreble(n.Note)), measures, measureLength),
+            BuildStaff(grid.Where(n => !OnTreble(n.Note)), measures, measureLength),
             measures, measureLength);
     }
 

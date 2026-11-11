@@ -618,13 +618,23 @@ sealed partial class MainForm : AntdUI.Window
             .ToArray();
 
         // A saved device that's no longer connected falls back to the default, so show the default as checked.
-        bool usingDefault = config.MidiOutputDevice == null || !outputDeviceNames.Contains(config.MidiOutputDevice);
+        bool usingPianoSound = config.MidiOutputDevice == PianoSoundModule.DeviceName && PianoSoundModule.IsInstalled;
+        bool usingDefault = !usingPianoSound && (config.MidiOutputDevice == null || !outputDeviceNames.Contains(config.MidiOutputDevice));
         var deviceItems = new List<AntdUI.IContextMenuStripItem>
         {
             new AntdUI.ContextMenuStripItem(T("(systémové výchozí)", "(system default)"))
             {
                 Checked = usingDefault,
                 Tag = (Action)(() => SetMidiOutput(null)),
+            },
+            new AntdUI.ContextMenuStripItem(T("Klavír Keyboard Utils (lepší zvuk)", "Keyboard Utils piano (better sound)"))
+            {
+                Checked = usingPianoSound,
+                Tag = (Action)(async () =>
+                {
+                    if (await PianoSoundPrompt.EnsureInstalledAsync(this, SetStatus))
+                        SetMidiOutput(PianoSoundModule.DeviceName);
+                }),
             },
         };
         foreach (var name in outputDeviceNames)
@@ -633,6 +643,23 @@ sealed partial class MainForm : AntdUI.Window
                 Checked = !usingDefault && config.MidiOutputDevice == name,
                 Tag = (Action)(() => SetMidiOutput(name)),
             });
+        if (PianoSoundModule.IsInstalled)
+        {
+            deviceItems.Add(new AntdUI.ContextMenuStripItemDivider());
+            deviceItems.Add(new AntdUI.ContextMenuStripItem(T("Odebrat zvuk klavíru...", "Remove the piano sound..."))
+            {
+                Tag = (Action)(() =>
+                {
+                    if (!PianoSoundPrompt.ConfirmRemove(this))
+                        return;
+                    if (config.MidiOutputDevice == PianoSoundModule.DeviceName)
+                        SetMidiOutput(null); // releases the SoundFont before deleting it
+                    SetStatus(PianoSoundModule.Remove()
+                        ? T("Zvuk klavíru odebrán.", "Piano sound removed.")
+                        : T("Zvuk klavíru se nepodařilo odebrat.", "Couldn't remove the piano sound."));
+                }),
+            });
+        }
 
         return
         [

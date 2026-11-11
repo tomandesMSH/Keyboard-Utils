@@ -68,6 +68,72 @@ public class NoteQuizTests
         Assert.Equal(2, quiz.Correct);
     }
 
+    [Fact]
+    public void Streaks_and_what_was_missed()
+    {
+        var quiz = new NoteQuiz(NoteQuizLevel.Treble, new Random(5));
+        for (int i = 0; i < 4; i++)
+            quiz.AnswerPitch(quiz.Next()!.Pitch, 1);
+        Assert.Equal(4, quiz.Streak);
+        var miss = quiz.Next()!;
+        quiz.AnswerPitch(miss.Pitch + 1, 1);
+        Assert.Equal(0, quiz.Streak);
+        quiz.Next();
+        quiz.TimeUp(3);
+        Assert.Equal(4, quiz.BestStreak);
+        Assert.Equal(2, quiz.Missed.Count);
+        Assert.Equal(miss, quiz.Missed[0]);
+    }
+
+    [Fact]
+    public void Missed_notes_come_up_more_often_and_right_answers_forgive_them()
+    {
+        var weakness = new Dictionary<string, int>();
+        var quiz = new NoteQuiz(NoteQuizLevel.Treble, new Random(7), weakness);
+        var note = quiz.Next()!;
+        quiz.AnswerLetter((note.Letter + 1) % 7, 1);
+        Assert.Equal(1, weakness[note.Key]);
+        for (int i = 0; i < 10; i++)
+            weakness[note.Key] = Math.Min(NoteQuiz.MaxWeakness, weakness[note.Key] + 1);
+        Assert.Equal(NoteQuiz.MaxWeakness, weakness[note.Key]);
+
+        // With weight 5 against 1 for each of the other 11 notes, it comes up far more than 1 in 12.
+        int hits = 0;
+        var sampler = new NoteQuiz(NoteQuizLevel.Treble, new Random(11), weakness);
+        for (int i = 0; i < 2000; i++)
+            if (sampler.Next() == note)
+                hits++;
+            else if (sampler.Current is { } other)
+                _ = other;
+        Assert.InRange(hits, 2000 / 12 + 150, 2000);
+
+        // Right answers take it back off.
+        var forgiving = new NoteQuiz(NoteQuizLevel.Treble, new Random(13), weakness);
+        while (forgiving.Next() is { } n && weakness.ContainsKey(note.Key) && !forgiving.Finished)
+            forgiving.AnswerPitch(n.Pitch, 1);
+        Assert.True(!weakness.ContainsKey(note.Key) || weakness[note.Key] < NoteQuiz.MaxWeakness);
+    }
+
+    [Fact]
+    public void Intervals_two_white_notes_a_second_to_an_octave_apart()
+    {
+        var quiz = new NoteQuiz(NoteQuizLevel.Intervals, new Random(3));
+        for (int i = 0; i < NoteQuiz.RoundLength; i++)
+        {
+            var item = quiz.Next()!;
+            Assert.NotNull(item.Upper);
+            Assert.InRange(item.Interval, 2, 8);
+            Assert.True(item.Upper!.Pitch > item.Pitch);
+            Assert.Equal(0, item.Upper.Alter);
+            Assert.False(quiz.AnswerPitch(item.Pitch, 1)); // an instrument doesn't answer intervals...
+            Assert.Equal(i, quiz.Done);                    // ...and doesn't count
+            Assert.True(quiz.AnswerInterval(item.Interval, 1));
+        }
+        Assert.Equal(NoteQuiz.RoundLength, quiz.Correct);
+        Assert.Equal("Tercie", new QuizNote(60, 0, 0, true, new QuizNote(64, 2, 0, true)).Name);
+        Assert.Equal(8, new QuizNote(60, 0, 0, true, new QuizNote(72, 0, 0, true)).Interval);
+    }
+
     [Theory]
     [InlineData(0, 1, "Cis")]
     [InlineData(1, -1, "Des")]

@@ -92,7 +92,7 @@ static class ScoreExporter
         double ToUnits(double seconds) => timing.ToQuarters(seconds) * Divisions;
 
         var notes = score.Parts.SelectMany((p, index) => p.Notes.Select(n => (n, index)));
-        var (treble, bass, measures, _) = SheetQuantizer.Quantize(notes, ToUnits, measureLength);
+        var (treble, bass, measures, _) = SheetQuantizer.Quantize(notes, ToUnits, measureLength, i => score.Parts[i].Staff);
 
         // Tempo changes, on the grid, by bar: the first one is written with the opening attributes.
         var tempoChanges = timing.Tempo
