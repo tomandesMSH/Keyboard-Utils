@@ -51,6 +51,9 @@ Makro klávesnice je volitelná a nic dalšího k běhu aplikace nepotřebuje �
 - **Složka se skladbami** (**Nastavení > Složka se skladbami...**) – všechny MIDI / MusicXML v ní (i v podsložkách)
   jsou playlist; **Soubor > Skladby ze složky** ho načte a další / předchozí skladba jím listuje bez dialogu.
   **Soubor > Nedávné skladby** ukáže posledních 10 otevřených.
+- **Soubor > Knihovna** – otevřenou skladbu přidáš do **oblíbených** nebo jí dáš **štítky** (oddělené čárkou).
+  V Knihovně pak jsou **Oblíbené skladby** a seznam skladeb pro každý štítek; otevřou se jako playlist.
+  Ukládá se do `config.json`.
 - **Hledat noty zdarma...** prohledá [Mutopia Project](https://www.mutopiaproject.org/) – přes 2000 skladeb (hlavně
   klasika) jako volné dílo nebo pod licencí Creative Commons. Vybranou skladbu stáhne jako MIDI a otevře; věty
   skladby jsou v seznamu (**Soubor > Předchozí / Další skladba**). U licencí CC BY uveď při sdílení autora a zdroj.
@@ -110,6 +113,7 @@ Na kartě Skladba (seznam ukáže **F1** nebo **Nastavení > Klávesové zkratky
 | Ctrl + R | uložit nahrávku jako MIDI bez dialogu (do `Dokumenty\Keyboard Utils\Nahrávky`) |
 | Ctrl + O / Ctrl + S | otevřít / uložit skladbu |
 | Ctrl + D | tmavý / světlý režim |
+| Ctrl + Z / Ctrl + Y | zpět / vpřed při úpravách nahrávky |
 
 Při psaní do políčka rychlosti klávesy patří políčku.
 
@@ -164,6 +168,11 @@ skladba: přehraj si ji, a když se ti líbí, ulož ji tlačítkem **Uložit** 
 - **MIDI** – přesně to, co jsi zahrál,
 - **MusicXML** (pro MuseScore) – noty zarovnané na šestnáctiny, klavírní dvojosnova. Appka se zeptá na tempo
   zápisu (BPM) – nastav ho zhruba na to, ve kterém jsi hrál.
+
+**Úpravy nahrávky** (než ji uložíš, v padajících notách): klik vybere notu, **Shift + klik** přidá / odebere další,
+tažením přes prázdné místo vybereš víc not. Vybrané noty přetáhneš myší nebo posuneš **← / →** (o 20 ms),
+**↑ / ↓** je posune o půltón, **Delete** je smaže, dvojklik otevře přesný tón / začátek / délku a **Ctrl + Z / Y**
+vrací zpět / vpřed. Po uložení nebo otevření jiné skladby úpravy skončí.
 
 ### Stopy a převod zvuku na noty
 
