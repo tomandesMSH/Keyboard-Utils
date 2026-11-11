@@ -353,7 +353,8 @@ sealed partial class MainForm : AntdUI.Window
         // Both ways of getting a song: a file you have, or a free one from the internet.
         openSongButton.Click += (_, _) => ShowMenu(openSongButton,
             MenuItem(T("Ze souboru (MIDI, XML)...", "From a file (MIDI, XML)..."), OpenSong),
-            MenuItem(T("Hledat noty zdarma...", "Find free sheet music..."), FindFreeScores));
+            MenuItem(T("Hledat noty zdarma...", "Find free sheet music..."), FindFreeScores),
+            MenuItem(T("Stupnice a rozcvičky...", "Scales and warm-ups..."), OpenExercise));
         importStemsButton.Click += (_, _) => ImportStems();
         removeSongButton.Click += (_, _) => RemoveSong();
         playPauseButton.Click += (_, _) => TogglePlayPause();
@@ -404,6 +405,8 @@ sealed partial class MainForm : AntdUI.Window
         fileMenuButton.Click += (_, _) => ShowMenu(fileMenuButton,
             MenuItem(T("Otevřít skladbu...", "Open song..."), OpenSong),
             MenuItem(T("Hledat noty zdarma...", "Find free sheet music..."), FindFreeScores),
+            MenuItem(T("Stupnice a rozcvičky...", "Scales and warm-ups..."), OpenExercise),
+            MenuItem(T("Trénink čtení not...", "Note-reading trainer..."), OpenNoteTrainer),
             MenuItem(T("Importovat stopy...", "Import stems..."), ImportStems),
             MenuItem(T("Uložit skladbu jako...", "Save song as..."), SaveCurrentSong),
             new AntdUI.ContextMenuStripItemDivider(),

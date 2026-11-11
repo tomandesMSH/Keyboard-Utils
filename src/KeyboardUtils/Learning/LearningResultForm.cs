@@ -11,7 +11,9 @@ sealed class LearningResultForm : AntdUI.Window
 
     /// <param name="history">The song's attempts, oldest first, this one last.</param>
     /// <param name="hardSpots">Where the most mistakes are (worst first), from the attempts so far.</param>
-    public LearningResultForm(LearningResult result, string songTitle, IReadOnlyList<PracticeEntry> history, IReadOnlyList<HardSpot> hardSpots)
+    /// <param name="take">How the player played, to listen back to and keep; null when it wasn't recorded.</param>
+    public LearningResultForm(LearningResult result, string songTitle, IReadOnlyList<PracticeEntry> history, IReadOnlyList<HardSpot> hardSpots,
+        RecordedTake? take = null)
     {
         Text = T("Hodnocení", "Results");
         Icon = AppIcon.Icon;
@@ -98,6 +100,47 @@ sealed class LearningResultForm : AntdUI.Window
                 Close();
             };
             buttons.Controls.Add(practise);
+        }
+
+        if (take != null)
+        {
+            // Listen back / keep it - in a row of their own, the result buttons stay as they are.
+            var listen = new AntdUI.Button { Text = T("▶  Poslechnout si", "▶  Listen back"), AutoSize = true, Radius = 8 };
+            var save = new AntdUI.Button { Text = T("Uložit nahrávku", "Save the recording"), AutoSize = true, Radius = 8 };
+            void ShowState() => listen.Text = take.IsPlaying ? T("■  Zastavit", "■  Stop") : T("▶  Poslechnout si", "▶  Listen back");
+            take.Finished += () => BeginInvoke(() =>
+            {
+                if (!IsDisposed)
+                    ShowState();
+            });
+            listen.Click += (_, _) =>
+            {
+                if (take.IsPlaying)
+                    take.Stop();
+                else
+                    take.Play();
+                ShowState();
+            };
+            save.Click += (_, _) =>
+            {
+                try
+                {
+                    string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Keyboard Utils", T("Nahrávky", "Recordings"));
+                    string saved = take.SaveTo(folder, RecordedTake.FileName(songTitle, DateTime.Now));
+                    save.Text = T("Uloženo ✓", "Saved ✓");
+                    save.Enabled = false;
+                    new ToolTip().SetToolTip(save, saved);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    ShowModal(this, Text, T("Nahrávku se nepodařilo uložit: ", "Couldn't save the recording: ") + ex.Message, AntdUI.TType.Error);
+                }
+            };
+            var takeRow = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, WrapContents = false, Padding = new Padding(12, 4, 12, 0) };
+            takeRow.Controls.AddRange([listen, save]);
+            Controls.Add(takeRow);
+            FormClosing += (_, _) => take.Stop();
+            Height += 50;
         }
 
         Controls.Add(details);

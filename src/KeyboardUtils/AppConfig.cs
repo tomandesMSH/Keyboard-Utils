@@ -63,6 +63,8 @@ enum MacroAction
     MetronomeMeterNext,
     ToggleStandaloneMetronome,
     PracticeHardSpot,
+    NoteTrainer,
+    Exercise,
 }
 
 /// <summary>How the actions behave when a key repeats fast - a knob (rotary encoder) sends a burst of one key.</summary>
@@ -188,6 +190,8 @@ sealed class Binding
         MacroAction.MetronomeMeterNext => T("Metronom: další takt (2/4, 3/4, 4/4, 5/4, 6/8)", "Metronome: next time signature (2/4, 3/4, 4/4, 5/4, 6/8)"),
         MacroAction.ToggleStandaloneMetronome => T("Metronom bez podkladu zapnout / vypnout", "Metronome without a song on / off"),
         MacroAction.PracticeHardSpot => T("Procvičit těžké místo (smyčka + učení)", "Practise the hard spot (loop + learning)"),
+        MacroAction.NoteTrainer => T("Trénink čtení not", "Note-reading trainer"),
+        MacroAction.Exercise => T("Stupnice a rozcvičky", "Scales and warm-ups"),
         _ => Action.ToString(),
     };
 }
@@ -257,6 +261,16 @@ sealed class AppConfig
 
     /// <summary>Minutes of learning a day to aim for (<see cref="PracticeGoal"/>); 0 = no goal, nothing shown.</summary>
     public int DailyGoalMinutes { get; set; } = 20;
+
+    /// <summary>The last scale / warm-up made (<see cref="ExerciseGenerator"/>), offered again next time.</summary>
+    public ExerciseSpec Exercise { get; set; } = new();
+
+    /// <summary>Note-reading trainer: the level picked last and the best round (correct notes of 20) per level.</summary>
+    public NoteQuizLevel NoteQuizLevel { get; set; } = NoteQuizLevel.Treble;
+    public Dictionary<NoteQuizLevel, int> NoteQuizBest { get; set; } = [];
+
+    /// <summary>Learning mode records the player (microphone: sound, MIDI / on-screen keys: notes) to listen back.</summary>
+    public bool LearningRecordTake { get; set; }
 
     /// <summary>"No" to downloading the chord detection add-on: don't offer it again on every conversion.</summary>
     public bool ChordAddonDeclined { get; set; }

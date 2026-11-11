@@ -51,11 +51,19 @@ sealed class NoteRecorder
         return new Score { Title = title, Parts = [part] };
     }
 
+    /// <summary>
+    /// A note still held when the recording stops (often the last one, which ends a learning session the moment it's
+    /// pressed) is kept and given at least this length - it isn't a glitch, it just hasn't been let go yet.
+    /// </summary>
+    const double HeldAtEndSeconds = 0.5;
+
     /// <summary>Closes held notes and returns the recording with the silence before the first note cut off.</summary>
     public Score Finish(string title)
     {
-        foreach (int pitch in open.Keys.ToList())
-            OnNoteOff(pitch);
+        double now = CurrentSeconds - latencySeconds;
+        foreach (var (pitch, start) in open)
+            notes.Add(new Recorded(pitch, start, Math.Max(now, start + HeldAtEndSeconds)));
+        open.Clear();
         clock.Stop();
 
         double offset = notes.Count > 0 ? notes.Min(n => n.Start) : 0;

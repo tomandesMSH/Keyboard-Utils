@@ -17,7 +17,7 @@ sealed class SheetMusicControl : Control, IThemed
     static Color PlayheadColor => Color.FromArgb(66, 133, 244);
 
     /// <summary>Accidental signs, as stored in <see cref="StaffEvent.Accidentals"/>.</summary>
-    const int Sharp = 1, Natural = 2, Flat = 3;
+    const int Sharp = MusicGlyphs.Sharp, Natural = MusicGlyphs.Natural, Flat = MusicGlyphs.Flat;
 
     /// <summary>
     /// Where the key signature's sharps and flats sit on the treble staff (staff steps, 0 = bottom line), in the
@@ -145,7 +145,7 @@ sealed class SheetMusicControl : Control, IThemed
     float S => BaseSpace * zoom * DeviceDpi / 96f;
 
     /// <summary>Width of a notehead; stems sit on its edges.</summary>
-    float HeadWidth => 1.25f * S;
+    float HeadWidth => MusicGlyphs.HeadWidth * S;
 
     float ScrollbarWidth => 6 * DeviceDpi / 96f;
 
@@ -225,7 +225,7 @@ sealed class SheetMusicControl : Control, IThemed
     {
         staffEvents[0].Clear();
         staffEvents[1].Clear();
-        SetKey(score == null ? 0 : KeySignature.Of(score));
+        SetKey(score == null ? 0 : KeySignature.Of(score), score != null && KeySignature.IsMinor(score));
         if (score == null)
         {
             measureCount = 0;
@@ -253,11 +253,14 @@ sealed class SheetMusicControl : Control, IThemed
     /// <summary>Muting a part or starting learning changes which notes are written.</summary>
     public void NotesChanged() => Rebuild();
 
-    void SetKey(int fifths)
+    void SetKey(int fifths, bool minor)
     {
         keyFifths = Math.Clamp(fifths, -7, 7);
-        spelling = KeySignature.Spelling(keyFifths);
+        keyMinor = minor;
+        spelling = KeySignature.Spelling(keyFifths, minor);
     }
+
+    bool keyMinor;
 
     int Diatonic(int pitch) => KeySignature.Diatonic(pitch, spelling[pitch % 12]);
 
@@ -276,7 +279,7 @@ sealed class SheetMusicControl : Control, IThemed
                 continue;
             }
 
-            var accidentals = new AccidentalState(keyFifths);
+            var accidentals = new AccidentalState(keyFifths, keyMinor);
             foreach (var (segment, index) in inMeasure)
             {
                 var pieces = SheetQuantizer.Decompose(segment.Length);
@@ -1015,70 +1018,9 @@ sealed class SheetMusicControl : Control, IThemed
     }
 
     /// <summary>An oval tilted up to the right: filled for quarters and shorter, open for halves and wholes.</summary>
-    void DrawNotehead(Graphics g, Brush brush, float x, float y, int length)
-    {
-        float s = S;
-        using var path = new GraphicsPath(FillMode.Alternate);
-        float cx = x + HeadWidth / 2;
-        if (length >= 16)
-        {
-            path.AddEllipse(cx - 0.8f * s, y - 0.5f * s, 1.6f * s, s);
-            using var hole = new GraphicsPath();
-            hole.AddEllipse(-0.42f * s, -0.27f * s, 0.84f * s, 0.54f * s);
-            using var holeMatrix = new Matrix();
-            holeMatrix.Translate(cx, y);
-            holeMatrix.Rotate(55);
-            hole.Transform(holeMatrix);
-            path.AddPath(hole, false);
-        }
-        else
-        {
-            path.AddEllipse(-0.64f * s, -0.43f * s, 1.28f * s, 0.86f * s);
-            if (length >= 8)
-                path.AddEllipse(-0.5f * s, -0.2f * s, 1.0f * s, 0.4f * s);
-            using var matrix = new Matrix();
-            matrix.Translate(cx, y);
-            matrix.Rotate(-22);
-            path.Transform(matrix);
-        }
-        g.FillPath(brush, path);
-    }
+    void DrawNotehead(Graphics g, Brush brush, float x, float y, int length) => MusicGlyphs.Notehead(g, brush, x, y, S, length);
 
-    void DrawAccidental(Graphics g, Brush brush, int kind, float right, float y)
-    {
-        float s = S;
-        using var pen = new Pen(brush, Math.Max(1, 0.12f * s));
-        using var thick = new Pen(brush, 0.3f * s);
-        if (kind == Flat)
-        {
-            // Flat: a tall stem with a rounded belly on the right, sitting on the note's line or space.
-            float left = right - 0.8f * s;
-            g.DrawLine(pen, left, y - 1.9f * s, left, y + 0.55f * s);
-            using var belly = new System.Drawing.Drawing2D.GraphicsPath();
-            belly.AddBezier(left, y + 0.55f * s, left + 0.5f * s, y + 0.2f * s, left + 1.05f * s, y - 0.35f * s, left + 0.5f * s, y - 0.55f * s);
-            belly.AddBezier(left + 0.5f * s, y - 0.55f * s, left + 0.25f * s, y - 0.65f * s, left + 0.05f * s, y - 0.45f * s, left, y - 0.2f * s);
-            using var bellyPen = new Pen(brush, 0.22f * s);
-            g.DrawPath(bellyPen, belly);
-        }
-        else if (kind == Sharp)
-        {
-            // Sharp: two upright strokes crossed by two thick rising bars.
-            float left = right - 0.95f * s;
-            g.DrawLine(pen, left + 0.3f * s, y - 1.3f * s, left + 0.3f * s, y + 1.4f * s);
-            g.DrawLine(pen, left + 0.65f * s, y - 1.4f * s, left + 0.65f * s, y + 1.3f * s);
-            g.DrawLine(thick, left, y - 0.3f * s, left + 0.95f * s, y - 0.6f * s);
-            g.DrawLine(thick, left, y + 0.6f * s, left + 0.95f * s, y + 0.3f * s);
-        }
-        else
-        {
-            // Natural: a box with a stem up on the left and down on the right.
-            float left = right - 0.75f * s;
-            g.DrawLine(pen, left, y - 1.4f * s, left, y + 0.45f * s);
-            g.DrawLine(pen, left + 0.65f * s, y - 0.45f * s, left + 0.65f * s, y + 1.4f * s);
-            g.DrawLine(thick, left, y - 0.25f * s, left + 0.65f * s, y - 0.5f * s);
-            g.DrawLine(thick, left, y + 0.5f * s, left + 0.65f * s, y + 0.25f * s);
-        }
-    }
+    void DrawAccidental(Graphics g, Brush brush, int kind, float right, float y) => MusicGlyphs.Accidental(g, brush, kind, right, y, S);
 
     void DrawWholeMeasureRest(Graphics g, Brush ink, MeasureLayout measure, float staffTop)
     {

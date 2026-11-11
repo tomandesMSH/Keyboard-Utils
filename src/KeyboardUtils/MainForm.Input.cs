@@ -26,8 +26,13 @@ sealed partial class MainForm
             if (noteSource != source)
                 return;
             pianoRoll.SetKeyHeld(note, true);
-            if (learning != null)
+            if (noteTrainer != null)
+                noteTrainer.OnNoteOn(note);
+            else if (learning != null)
+            {
                 learning.OnNoteOn(note);
+                takeRecorder?.OnNoteOn(note);
+            }
             else if (recorder != null)
                 recorder.OnNoteOn(note);
             else
@@ -39,6 +44,7 @@ sealed partial class MainForm
                 return;
             pianoRoll.SetKeyHeld(note, false);
             recorder?.OnNoteOff(note);
+            takeRecorder?.OnNoteOff(note);
         });
         try
         {

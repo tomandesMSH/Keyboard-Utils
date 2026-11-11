@@ -30,6 +30,31 @@ static class KeySignature
     /// <summary>
     /// How each pitch class (0 = C ... 11 = B) is written in the key: the key's own notes as the key spells them,
     /// other white keys as naturals, the remaining black keys as sharps (sharp keys and C) or flats (flat keys).
+    /// In a minor key the raised seventh (the leading note of harmonic minor) is written as the seventh degree
+    /// raised - C♯ in D minor, E♯ in F♯ minor - when that needs no double sharp.
+    /// </summary>
+    public static (int Letter, int Alter)[] Spelling(int fifths, bool minor)
+    {
+        var spelling = Spelling(fifths);
+        if (!minor)
+            return spelling;
+        int majorTonic = Mod12(7 * fifths);
+        int tonicLetter = (spelling[majorTonic].Letter + 5) % 7;   // the relative minor: a sixth up
+        int leadingLetter = (tonicLetter + 6) % 7;
+        int leadingPitch = Mod12(majorTonic + 8);                   // minor tonic - 1
+        int alter = leadingPitch - NaturalPitch[leadingLetter];
+        alter = alter > 6 ? alter - 12 : alter < -6 ? alter + 12 : alter;
+        if (alter is >= -1 and <= 1)
+            spelling[leadingPitch] = (leadingLetter, alter);
+        return spelling;
+    }
+
+    /// <summary>Pitch class of the key's tonic: major, or its relative minor.</summary>
+    public static int Tonic(int fifths, bool minor) => Mod12(7 * fifths + (minor ? 9 : 0));
+
+    /// <summary>
+    /// How each pitch class (0 = C ... 11 = B) is written in the key: the key's own notes as the key spells them,
+    /// other white keys as naturals, the remaining black keys as sharps (sharp keys and C) or flats (flat keys).
     /// </summary>
     public static (int Letter, int Alter)[] Spelling(int fifths)
     {
@@ -91,6 +116,9 @@ static class KeySignature
     /// <summary>The score's key: from its file, otherwise guessed from all its notes.</summary>
     public static int Of(Score score) => score.KeyFifths ?? Estimate(score.Parts.SelectMany(p => p.Notes));
 
+    /// <summary>A minor key's spelling only when the key is known to be minor (guessed keys are taken as major).</summary>
+    public static bool IsMinor(Score score) => score.KeyFifths != null && score.KeyMinor;
+
     /// <summary>Letter names, for MusicXML's &lt;step&gt;.</summary>
     public static readonly string[] LetterNames = ["C", "D", "E", "F", "G", "A", "B"];
 
@@ -102,9 +130,9 @@ static class KeySignature
 /// current bar on their own line. Decides which notes need a sharp, flat or natural in front of them - the same
 /// for the sheet music view and the MusicXML export.
 /// </summary>
-sealed class AccidentalState(int fifths)
+sealed class AccidentalState(int fifths, bool minor = false)
 {
-    readonly (int Letter, int Alter)[] spelling = KeySignature.Spelling(fifths);
+    readonly (int Letter, int Alter)[] spelling = KeySignature.Spelling(fifths, minor);
     readonly int[] keyAlters = KeySignature.LetterAlters(fifths);
     readonly Dictionary<int, int> inBar = [];
 

@@ -41,6 +41,8 @@ sealed partial class MainForm
             config.LearningAccompaniment = setup.Accompaniment;
             config.LearningCheckChords = setup.CheckChords;
             config.LearningRampUp = setup.RampUp;
+            if (config.NoteInput != NoteInputKind.SystemAudio)
+                config.LearningRecordTake = setup.RecordTake;
             config.LearningPartNames = parts.Select(i => score.Parts[i].Name).ToList();
             config.Save();
         }
@@ -52,7 +54,10 @@ sealed partial class MainForm
         if (noteSource is not { } source)
             return; // the error was already shown
 
+        // The next pass of a loop goes on recording the same take.
+        keepTake = nextPass;
         StopLearningMode(showResult: false);
+        keepTake = false;
         StopStandalone();
         playbackEngine.Stop();
         stemPlaybackEngine.Stop();
@@ -110,6 +115,8 @@ sealed partial class MainForm
         });
         learning = session;
         learningStatus = "";
+        if (!nextPass)
+            StartTake(source);
         learningInfo = (config.LearningMode, (int)Math.Round(speed * 100), parts.Select(i => score.Parts[i].Name).ToArray(), range);
         if (!nextPass)
             SetStatus(T("Režim učení", "Learning mode") + (config.LearningMode == LearningMode.InTempo ? T(" - v tempu", " - in tempo") : ""));
@@ -194,10 +201,11 @@ sealed partial class MainForm
         UpdateCreateButton();
         SetStatus(T("Režim učení ukončen.", "Learning mode ended."));
 
+        using var take = keepTake ? null : StopTake();
         // Nothing played yet: there's nothing to score.
         if (!RecordPractice(session, result) || !showResult)
             return;
-        using var dialog = new LearningResultForm(result, currentScore?.Title ?? "", practiceHistory.For(PracticeKey()), CurrentHardSpots());
+        using var dialog = new LearningResultForm(result, currentScore?.Title ?? "", practiceHistory.For(PracticeKey()), CurrentHardSpots(), take);
         switch (dialog.ShowDialog(this))
         {
             case DialogResult.Retry:

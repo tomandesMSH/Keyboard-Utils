@@ -87,7 +87,8 @@ static class ScoreExporter
         var timing = TimingOf(score, bpm);
         int measureLength = timing.MeasureSixteenths;
         int fifths = KeySignature.Of(score);
-        var spelling = KeySignature.Spelling(fifths);
+        bool minor = KeySignature.IsMinor(score);
+        var spelling = KeySignature.Spelling(fifths, minor);
         double ToUnits(double seconds) => timing.ToQuarters(seconds) * Divisions;
 
         var notes = score.Parts.SelectMany((p, index) => p.Notes.Select(n => (n, index)));
@@ -99,8 +100,8 @@ static class ScoreExporter
             .GroupBy(t => t.Units).Select(g => g.Last())
             .ToList();
 
-        var trebleAccidentals = new AccidentalState(fifths);
-        var bassAccidentals = new AccidentalState(fifths);
+        var trebleAccidentals = new AccidentalState(fifths, minor);
+        var bassAccidentals = new AccidentalState(fifths, minor);
         var part = new XElement("part", new XAttribute("id", "P1"));
         double? lastBpm = null;
         for (int m = 0; m < measures; m++)
@@ -109,7 +110,7 @@ static class ScoreExporter
             if (m == 0)
                 measure.Add(new XElement("attributes",
                     new XElement("divisions", Divisions),
-                    new XElement("key", new XElement("fifths", fifths)),
+                    new XElement("key", new XElement("fifths", fifths), new XElement("mode", minor ? "minor" : "major")),
                     new XElement("time", new XElement("beats", timing.Beats), new XElement("beat-type", timing.BeatType)),
                     new XElement("staves", 2),
                     new XElement("clef", new XAttribute("number", 1), new XElement("sign", "G"), new XElement("line", 2)),

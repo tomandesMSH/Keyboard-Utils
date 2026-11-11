@@ -35,6 +35,9 @@ sealed class Score
     /// <summary>Key signature from the file (-7 = seven flats ... 7 = seven sharps); null = unknown, guessed from the notes.</summary>
     public int? KeyFifths { get; set; }
 
+    /// <summary>The key is the minor one of <see cref="KeyFifths"/> (A minor for 0): its raised seventh is spelled as such.</summary>
+    public bool KeyMinor { get; set; }
+
     public double DurationSeconds => Parts.SelectMany(p => p.Notes)
         .Select(n => n.StartSeconds + n.DurationSeconds)
         .DefaultIfEmpty(0)

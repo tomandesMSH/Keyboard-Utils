@@ -12,6 +12,8 @@ sealed class LearningSetupForm : AntdUI.Window
     readonly AntdUI.Checkbox accompanimentBox = new() { AutoSize = true, Margin = new Padding(0, 6, 0, 0) };
     readonly AntdUI.Checkbox chordsBox = new() { AutoSize = true, Margin = new Padding(0, 6, 0, 0) };
     readonly AntdUI.Checkbox rampBox = new() { AutoSize = true, Margin = new Padding(0, 6, 0, 0) };
+    readonly AntdUI.Checkbox recordBox = new() { AutoSize = true, Margin = new Padding(0, 6, 0, 0) };
+    readonly bool systemAudio;
     readonly AntdUI.Label micHint = new() { AutoSize = false, Size = new Size(470, 40), ForeColor = SystemColors.GrayText };
     readonly AntdUI.Button start = new() { AutoSize = true, Type = AntdUI.TTypeMini.Primary, Radius = 8 };
     readonly bool microphone;
@@ -28,6 +30,7 @@ sealed class LearningSetupForm : AntdUI.Window
     public bool Accompaniment => accompanimentBox.Checked;
     public bool CheckChords => chordsBox.Checked;
     public bool RampUp => rampBox.Checked;
+    public bool RecordTake => recordBox.Checked;
 
     /// <param name="audioAccompaniment">
     /// The song is loaded stems with notes converted from them: in tempo mode the accompaniment is the original
@@ -109,6 +112,15 @@ sealed class LearningSetupForm : AntdUI.Window
         chordsBox.Visible = audioInput;
         chordsBox.CheckedChanged += (_, _) => UpdateState();
         layout.Controls.Add(chordsBox);
+
+        // The computer's sound has the accompaniment in it too: nothing to record there.
+        systemAudio = config.NoteInput == NoteInputKind.SystemAudio;
+        recordBox.Text = microphone
+            ? T("Nahrát, jak hraju (zvuk z mikrofonu) - pak si to poslechneš", "Record my playing (the microphone's sound) - to listen back")
+            : T("Nahrát, jak hraju (zahrané noty) - pak si to poslechneš", "Record my playing (the notes played) - to listen back");
+        recordBox.Checked = config.LearningRecordTake && !systemAudio;
+        recordBox.Enabled = !systemAudio;
+        layout.Controls.Add(recordBox);
 
         micHint.Margin = new Padding(0, 4, 0, 0);
         layout.Controls.Add(micHint);

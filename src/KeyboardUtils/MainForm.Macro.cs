@@ -43,6 +43,8 @@ sealed partial class MainForm
             case MacroAction.SaveRecording: SaveRecordingQuick(); break;
             case MacroAction.ShowPracticeHistory: ShowPracticeHistory(); break;
             case MacroAction.PracticeHardSpot: PracticeHardSpot(); break;
+            case MacroAction.NoteTrainer: OpenNoteTrainer(); break;
+            case MacroAction.Exercise: OpenExercise(); break;
             case MacroAction.MetronomeTap: TapMetronome(); break;
             case MacroAction.MetronomeMeterNext: CycleMetronomeMeter(); break;
             case MacroAction.ToggleStandaloneMetronome: ToggleStandaloneOption(); break;

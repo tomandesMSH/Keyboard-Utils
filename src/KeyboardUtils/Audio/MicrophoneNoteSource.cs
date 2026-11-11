@@ -12,6 +12,29 @@ sealed class MicrophoneNoteSource : INoteSource, IExpectedNotesListener
     readonly AudioNoteDetector detector;
     readonly float[] samples = new float[SampleRate]; // generous: one buffer is ~20 ms
     WaveIn? waveIn;
+    volatile TakeWriter? take;
+
+    /// <summary>The longest take kept (5 MB a minute): a forgotten session doesn't fill the disk.</summary>
+    static readonly TimeSpan MaxTake = TimeSpan.FromMinutes(30);
+
+    /// <summary>Starts writing what the microphone hears to <paramref name="path"/> (WAV), alongside note detection.</summary>
+    public void StartTake(string path)
+    {
+        StopTake();
+        take = new TakeWriter(path, new WaveFormat(SampleRate, 16, 1), MaxTake);
+    }
+
+    /// <summary>Ends the take; its file and length, or null when none was running.</summary>
+    public (string Path, double Seconds)? StopTake()
+    {
+        var current = take;
+        take = null;
+        if (current == null)
+            return null;
+        double seconds = current.Seconds;
+        current.Dispose();
+        return (current.Path, seconds);
+    }
 
     /// <param name="deviceName">Null or unknown = the system default recording device.</param>
     public MicrophoneNoteSource(string? deviceName, double thresholdDb)
@@ -93,12 +116,14 @@ sealed class MicrophoneNoteSource : INoteSource, IExpectedNotesListener
         waveIn.Dispose();
         waveIn = null;
         detector.Reset();
+        StopTake();
     }
 
     /// <summary>Runs on NAudio's capture thread.</summary>
     void OnData(object? sender, WaveInEventArgs e)
     {
         var bytes = e.BufferSpan[..e.BytesRecorded];
+        take?.Write(bytes);
         int count = Math.Min(bytes.Length / 2, samples.Length);
         for (int i = 0; i < count; i++)
             samples[i] = (short)(bytes[2 * i] | bytes[2 * i + 1] << 8) / 32768f;
