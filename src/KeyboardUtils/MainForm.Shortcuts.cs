@@ -55,6 +55,10 @@ sealed partial class MainForm
             {
                 if (shortcut.Keys != keyData || (shortcut.SongTabOnly && tabs.SelectedTab != songTab))
                     continue;
+                // A button clicked before keeps the focus, and a button "clicks" again when Space (or Enter) is let
+                // go: Space would pause and the button play straight away again. Take the focus off it first.
+                if (FocusedLeaf(ActiveControl) is AntdUI.Button or ButtonBase)
+                    ActiveControl = null;
                 RunFromControl(shortcut.Run);
                 return true;
             }
@@ -68,12 +72,15 @@ sealed partial class MainForm
             action();
     }
 
-    static bool TypingInto(Control? control)
+    static bool TypingInto(Control? control) =>
+        FocusedLeaf(control) is TextBoxBase or AntdUI.Input or ListView or ComboBox;
+
+    /// <summary>The focused control can sit inside nested containers (panels, split containers): the innermost one.</summary>
+    static Control? FocusedLeaf(Control? control)
     {
-        // The focused control can sit inside nested containers (panels, split containers).
         while (control is ContainerControl { ActiveControl: { } inner })
             control = inner;
-        return control is TextBoxBase or AntdUI.Input or ListView or ComboBox;
+        return control;
     }
 
     void ShowShortcuts()

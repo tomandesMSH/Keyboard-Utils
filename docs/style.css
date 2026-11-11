@@ -210,6 +210,20 @@ nav a:hover { color: var(--text); }
 
 .keys-small { --w: 24px; height: 46px; border-width: 3px; }
 
+/* The strips can be played (piano.js): a pressed key lights up in Keyboard Utils blue. */
+.keys.playable { cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
+.key-pressed {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: #4285f4;
+  opacity: .55;
+  pointer-events: none;
+}
+/* Black keys stay on top of a lit white key; a lit black key on top of them. */
+.keys.playable::after { z-index: 1; }
+.key-pressed.black { bottom: 38%; opacity: .9; z-index: 2; border-radius: 0 0 3px 3px; }
+
 /* --- Screenshot --------------------------------------------------------------------------- */
 
 .shots {
