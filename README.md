@@ -154,6 +154,10 @@ appka vybere nejhorší místa – sousední takty spojí, nejvýš 4. Hodnocen�
 v notách mají ty takty červenou značku s počtem chyb a tlačítko **Procvičit takty …** (nebo **H**, nebo makro akce
 **Procvičit těžké místo**) nastaví na ně smyčku a spustí učení.
 
+**Nahrát, jak hraju** (v okně Režim učení): s mikrofonem se nahraje zvuk, s MIDI / klikáním zahrané noty. V hodnocení
+je pak **Poslechnout si** a **Uložit nahrávku** (WAV / MIDI do `Dokumenty\Keyboard Utils\Nahrávky`). Zvuk z počítače
+se nenahrává (byl by v něm i doprovod).
+
 **Denní cíl a série:** vpravo dole je vidět, kolik minut jsi dnes cvičil(a) v režimu učení, a 🔥 série dní v řadě
 se splněným cílem (najetím myší posledních 7 dní). Cíl (výchozí 20 min, 0 = vypnuto) změníš kliknutím na ukazatel
 nebo v **Nastavení > Denní cíl...**. Počítá se jen režim učení, z `history.json`.
@@ -165,6 +169,19 @@ Utils**. Appka si při spuštění zaregistruje odkazy `keyboardutils://` (jen p
 krátce platný podepsaný odkaz na soubor. Appka stáhne jen MIDI / MusicXML z úložiště Muzia (`*.supabase.co`, https,
 nejvýš 5 MB) do `%LOCALAPPDATA%\KeyboardUtils\Muzio` a otevře ho. Když už běží, předá jí ho nově spuštěná kopie
 (pojmenovaná roura) a sama skončí.
+
+### Stupnice a rozcvičky
+
+**Otevřít skladbu ▾ > Stupnice a rozcvičky...** vytvoří cvičení jako skladbu: **stupnice** nahoru a dolů (mollové
+harmonické), **rozložený akord** nebo **kadence T–S–D–T**, v libovolné tónině (12 dur, 10 moll), na 1–2 oktávy,
+pro pravou, levou nebo obě ruce, v zadaném tempu ve čtvrťových nebo osminových notách. Má takty a předznamenání,
+takže funguje režim učení, smyčka se zrychlováním, metronom i historie; uložit jde přes Uložit skladbu jako.
+
+### Trénink čtení not
+
+**Soubor > Trénink čtení not...** ukáže notu na osnově; zahraj ji (MIDI / mikrofon / zvuk z počítače – musí sedět
+klávesa i oktáva), nebo klikni na její jméno či zmáčkni písmeno (C D E F G A H). Úrovně: houslový klíč (c1–g2),
+basový (F–c1), oba, pokročilý (pomocné linky, křížky a béčka). Kolo má 20 not, pamatuje se nejlepší výsledek.
 
 ### Zapisování not
 
