@@ -6,8 +6,9 @@ namespace KeyboardUtils;
 /// A wind instrument in place of the keyboard, on the same dark stage as the keyboard and the fingerboard, filling the
 /// panel: the recorder and the flute lying across (mouthpiece / lip plate on the left), the trumpet's three valves.
 /// The fingering shown is the note to play now (in learning: the one expected; in playback: the one sounding;
-/// otherwise the next one); its name big on the left, the buttons on the right. The note coming next shows as rings
-/// in their own colour round the holes it covers, shrinking until they're the size of the holes - time to play it.
+/// otherwise the next one); its name big on the left, the buttons on the right. Above each hole / key is its lane,
+/// and the song falls down the lanes like the falling notes onto the keyboard: a bar reaching the hole = cover it,
+/// its end passing = lift the finger, its length = how long to hold.
 /// <para>
 /// It can be played: click the holes / keys to cover them (your fingers show orange, green where they match the
 /// note), then hold <b>Fouknout</b> - the fingering's note sounds (<see cref="NoteStarted"/> / <see cref="NoteEnded"/>,
@@ -22,9 +23,9 @@ sealed class WindChartControl : Control, IThemed
     static readonly Color HintColor = Color.FromArgb(96, 156, 255);
     static readonly Color HeldColor = Color.FromArgb(255, 152, 0);
     static Color MatchColor => PianoRollControl.CorrectColor;
-    /// <summary>The next note's rings appear this long before it and shrink onto its holes as it comes.</summary>
-    const double ApproachSeconds = 1.6;
-    static readonly Color ApproachColor = Color.FromArgb(190, 120, 255);
+    /// <summary>How far ahead the lanes show (their height).</summary>
+    const double LookAheadSeconds = 3;
+    static readonly Color LaneColor = Color.FromArgb(34, 34, 41);
 
     Instrument instrument = Instrument.Piano;
     Score? score;
@@ -41,6 +42,9 @@ sealed class WindChartControl : Control, IThemed
 
     /// <summary>Where each key was drawn (its visible shape), for the rings of the note coming next.</summary>
     readonly Dictionary<int, RectangleF> keyShapes = [];
+
+    /// <summary>The x of each key's lane (where the instrument was drawn).</summary>
+    readonly Dictionary<int, float> laneX = [];
     RectangleF nameHit, releaseHit;
     readonly List<(RectangleF Bounds, int Level)> blowHits = [];
     int? shownPitch;
@@ -316,9 +320,10 @@ sealed class WindChartControl : Control, IThemed
             return;
 
         keyShapes.Clear();
+        laneX.Clear();
         var now = NowNote();
         var next = NextNote();
-        // Nothing sounding yet: the note to come is the one shown (and its rings close in on it).
+        // Nothing sounding yet: the note to come is the one shown.
         if (now == null && next is { } first)
             now = (first.Pitch, HintColor);
         shownPitch = now?.Pitch;
@@ -338,39 +343,134 @@ sealed class WindChartControl : Control, IThemed
             .Select(i => Look(fingering?.Keys[i] ?? KeyState.Open, user?[i], now?.Color ?? HintColor))
             .ToArray();
         bool outOfRange = now != null && fingering == null && user == null;
-        switch (instrument.Id)
+        float hitY = instrument.Id switch
         {
-            case "recorder": DrawRecorder(g, chart, looks, stage, scale, outOfRange); break;
-            case "flute": DrawFlute(g, chart, looks, stage, scale, outOfRange); break;
-            default: DrawTrumpet(g, chart, looks, stage, scale, outOfRange); break;
-        }
+            "recorder" => DrawRecorder(g, chart, looks, stage, scale, outOfRange),
+            "flute" => DrawFlute(g, chart, looks, stage, scale, outOfRange),
+            _ => DrawTrumpet(g, chart, looks, stage, scale, outOfRange),
+        };
+        DrawLanes(g, chart, stage, hitY, scale, outOfRange);
         DrawSide(g, side, scale);
-        if (next is { } coming)
-            DrawApproach(g, coming.Pitch, coming.Start);
     }
 
     /// <summary>
-    /// The note coming next: a ring round each hole / key it covers, in its own colour, shrinking as the note comes
-    /// until it's the size of the hole - that's when to play it (like the falling notes reaching the keyboard).
+    /// The lanes over the keys and the song falling down them: per key, a bar for each note that covers it (half wide
+    /// for a half-covered hole), from the note's start (bottom) to its end (top); notes in a row that keep a finger
+    /// down join up. The names of the notes coming are written at their starts, left of the lanes.
     /// </summary>
-    void DrawApproach(Graphics g, int pitch, double start)
+    void DrawLanes(Graphics g, WindChart chart, RectangleF stage, float hitY, float scale, bool outOfRange)
     {
-        double left = start - currentSeconds;
-        if (left > ApproachSeconds || WindFingerings.For(instrument, pitch, RecorderSystem) is not { } fingering)
+        if (laneX.Count == 0)
             return;
-        float progress = (float)Math.Clamp(left / ApproachSeconds, 0, 1); // 1 = just appeared, 0 = play now
-        using var pen = new Pen(Color.FromArgb((int)(255 * (1 - 0.65f * progress)), ApproachColor), 2.6f);
-        for (int i = 0; i < fingering.Keys.Count; i++)
+        float header = 30 * scale;
+        float top = Math.Min(stage.Top + 6 + header, hitY - 30);
+        var lanes = laneX.OrderBy(l => l.Value).ToList();
+        float gap = lanes.Zip(lanes.Skip(1), (a, b) => b.Value - a.Value).DefaultIfEmpty(40).Min();
+        float width = Math.Clamp(gap * 0.72f, 6, 22 * scale);
+
+        using (var stripe = new SolidBrush(LaneColor))
+            foreach (var (_, x) in lanes)
+                g.FillRectangle(stripe, x - width / 2, top, width, hitY - top);
+        using (var line = new Pen(Color.FromArgb(96, 98, 110), 1.5f))
+            g.DrawLine(line, lanes[0].Value - width, hitY, lanes[^1].Value + width, hitY);
+
+        // Headers: the hand over its lanes, each lane's finger (the thumb's, the levers' names).
+        using var small = new Font("Segoe UI", 7.5f * scale);
+        using var handFont = new Font("Segoe UI Semibold", 8.5f * scale);
+        using var label = new SolidBrush(Label);
+        using var dim = new SolidBrush(Dim);
+        using var center = new StringFormat { Alignment = StringAlignment.Center };
+        float labelY = top - small.Height - 1;
+        foreach (var (i, x) in lanes)
         {
-            if (fingering.Keys[i] == KeyState.Open || !keyShapes.TryGetValue(i, out var shape))
+            var key = chart.Keys[i];
+            string text = key.Kind == KeyKind.Thumb ? T("palec", "thumb")
+                : key.Kind == KeyKind.Lever ? key.Label.Replace("#", "♯").Replace("b", "♭")
+                : key.Kind == KeyKind.Valve ? key.Label
+                : instrument.Id == "recorder" ? key.Finger[1..] : key.Finger.Replace("P", T("P", "R"));
+            g.DrawString(text, small, key.Kind is KeyKind.Thumb or KeyKind.Lever ? dim : label, new RectangleF(x - 30, labelY, 60, small.Height), center);
+        }
+        foreach (var (hand, name) in new[] { ('L', T("levá ruka", "left hand")), ('P', T("pravá ruka", "right hand")) })
+        {
+            var group = lanes.Where(l => chart.Keys[l.Key].Finger.StartsWith(hand) && chart.Keys[l.Key].Kind != KeyKind.Thumb).ToList();
+            if (group.Count == 0)
                 continue;
-            float grow = 1 + 1.7f * progress;
-            float w = shape.Width * grow + 6, h = shape.Height * grow + 6;
-            var ring = new RectangleF(shape.Left + shape.Width / 2 - w / 2, shape.Top + shape.Height / 2 - h / 2, w, h);
-            if (fingering.Keys[i] == KeyState.Half)
-                g.DrawArc(pen, ring, 90, 180); // a half ring: half cover it
-            else
-                g.DrawEllipse(pen, ring);
+            float x1 = group[0].Value - width / 2, x2 = group[^1].Value + width / 2;
+            g.DrawString(name, handFont, dim, new RectangleF(x1 - 20, labelY - handFont.Height, x2 - x1 + 40, handFont.Height), center);
+        }
+
+        if (outOfRange)
+        {
+            g.DrawString(T("Tahle nota v hmatové tabulce není.", "This note isn't in the fingering chart."), handFont, dim,
+                new RectangleF(stage.Left, top + (hitY - top) / 2 - 10, stage.Width, 20), center);
+        }
+        if (score == null)
+            return;
+
+        // The notes from now to the top of the lanes, as bars per key.
+        double now = currentSeconds;
+        float span = hitY - top;
+        float Y(double seconds) => hitY - (float)((seconds - now) / LookAheadSeconds) * span;
+        bool practiced(int part) => Learning?.PracticedParts.Contains(part) ?? !score.Parts[part].Muted;
+        var notes = score.Parts
+            .SelectMany((part, index) => practiced(index) ? part.Notes.Select(n => (Note: n, Part: index)) : [])
+            .Where(n => n.Note.StartSeconds < now + LookAheadSeconds && n.Note.StartSeconds + n.Note.DurationSeconds > now)
+            .OrderBy(n => n.Note.StartSeconds)
+            .ToList();
+        var bars = new Dictionary<int, List<(double Start, double End, bool Half, int Pitch, int Part)>>();
+        foreach (var (note, part) in notes)
+        {
+            if (WindFingerings.For(instrument, note.Pitch, RecorderSystem) is not { } fingering)
+                continue;
+            for (int k = 0; k < fingering.Keys.Count; k++)
+            {
+                if (fingering.Keys[k] == KeyState.Open || !laneX.ContainsKey(k))
+                    continue;
+                if (!bars.TryGetValue(k, out var list))
+                    bars[k] = list = [];
+                var bar = (note.StartSeconds, note.StartSeconds + note.DurationSeconds, fingering.Keys[k] == KeyState.Half, note.Pitch, part);
+                // The finger stays down from one note into the next: one bar (a repeated note is struck again).
+                if (list.Count > 0 && list[^1] is var last && bar.Item1 - last.End < 0.04 && last.Pitch != bar.Pitch
+                    && last.Half == bar.Item3 && last.Part == part)
+                    list[^1] = last with { End = Math.Max(last.End, bar.Item2), Pitch = bar.Pitch };
+                else
+                    list.Add(bar);
+            }
+        }
+        foreach (var (k, list) in bars)
+        {
+            float x = laneX[k];
+            foreach (var bar in list)
+            {
+                float bottom = Math.Min(Y(bar.Start), hitY), upper = Math.Max(Y(bar.End), top);
+                if (bottom - upper < 2)
+                    continue;
+                bool sounding = bar.Start <= now && bar.End > now;
+                float w = bar.Half ? width / 2 : width;
+                var rect = new RectangleF(x - width / 2, upper, w, bottom - upper - (bottom < hitY ? 2 : 0));
+                using var path = Rounded(rect, Math.Min(4, w / 2));
+                using var fill = new SolidBrush(Color.FromArgb(sounding ? 255 : 200, PianoRollControl.PartColor(bar.Part)));
+                g.FillPath(fill, path);
+            }
+        }
+
+        // The names of the notes to come, at their starts, left of the lanes.
+        using var nameFont = new Font("Segoe UI Semibold", 8.5f * scale);
+        using var right = new StringFormat { Alignment = StringAlignment.Far };
+        float nameRight = lanes[0].Value - width;
+        int? lastPitch = null;
+        double lastStart = double.MinValue;
+        foreach (var (note, _) in notes)
+        {
+            if (note.StartSeconds < now - 0.01 || note.StartSeconds - lastStart < 0.03 && note.Pitch == lastPitch)
+                continue;
+            float y = Y(note.StartSeconds);
+            if (y - nameFont.Height < top)
+                break;
+            g.DrawString(Tuning.Name(instrument.Written(note.Pitch)), nameFont, label,
+                new RectangleF(nameRight - 70, y - nameFont.Height, 70, nameFont.Height), right);
+            lastPitch = note.Pitch;
+            lastStart = note.StartSeconds;
         }
     }
 
@@ -415,12 +515,15 @@ sealed class WindChartControl : Control, IThemed
     static readonly Color WoodLight = Color.FromArgb(240, 214, 170);
     static readonly Color HoleDark = Color.FromArgb(46, 32, 22);
 
-    void DrawRecorder(Graphics g, WindChart chart, KeyLook[] looks, RectangleF stage, float scale, bool outOfRange)
+    /// <returns>Where the lanes end (just above the recorder).</returns>
+    float DrawRecorder(Graphics g, WindChart chart, KeyLook[] looks, RectangleF stage, float scale, bool outOfRange)
     {
         float left = stage.Left + 8, right = stage.Right - 12;
         float length = right - left;
-        float d = Math.Min(stage.Height * 0.32f, length * 0.088f); // the tube's thickness
-        float cy = stage.Top + stage.Height * 0.47f;
+        float d = Math.Min(stage.Height * 0.2f, length * 0.075f); // the tube's thickness
+        float r = Math.Clamp(d * 0.26f, 4, 18);
+        // Low in the panel: under it only the thumb hole; above it the lanes.
+        float cy = stage.Bottom - (d * 0.5f + r * 3.4f + 6);
         float X(float along) => left + along * length;
 
         // Beak, head (a bit thicker), body, foot, the bell flaring.
@@ -453,16 +556,16 @@ sealed class WindChartControl : Control, IThemed
             g.FillRectangle(dark, X(0), cy - d * 0.22f, 3, d * 0.16f);
         }
 
-        float r = Math.Clamp(d * 0.26f, 4, 18);
         using var fingerFont = new Font("Segoe UI", 8.5f * scale);
-        using var handFont = new Font("Segoe UI Semibold", 9f * scale);
-        using var label = new SolidBrush(Label);
         using var dim = new SolidBrush(Dim);
-        using var center = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
         for (int i = 0; i < chart.Keys.Count; i++)
         {
             var key = chart.Keys[i];
             float x = X(key.Y);
+            // The thumb is behind hole 1: its lane (and its hole, under the recorder) just left of it.
+            if (key.Kind == KeyKind.Thumb)
+                x -= r * 3f;
+            laneX[i] = x;
             var look = outOfRange ? new KeyLook(KeyState.Open, Dim, false) : looks[i];
             RectangleF hit;
             if (key.Kind == KeyKind.Thumb)
@@ -473,7 +576,7 @@ sealed class WindChartControl : Control, IThemed
                     g.DrawLine(joint, x, cy + d * 0.5f, x, ty - r);
                 DrawHole(g, x, ty, r, look, dashed: true);
                 keyShapes[i] = new RectangleF(x - r, ty - r, 2 * r, 2 * r);
-                g.DrawString(T("palec (zezadu)", "thumb (back)"), fingerFont, dim, x + r + 6, ty - fingerFont.Height / 2f);
+                g.DrawString(T("palec (zezadu)", "thumb (back)"), fingerFont, dim, x - r - 4 - g.MeasureString(T("palec (zezadu)", "thumb (back)"), fingerFont).Width, ty - fingerFont.Height / 2f);
                 hit = new RectangleF(x - r * 1.6f, ty - r * 1.6f, r * 3.2f, r * 3.2f);
             }
             else if (key.Kind == KeyKind.DoubleHole)
@@ -493,25 +596,8 @@ sealed class WindChartControl : Control, IThemed
                 hit = new RectangleF(x - r * 1.5f, cy - r * 1.5f, r * 3f, r * 3f);
             }
             keyHits.Add((hit, i));
-            if (key.Kind != KeyKind.Thumb)
-                g.DrawString(key.Finger[1..], fingerFont, label, new RectangleF(x - 20, cy - d * 0.5f - 22 * scale, 40, 18 * scale), center);
         }
-
-        // The hands, over their holes.
-        void Hand(int first, int last, string text)
-        {
-            float x1 = X(chart.Keys[first].Y) - r, x2 = X(chart.Keys[last].Y) + r, y = cy - d * 0.5f - 30 * scale;
-            using var pen = new Pen(Dim, 1);
-            g.DrawLine(pen, x1, y, x2, y);
-            g.DrawLine(pen, x1, y, x1, y + 4);
-            g.DrawLine(pen, x2, y, x2, y + 4);
-            var size = g.MeasureString(text, handFont);
-            g.DrawString(text, handFont, label, (x1 + x2) / 2 - size.Width / 2, y - size.Height - 1);
-        }
-        Hand(1, 3, T("levá ruka", "left hand"));
-        Hand(4, 7, T("pravá ruka", "right hand"));
-        if (outOfRange)
-            g.DrawString(T("Tahle nota na zobcové flétně není.", "Not a note of the recorder."), fingerFont, dim, X(0.3f), cy + d * 0.5f + r * 4.5f);
+        return cy - d * 0.56f - 2;
     }
 
     // --- The flute (lying: crown and lip plate left, foot right) ----------------------------------------
@@ -520,12 +606,15 @@ sealed class WindChartControl : Control, IThemed
     static readonly Color Silver = Color.FromArgb(188, 192, 200);
     static readonly Color SilverDark = Color.FromArgb(110, 114, 124);
 
-    void DrawFlute(Graphics g, WindChart chart, KeyLook[] looks, RectangleF stage, float scale, bool outOfRange)
+    /// <returns>Where the lanes end (just above the key cups).</returns>
+    float DrawFlute(Graphics g, WindChart chart, KeyLook[] looks, RectangleF stage, float scale, bool outOfRange)
     {
         float left = stage.Left + 6, right = stage.Right - 10;
         float length = right - left;
-        float d = Math.Min(stage.Height * 0.15f, length * 0.04f); // the tube
-        float cy = stage.Top + stage.Height * 0.46f;
+        float d = Math.Min(stage.Height * 0.11f, length * 0.04f); // the tube
+        float cup = Math.Clamp(d * 0.62f, 6, 24);
+        // Low in the panel: under it the levers and their names; above it the lanes.
+        float cy = stage.Bottom - (d * 0.5f + cup * 2.4f + 16 * scale);
         float X(float along) => left + along * length;
 
         // The tube, shaded round; head joint a touch thinner; crown; joint rings.
@@ -561,10 +650,7 @@ sealed class WindChartControl : Control, IThemed
             foreach (float at in new[] { 0.33f, 0.585f, 0.84f })
                 g.FillRectangle(post, X(at) - 2, cy - d * 0.78f, 4, d * 0.3f);
 
-        float cup = Math.Clamp(d * 0.62f, 6, 24);
         using var fingerFont = new Font("Segoe UI", 8.5f * scale);
-        using var handFont = new Font("Segoe UI Semibold", 9f * scale);
-        using var label = new SolidBrush(Label);
         using var dim = new SolidBrush(Dim);
         using var center = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
         for (int i = 0; i < chart.Keys.Count; i++)
@@ -572,6 +658,10 @@ sealed class WindChartControl : Control, IThemed
             var key = chart.Keys[i];
             var look = outOfRange ? new KeyLook(KeyState.Open, Dim, false) : looks[i];
             float x = X(key.X);
+            // The thumb's key is under L1: its lane (and its touch) just left of it.
+            if (key.Kind == KeyKind.Thumb)
+                x -= cup * 2.4f;
+            laneX[i] = x;
             RectangleF hit;
             if (key.Kind == KeyKind.Key)
             {
@@ -587,7 +677,6 @@ sealed class WindChartControl : Control, IThemed
                     g.DrawEllipse(rim, rect);
                 keyShapes[i] = rect;
                 hit = RectangleF.Inflate(rect, 4, 4);
-                g.DrawString(key.Finger.Replace("P", T("P", "R")), fingerFont, label, new RectangleF(x - 24, rect.Top - 20 * scale, 48, 18 * scale), center);
             }
             else
             {
@@ -613,29 +702,16 @@ sealed class WindChartControl : Control, IThemed
             }
             keyHits.Add((hit, i));
         }
-
-        void Hand(float from, float to, string text)
-        {
-            float x1 = X(from) - cup, x2 = X(to) + cup, y = cy - cup * 1.05f - 24 * scale;
-            using var pen = new Pen(Dim, 1);
-            g.DrawLine(pen, x1, y, x2, y);
-            g.DrawLine(pen, x1, y, x1, y + 4);
-            g.DrawLine(pen, x2, y, x2, y + 4);
-            var size = g.MeasureString(text, handFont);
-            g.DrawString(text, handFont, label, (x1 + x2) / 2 - size.Width / 2, y - size.Height - 1);
-        }
-        Hand(0.37f, 0.565f, T("levá ruka", "left hand"));
-        Hand(0.63f, 0.95f, T("pravá ruka", "right hand"));
-        if (outOfRange)
-            g.DrawString(T("Tahle nota na flétně není (v tabulce je c1 – a3).", "Not in the flute's chart (C4 – A6)."), fingerFont, dim, X(0.3f), stage.Bottom - 22 * scale);
+        return cy - cup * 1.05f - 3;
     }
 
     // --- The trumpet ---------------------------------------------------------------------------------------
 
-    void DrawTrumpet(Graphics g, WindChart chart, KeyLook[] looks, RectangleF stage, float scale, bool outOfRange)
+    /// <returns>Where the lanes end (just above the valve buttons).</returns>
+    float DrawTrumpet(Graphics g, WindChart chart, KeyLook[] looks, RectangleF stage, float scale, bool outOfRange)
     {
-        float r = Math.Clamp(Math.Min(stage.Width / 12, stage.Height / 4.2f), 8, 38);
-        float spacing = r * 3.2f, cx = stage.Left + stage.Width / 2, cy = stage.Top + stage.Height * 0.52f;
+        float r = Math.Clamp(Math.Min(stage.Width / 12, stage.Height / 6f), 8, 30);
+        float spacing = r * 3.2f, cx = stage.Left + stage.Width / 2, cy = stage.Bottom - r * 2.4f;
         using var font = new Font("Segoe UI Semibold", Math.Max(8f, r * 0.75f), GraphicsUnit.Pixel);
         using var center = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
         // The valve casings joined by the lead pipe.
@@ -646,6 +722,7 @@ sealed class WindChartControl : Control, IThemed
             var look = outOfRange ? new KeyLook(KeyState.Open, Dim, false) : looks[i];
             bool down = look.State == KeyState.Closed;
             float x = cx + (i - 1) * spacing;
+            laneX[i] = x;
             var casing = new RectangleF(x - r * 0.6f, cy - r * 0.6f, r * 1.2f, r * 2.8f);
             using (var brass = new LinearGradientBrush(casing, Color.FromArgb(240, 214, 130), Color.FromArgb(160, 120, 40), LinearGradientMode.Horizontal))
                 g.FillRectangle(brass, casing);
@@ -662,6 +739,7 @@ sealed class WindChartControl : Control, IThemed
             keyShapes[i] = button;
             keyHits.Add((RectangleF.Inflate(button, r * 0.3f, r * 0.8f), i));
         }
+        return cy - r * 2.35f;
     }
 
     // --- The side: the buttons ------------------------------------------------------------------------------

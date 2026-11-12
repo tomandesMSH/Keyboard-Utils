@@ -243,8 +243,9 @@ don't need. Packs live in `%APPDATA%\KeyboardUtils\instruments` and are hosted i
 - **fingering charts instead of the keyboard** for the recorder, the flute and the trumpet – drawn like the
   instrument (the recorder with its head, window, double holes and the thumb hole at the back, the flute with its keys
   and levers, the trumpet's valves), with hands and fingers labelled: the fingering of the note you play (in learning
-  mode, the one to play); the next note comes as purple rings round the holes it covers, shrinking until they're the
-  size of the holes – that's when to play it. **Play them with the mouse:** click to cover holes / press keys (your fingers orange, green where they match
+  mode, the one to play); above each hole / key is its lane and the song falls down the lanes like the falling
+  notes onto the keyboard: when a bar lands on a hole, cover it; when it ends, lift the finger; its length is how long
+  to hold, and the names of the notes coming are on the left. **Play them with the mouse:** click to cover holes / press keys (your fingers orange, green where they match
   the note) and hold **Blow** to hear the fingering's note – in learning mode it counts as played; **Harder**
   overblows the flute an octave up and takes the trumpet's next partial. The recorder has baroque and German fingering
   (**Settings > Recorder fingering**); the flute uses the basic fingerings of the Woodwind Fingering Guide (C4–A6).

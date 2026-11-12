@@ -233,8 +233,9 @@ jsou v `%APPDATA%\KeyboardUtils\instruments` a hostuje je repozitář
   a s kytarou se zmáčkne a brnkne na hmatníku;
 - **hmaty místo klaviatury** u zobcové flétny, příčné flétny a trubky – nakreslené jako nástroj (zobcová flétna
   s hlavicí, okénkem, dvojitými dírkami a palcem vzadu, příčná flétna s klapkami a pákami, trubka s ventily), s
-  popisem rukou a prstů: hmat noty, kterou hraješ (v režimu učení kterou máš zahrát); další nota se blíží jako fialové kroužky kolem
-  dírek, které zakryje – zmenšují se, a když jsou velké jako dírka, je čas ji zahrát. **Hraje se na ně myší:** kliknutím zakryješ dírky /
+  popisem rukou a prstů: hmat noty, kterou hraješ (v režimu učení kterou máš zahrát); nad každou dírkou / klapkou je její dráha a skladba
+  do nich padá jako padající noty na klaviaturu: když pruh dopadne na dírku, zakryj ji, když skončí, zvedni prst;
+  délka pruhu = jak dlouho držet, vlevo jsou jména not, které přicházejí. **Hraje se na ně myší:** kliknutím zakryješ dírky /
   zmáčkneš klapky (tvoje prsty oranžově, kde sedí s notou zeleně) a držením **Fouknout** zazní tón podle hmatu –
   v režimu učení se počítá jako zahraný; **Silněji** u příčné flétny přefoukne o oktávu, u trubky vezme vyšší
   alikvótu. Zobcová flétna má barokní i německý prstoklad (**Nastavení > Zobcová flétna: prstoklad**); hmaty příčné
