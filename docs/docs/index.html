@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dokumentace – Keyboard Utils</title>
-  <meta name="description" content="Dokumentace Keyboard Utils: skladby, zobrazení, přehrávání, metronom, smyčka, režim učení, zapisování not, makro klávesnice a klávesové zkratky.">
+  <meta name="description" content="Dokumentace Keyboard Utils: skladby, přehrávání, režim učení, zpráva pro učitele, nástroje (kytara, smyčce, flétny, trubka), hmatník, tabulatura a akordy, ladička, zapisování not, makro klávesnice a klávesové zkratky.">
   <link rel="icon" type="image/png" href="../img/favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -38,35 +38,67 @@
 <div class="doc">
   <aside class="doc-toc" aria-label="Obsah">
     <p class="doc-toc-title">Obsah</p>
-    <ol>
-      <li><a href="#instalace">Instalace</a></li>
-      <li><a href="#skladby">Skladby</a></li>
-      <li><a href="#zobrazeni">Zobrazení</a></li>
-      <li><a href="#prehravani">Přehrávání</a></li>
-      <li><a href="#smycka">Smyčka</a></li>
-      <li><a href="#metronom">Metronom</a></li>
-      <li><a href="#casti">Části a hlasitost</a></li>
-      <li><a href="#vstup">Vstup not</a></li>
-      <li><a href="#uceni">Režim učení</a></li>
-      <li><a href="#historie">Historie cvičení</a></li>
-      <li><a href="#stupnice">Stupnice a rozcvičky</a></li>
-      <li><a href="#cteni">Trénink čtení not</a></li>
-      <li><a href="#nastroje">Jiné nástroje a ladička</a></li>
-      <li><a href="#zapisovani">Zapisování not</a></li>
-      <li><a href="#stopy">Stopy a převod zvuku</a></li>
-      <li><a href="#zkratky">Klávesové zkratky</a></li>
-      <li><a href="#makro">Makro klávesnice</a></li>
-      <li><a href="#muzio">Noty z Muzia</a></li>
-      <li><a href="#nastaveni">Nastavení a data</a></li>
-      <li><a href="#problemy">Oprava chyb</a></li>
-    </ol>
+    <div class="doc-toc-group">
+      <p class="doc-toc-cat">Začínáme</p>
+      <ol>
+        <li><a href="#instalace">Instalace</a></li>
+        <li><a href="#skladby">Skladby</a></li>
+        <li><a href="#zobrazeni">Zobrazení</a></li>
+        <li><a href="#prehravani">Přehrávání</a></li>
+      </ol>
+    </div>
+    <div class="doc-toc-group">
+      <p class="doc-toc-cat">Cvičení</p>
+      <ol>
+        <li><a href="#smycka">Smyčka</a></li>
+        <li><a href="#metronom">Metronom</a></li>
+        <li><a href="#casti">Části a hlasitost</a></li>
+        <li><a href="#vstup">Vstup not</a></li>
+        <li><a href="#uceni">Režim učení</a></li>
+        <li><a href="#historie">Historie a zpráva pro učitele</a></li>
+        <li><a href="#stupnice">Stupnice a rozcvičky</a></li>
+        <li><a href="#cteni">Trénink čtení not</a></li>
+      </ol>
+    </div>
+    <div class="doc-toc-group">
+      <p class="doc-toc-cat">Nástroje</p>
+      <ol>
+        <li><a href="#nastroje">Nástroje a balíčky</a></li>
+        <li><a href="#hmatnik">Hmatník: kytara a smyčce</a></li>
+        <li><a href="#kytara">Kytara: tabulatura a akordy</a></li>
+        <li><a href="#dechy">Flétny a trubka</a></li>
+        <li><a href="#ladicka">Ladička</a></li>
+      </ol>
+    </div>
+    <div class="doc-toc-group">
+      <p class="doc-toc-cat">Nahrávání a převod</p>
+      <ol>
+        <li><a href="#zapisovani">Zapisování not</a></li>
+        <li><a href="#stopy">Stopy a převod zvuku</a></li>
+      </ol>
+    </div>
+    <div class="doc-toc-group">
+      <p class="doc-toc-cat">Ovládání</p>
+      <ol>
+        <li><a href="#zkratky">Klávesové zkratky</a></li>
+        <li><a href="#makro">Makro klávesnice</a></li>
+      </ol>
+    </div>
+    <div class="doc-toc-group">
+      <p class="doc-toc-cat">Další</p>
+      <ol>
+        <li><a href="#muzio">Noty z Muzia</a></li>
+        <li><a href="#nastaveni">Nastavení a data</a></li>
+        <li><a href="#problemy">Oprava chyb</a></li>
+      </ol>
+    </div>
   </aside>
 
   <main class="page doc-body">
     <h1>Dokumentace</h1>
     <p class="lead">
-      Všechno, co Keyboard Utils umí, a&nbsp;jak to použít. Návod na první spuštění je
-      na <a href="../index.html#zacit">hlavní stránce</a>.
+      Všechno, co Keyboard Utils umí, a&nbsp;jak to použít – na klavír i&nbsp;na kytaru, housle, violu, violoncello,
+      flétny, klarinet, trubku a&nbsp;saxofon. Návod na první spuštění je na <a href="../index.html#zacit">hlavní stránce</a>.
     </p>
 
     <section id="instalace">
@@ -140,6 +172,10 @@
         </li>
         <li><b>Noty + klávesy</b>: obojí vedle sebe, dělítko mezi nimi jde přetáhnout.</li>
       </ul>
+      <p>
+        U&nbsp;jiných nástrojů je místo klaviatury jejich vlastní pohled a&nbsp;přepínač se podle toho jmenuje: u&nbsp;kytary
+        a&nbsp;smyčců <b>Hmatník</b> (viz <a href="#hmatnik">Hmatník</a>), u&nbsp;fléten a&nbsp;trubky <b>Hmaty</b> (viz <a href="#dechy">Flétny a&nbsp;trubka</a>).
+      </p>
       <ul>
         <li><b>Velikost klávesnice</b> (dole vpravo) mění šířku kláves; ve větším okně se ukáže víc oktáv.</li>
         <li><b>Popisky kláves</b> napíšou název noty na každou bílou klávesu (jinak jen na C).</li>
@@ -269,7 +305,7 @@
     </section>
 
     <section id="historie">
-      <h2>Historie cvičení</h2>
+      <h2>Historie cvičení a&nbsp;zpráva pro učitele</h2>
       <p>
         Každý pokus v&nbsp;režimu učení (i&nbsp;každé kolo smyčky) se uloží ke skladbě. <b>Cvičení &gt; Historie cvičení…</b>
         ukáže graf a&nbsp;seznam všech pokusů: datum, procento, rychlost, režim, části a&nbsp;úsek.
@@ -326,10 +362,10 @@
     <section id="cteni">
       <h2>Trénink čtení not</h2>
       <p>
-        <b>Cvičení &gt; Trénink čtení not…</b> ukáže notu na osnově a&nbsp;ty ji zahraješ na klavíru (MIDI, mikrofon nebo
-        zvuk z&nbsp;počítače), nebo klikneš na její jméno, případně zmáčkneš písmeno na klávesnici (C D E F G A H).
-        Z&nbsp;klavíru musí sedět přesná klávesa i&nbsp;oktáva; tlačítka hodnotí jen jméno. Po špatné odpovědi se ukáže
-        a&nbsp;zahraje, jaká nota to byla.
+        <b>Cvičení &gt; Trénink čtení not…</b> ukáže notu na osnově a&nbsp;ty klikneš na její jméno nebo zmáčkneš písmeno
+        na klávesnici (C D E F G A H). Se zaškrtnutým <b>Mikrofon</b> (výchozí je vypnuté; podle vstupu not se jmenuje
+        i&nbsp;MIDI nebo Zvuk z&nbsp;počítače) ji můžeš i&nbsp;zahrát na nástroji – pak musí sedět přesný tón i&nbsp;oktáva; tlačítka
+        hodnotí jen jméno. Po špatné odpovědi se ukáže a&nbsp;zahraje, jaká nota to byla.
       </p>
       <ul>
         <li><b>Úrovně:</b> houslový klíč (c1–g2), basový klíč (F–c1), oba klíče, pokročilý (pomocné linky, křížky a&nbsp;béčka)
@@ -341,7 +377,7 @@
     </section>
 
     <section id="nastroje">
-      <h2>Jiné nástroje a&nbsp;ladička</h2>
+      <h2>Nástroje a&nbsp;balíčky</h2>
       <p>
         Nahoře jsou <b>záložky s&nbsp;tvými nástroji</b> jako v&nbsp;prohlížeči (třeba Piano | Kytara | Housle). <b>+</b> přidá další,
         <b>×</b> (nebo prostřední tlačítko myši) záložku zavře a&nbsp;tažením je přeskládáš. Na výběr je piano, kytara, housle, viola, violoncello,
@@ -356,48 +392,107 @@
         nepotřebné. Pro jiný nástroj než piano:
       </p>
       <ul>
-        <li><b>Hmatník místo klaviatury</b> u&nbsp;kytary (6 strun, pražce 0–12) a&nbsp;u&nbsp;houslí, violy a&nbsp;violoncella
-          (4 struny, prsty pro 1. polohu, 0 = prázdná struna). Svítí, kde se hraje: při přehrávání barvou části, v&nbsp;režimu
-          učení modře, co hrát, oranžově, co appka slyší, a&nbsp;červeně chyba. Kroužky ukazují noty, které přijdou.</li>
-        <li><b>Na hmatník se hraje jako na nástroj.</b> Kliknutím na pražec (místo prstu) „zmáčkneš“ strunu, dalším
-          kliknutím ji pustíš, <b>×</b> pustí všechny. Vpravo u&nbsp;kytary <b>brnkáš</b> tahem myši přes ozvučník (klik =
-          jedna struna, rychlejší tah = hlasitěji), takže zahraješ i&nbsp;akord. U&nbsp;houslí, violy a&nbsp;violoncella <b>táhneš
-          smyčcem</b> po struně: tón zní, dokud táhneš, krátký klik je pizzicato. Při přehrávání skladby se struny chvějí
-          s&nbsp;ní – kytara brnká, u&nbsp;smyčců se struna chvěje celou dobu tónu.</li>
-        <li>U&nbsp;kytary <b>tabulatura (TAB) pod notami</b>: na šesti linkách čísla pražců, na které struně se tón hraje (horní
-          linka = nejtenčí struna). Akordy jdou na různé struny a&nbsp;ruka zůstává v&nbsp;poloze; struny zapsané v&nbsp;MusicXML platí.
-          Hmatník ukazuje tóny na stejných místech. Vypnout jde v&nbsp;<b>Nastavení &gt; Kytara: tabulatura pod notami</b>.</li>
-        <li><b>Značky akordů nad notami</b> (C, Am, G7, F/C…): z&nbsp;MusicXML u&nbsp;každého nástroje, u&nbsp;kytary i&nbsp;odhadnuté z&nbsp;not,
-          když je soubor nemá. Kliknutím na značku se ukáže hmat akordu a&nbsp;zazní. Vypnout jde v&nbsp;<b>Nastavení &gt; Značky akordů nad notami</b>.</li>
-        <li><b>Cvičení &gt; Knihovna akordů (kytara)…</b>: hmaty prvních akordů (C, D, E, F, G, A, Dm, Em, Am, Hm, septakordy…) jako ve
-          zpěvníku; kliknutím akord zazní a&nbsp;s&nbsp;kytarou se zahraje na hmatníku.</li>
-        <li><b>Hmaty místo klaviatury</b> u&nbsp;zobcové flétny, příčné flétny a&nbsp;trubky – nakreslené jako nástroj, s&nbsp;popisem rukou
-          a&nbsp;prstů: hmat noty, kterou hraješ (v&nbsp;režimu učení kterou máš zahrát); nad každou dírkou je její dráha a&nbsp;skladba do nich padá
-          jako padající noty na klaviaturu: když pruh dopadne na dírku, zakryj ji, když skončí, zvedni prst. <b>Hraje se na ně myší:</b> kliknutím zakryješ dírky / zmáčkneš klapky a&nbsp;držením <b>Fouknout</b> zazní tón podle hmatu
-          (v&nbsp;režimu učení se počítá); <b>Silněji</b> přefoukne. Zobcová flétna má barokní i&nbsp;německý prstoklad
-          (<b>Nastavení &gt; Zobcová flétna: prstoklad</b>). Klarinet a&nbsp;saxofon zatím mají klaviaturu.</li>
-        <li>Tlačítko <b>Ladička</b> přímo vedle Poslouchat a&nbsp;Režim učení.</li>
-        <li><b>Noty na jedné osnově v&nbsp;klíči nástroje</b>: houslový, kytarový (s&nbsp;osmičkou pod klíčem), altový,
+        <li>místo klaviatury je <a href="#hmatnik">hmatník</a> (kytara, housle, viola, violoncello) nebo <a href="#dechy">hmaty</a>
+          (zobcová a&nbsp;příčná flétna, trubka); klarinet a&nbsp;saxofon zatím mají klaviaturu;</li>
+        <li><b>noty na jedné osnově v&nbsp;klíči nástroje</b>: houslový, kytarový (s&nbsp;osmičkou pod klíčem), altový,
           basový. Transponující nástroje vidí noty tak, jak je čtou: klarinet a&nbsp;trubka o&nbsp;tón výš, altový saxofon
-          o&nbsp;sextu – i&nbsp;s&nbsp;předznamenáním (skladba v&nbsp;F dur je pro klarinet v&nbsp;G dur).</li>
-        <li><b>Zvuk nástroje</b> při přehrávání i&nbsp;při hraní na hmatník – z&nbsp;jeho balíčku (housle, viola a&nbsp;cello mají i&nbsp;pizzicato).</li>
-        <li><b>Mikrofon</b> počítá se smyčcem a&nbsp;dechem: noty jdou po sobě bez nového úderu (legato) a&nbsp;vibrato
-          zůstane jedna nota. Tóny mimo rozsah nástroje ignoruje.</li>
-        <li><b>Trénink čtení not</b> má úrovně pro tvůj nástroj (začátek bez posuvek a&nbsp;celý rozsah s&nbsp;křížky
+          o&nbsp;sextu – i&nbsp;s&nbsp;předznamenáním (skladba v&nbsp;F dur je pro klarinet v&nbsp;G dur);</li>
+        <li><b>zvuk nástroje</b> při přehrávání i&nbsp;při hraní na hmatník nebo hmaty – z&nbsp;jeho balíčku (housle, viola
+          a&nbsp;cello mají i&nbsp;pizzicato);</li>
+        <li><b>mikrofon</b> počítá se smyčcem a&nbsp;dechem: noty jdou po sobě bez nového úderu (legato) a&nbsp;vibrato
+          zůstane jedna nota. Tóny mimo rozsah nástroje ignoruje;</li>
+        <li><b>trénink čtení not</b> má úrovně pro tvůj nástroj (začátek bez posuvek a&nbsp;celý rozsah s&nbsp;křížky
           a&nbsp;béčky) a&nbsp;navíc altový a&nbsp;tenorový klíč. Zahraný tón se hodnotí podle toho, jak zní – na klarinet
-          zahraješ psané D a&nbsp;je to správně.</li>
-        <li><b>Stupnice a&nbsp;rozcvičky</b>: stupnice, chromatická stupnice, rozložený akord a&nbsp;stupnice v&nbsp;terciích,
+          zahraješ psané D a&nbsp;je to správně;</li>
+        <li><b>stupnice a&nbsp;rozcvičky</b>: stupnice, chromatická stupnice, rozložený akord a&nbsp;stupnice v&nbsp;terciích,
           jednohlasně od nejnižší tóniky nástroje. Tóninu vybíráš tak, jak ji čteš; když se dvě oktávy do rozsahu
-          nevejdou, bude jedna.</li>
+          nevejdou, bude jedna;</li>
         <li><b>Uložit skladbu jako</b> MusicXML zapíše part nástroje s&nbsp;jeho klíčem a&nbsp;transpozicí. A&nbsp;naopak:
-          MusicXML s&nbsp;transpozicí (part klarinetu nebo trubky z&nbsp;MuseScore) se načte ve správné výšce.</li>
+          MusicXML s&nbsp;transpozicí (part klarinetu nebo trubky z&nbsp;MuseScore) se načte ve správné výšce;</li>
+        <li>tlačítko <b>Ladička</b> přímo vedle Poslouchat a&nbsp;Režim učení.</li>
       </ul>
-      <h3>Ladička</h3>
+    </section>
+
+    <section id="hmatnik">
+      <h2>Hmatník: kytara a&nbsp;smyčce</h2>
       <p>
-        <b>Cvičení &gt; Ladička…</b> (nebo makro akce <b>Ladička</b>) poslouchá mikrofon a&nbsp;ukáže tón, ručičku od −50 do
-        +50 centů (zeleně, když je to čistě – do ±5 centů), frekvenci a&nbsp;u&nbsp;transponujících nástrojů i&nbsp;psanou notu.
-        U&nbsp;kytary, houslí, violy a&nbsp;violoncella ukáže struny a&nbsp;rozsvítí tu, kterou zrovna ladíš (i&nbsp;když je hodně
-        rozladěná), s&nbsp;radou <i>přitáhni / povol</i>. Kliknutím na strunu zazní její tón. Ladění a1 nastavíš 430–446&nbsp;Hz
+        U&nbsp;kytary (6 strun, pražce 0–12) a&nbsp;u&nbsp;houslí, violy a&nbsp;violoncella (4 struny, prsty pro 1. polohu,
+        0 = prázdná struna) je místo klaviatury hmatník. Svítí, kde se hraje: při přehrávání barvou části, v&nbsp;režimu
+        učení modře, co hrát, oranžově, co appka slyší, a&nbsp;červeně chyba. Kroužky ukazují noty, které přijdou.
+      </p>
+      <ul>
+        <li><b>Levá ruka:</b> kliknutím na pražec (místo prstu) „zmáčkneš“ strunu, dalším kliknutím ji pustíš, <b>×</b> pustí všechny.</li>
+        <li><b>Kytara:</b> vpravo <b>brnkáš</b> tahem myši přes ozvučník (klik = jedna struna, rychlejší tah = hlasitěji), takže
+          zahraješ i&nbsp;akord.</li>
+        <li><b>Housle, viola, violoncello:</b> vpravo <b>táhneš smyčcem</b> po struně – tón zní, dokud táhneš; krátký klik je pizzicato.</li>
+        <li><b>Při přehrávání skladby</b> se struny chvějí s&nbsp;ní: kytara brnká od pražce, kde se tón hraje, u&nbsp;smyčců se
+          struna chvěje celou dobu tónu.</li>
+      </ul>
+    </section>
+
+    <section id="kytara">
+      <h2>Kytara: tabulatura a&nbsp;akordy</h2>
+      <ul>
+        <li><b>Tabulatura (TAB) pod notami</b>: na šesti linkách čísla pražců, na které struně se tón hraje (horní
+          linka = nejtenčí struna). Akordy jdou na různé struny a&nbsp;ruka zůstává v&nbsp;poloze; struny zapsané v&nbsp;MusicXML platí
+          a&nbsp;uložené MusicXML je obsahuje. Hmatník ukazuje tóny na stejných místech. Vypnout jde
+          v&nbsp;<b>Nastavení &gt; Kytara: tabulatura pod notami</b>.</li>
+        <li><b>Značky akordů nad notami</b> (C, Am, G7, F/C…): z&nbsp;MusicXML u&nbsp;každého nástroje, u&nbsp;kytary i&nbsp;odhadnuté z&nbsp;not,
+          když je soubor nemá (jen jasné akordy; melodie sama žádné nedostane). Akord, který právě zní, je zvýrazněný.
+          Kliknutím na značku se ukáže hmat akordu a&nbsp;zazní. Vypnout jde v&nbsp;<b>Nastavení &gt; Značky akordů nad notami</b>.</li>
+        <li><b>Cvičení &gt; Knihovna akordů (kytara)…</b>: hmaty prvních akordů (C, D, E, F, G, A, Dm, Em, Am, Hm, septakordy,
+          maj7, sus) jako ve zpěvníku – čísla prstů, × struna nehraje, ○ prázdná struna. Kliknutím akord zazní a&nbsp;s&nbsp;kytarou se
+          zmáčkne a&nbsp;brnkne na hmatníku.</li>
+      </ul>
+    </section>
+
+    <section id="dechy">
+      <h2>Flétny a&nbsp;trubka</h2>
+      <p>
+        U&nbsp;zobcové flétny, příčné flétny a&nbsp;trubky je místo klaviatury nástroj nakreslený přes celou plochu: zobcová flétna
+        s&nbsp;hlavicí, okénkem a&nbsp;dvojitými dírkami (palec je vzadu, proto je nakreslený pod ní), příčná flétna s&nbsp;klapkami,
+        páčkami a&nbsp;nožkou, trubka s&nbsp;ventily. Vlevo je velké jméno noty, kterou hraješ (v&nbsp;režimu učení kterou máš zahrát),
+        a&nbsp;její hmat svítí na nástroji. Kliknutím na jméno nota zazní.
+      </p>
+      <h3>Padající pruhy</h3>
+      <p>
+        Nad každou dírkou a&nbsp;klapkou je její dráha (palec i&nbsp;páčky mají svou) a&nbsp;skladba do nich padá jako padající noty na
+        klaviaturu:
+      </p>
+      <ul>
+        <li><b>pruh dopadne na čáru nad nástrojem = zakryj dírku</b> (zmáčkni klapku, ventil),</li>
+        <li><b>pruh skončí = zvedni prst</b>; délka pruhu = jak dlouho držet,</li>
+        <li>když prst zůstává dole přes víc not, pruh pokračuje; opakovaná nota má malou mezeru,</li>
+        <li>napůl zakrytá dírka (přivřený palec, jedna z&nbsp;dvojitých dírek) má poloviční pruh,</li>
+        <li>vlevo od drah jsou jména not, které přicházejí; vidíš 3&nbsp;s dopředu, takže poznáš i&nbsp;tempo.</li>
+      </ul>
+      <h3>Hraj myší</h3>
+      <ul>
+        <li>Kliknutím zakryješ dírku / zmáčkneš klapku nebo ventil. U&nbsp;zobcové flétny palec a&nbsp;dvojité dírky přepínají
+          zakrytá → napůl → otevřená.</li>
+        <li>Tvoje prsty svítí oranžově, kde sedí s&nbsp;notou, zeleně; modrý kroužek = tuhle dírku ještě zakryj.</li>
+        <li>Držením <b>Fouknout</b> zazní tón podle hmatu – v&nbsp;režimu učení se počítá jako zahraný. <b>Silněji</b>: u&nbsp;příčné
+          flétny o&nbsp;oktávu výš (přefouknutí), u&nbsp;trubky vyšší alikvótní tón. Hmat, který v&nbsp;tabulce není, appka ohlásí.</li>
+        <li><b>× pustit prsty</b> vrátí ukazování hmatu noty.</li>
+      </ul>
+      <h3>Hmaty</h3>
+      <ul>
+        <li><b>Zobcová flétna (sopránová)</b>: psané c1–d3 (zní o&nbsp;oktávu výš), <b>barokní</b> (výchozí) nebo <b>německý</b>
+          prstoklad – <b>Nastavení &gt; Zobcová flétna: prstoklad</b>. Liší se u&nbsp;F, Fis, Gis a&nbsp;B.</li>
+        <li><b>Příčná flétna</b>: základní hmaty Böhmovy flétny c1–a3 (podle Woodwind Fingering Guide); stejný hmat o&nbsp;oktávu
+          výš se přefoukne.</li>
+        <li><b>Trubka in B</b>: ventily pro psané fis – c3; stejné ventily hrají víc tónů, vybírá je nátisk (Fouknout / Silněji).</li>
+        <li>Klarinet a&nbsp;saxofon zatím mají klaviaturu.</li>
+      </ul>
+    </section>
+
+    <section id="ladicka">
+      <h2>Ladička</h2>
+      <p>
+        <b>Cvičení &gt; Ladička…</b> (nebo tlačítko <b>Ladička</b>, makro akce <b>Ladička</b>) poslouchá mikrofon a&nbsp;ukáže tón,
+        ručičku od −50 do +50 centů (zeleně, když je to čistě – do ±5 centů), frekvenci a&nbsp;u&nbsp;transponujících nástrojů
+        i&nbsp;psanou notu. U&nbsp;kytary, houslí, violy a&nbsp;violoncella ukáže struny a&nbsp;rozsvítí tu, kterou zrovna ladíš (i&nbsp;když je
+        hodně rozladěná), s&nbsp;radou <i>přitáhni / povol</i>. Kliknutím na strunu zazní její tón. Ladění a1 nastavíš 430–446&nbsp;Hz
         (orchestry často 442). Ladička běží vedle okna, takže můžeš ladit a&nbsp;hned hrát.
       </p>
     </section>
@@ -555,6 +650,10 @@
         <b>Otevřít skladbu ▾ &gt; Ze souboru</b>. Stažené noty z&nbsp;Muzia appka ukládá do
         <code>%LOCALAPPDATA%\KeyboardUtils\Muzio</code>; stahuje jen MIDI a&nbsp;MusicXML z&nbsp;úložiště Muzia, nejvýš 5&nbsp;MB.
       </p>
+      <p>
+        Menu <b>Muzio</b> v&nbsp;appce: <b>Muzio…</b> řekne, co Muzio je, a&nbsp;otevře ho v&nbsp;prohlížeči. Kdo Muzio nepoužívá, schová
+        menu tlačítkem <b>Skrýt menu Muzio</b>; zpátky ho zapne <b>Nastavení &gt; Zobrazit menu Muzio</b>.
+      </p>
     </section>
 
     <section id="nastaveni">
@@ -562,11 +661,12 @@
       <ul>
         <li>Nastavení: <code>%APPDATA%\KeyboardUtils\config.json</code></li>
         <li>Historie cvičení: <code>%APPDATA%\KeyboardUtils\history.json</code></li>
-        <li>Doplňky (makro klávesnice, akordy): <code>%APPDATA%\KeyboardUtils\modules</code></li>
+        <li>Doplňky (makro klávesnice, akordy, zvuk klavíru): <code>%APPDATA%\KeyboardUtils\modules</code></li>
+        <li>Balíčky nástrojů: <code>%APPDATA%\KeyboardUtils\instruments</code></li>
         <li>Nahrávky uložené bez dialogu: <code>Dokumenty\Keyboard Utils\Nahrávky</code></li>
       </ul>
       <p>
-        Na internet se appka připojuje jen na GitHub (aktualizace, doplňky), při hledání not na Mutopia Project
+        Na internet se appka připojuje jen na GitHub (aktualizace, doplňky, balíčky nástrojů), při hledání not na Mutopia Project
         a&nbsp;při otevírání not z&nbsp;Muzia.
         O&nbsp;tobě neposílá nic.
       </p>
@@ -579,6 +679,8 @@
         <li><b>Není slyšet zvuk</b>: zkontroluj <b>Nastavení &gt; MIDI výstup</b> a&nbsp;hlasitost částí v&nbsp;panelu vpravo.</li>
         <li><b>Mikrofon nereaguje nebo reaguje na šum</b>: <b>Nastavení &gt; Mikrofon a&nbsp;citlivost…</b>, změř šum a&nbsp;posuň práh.</li>
         <li><b>Nová verze se neukazuje</b>: zavři všechna okna Keyboard Utils a&nbsp;spusť ji znovu.</li>
+        <li><b>Nástroj se nestáhne</b>: zkontroluj připojení k&nbsp;internetu a&nbsp;zkus to znovu kliknutím na jeho záložku nebo
+          v&nbsp;<b>Nastavení &gt; Nástroje (stáhnout, odebrat)…</b>. Stažený balíček appka ověří; poškozený nepoužije.</li>
         <li>
           <b>Makro klávesnice přestala fungovat po přepojování USB</b>: Interception má 10 míst pro klávesnice, po mnoha
           odpojeních pomůže restart počítače.
@@ -601,5 +703,6 @@
   </p>
 </footer>
 <script src="../theme.js"></script>
+<script src="docs.js"></script>
 </body>
 </html>

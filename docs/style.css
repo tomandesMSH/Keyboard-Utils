@@ -435,12 +435,15 @@ nav a[aria-current="page"] { color: var(--text); }
 .doc-body section { scroll-margin-top: 16px; }
 .doc-body h3 { margin-top: 24px; }
 
-/* The contents stay in view while reading, on the left. */
+/* The contents stay in view while reading, on the left - scrolling on their own when taller than the window. */
 .doc-toc {
   position: sticky;
   top: 16px;
-  padding: 28px 0;
-  font-size: .93rem;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding: 28px 4px 28px 0;
+  font-size: .9rem;
+  scrollbar-width: thin;
 }
 .doc-toc-title {
   text-transform: uppercase;
@@ -450,10 +453,37 @@ nav a[aria-current="page"] { color: var(--text); }
   color: var(--muted);
   margin: 0 0 10px;
 }
-.doc-toc ol { list-style: none; padding: 0; margin: 0; border-left: 3px solid var(--accent); }
+/* Categories: a small heading over each group of sections, a quiet line down the left of the group. */
+.doc-toc-group { margin: 0 0 14px; }
+.doc-toc-cat {
+  margin: 0 0 4px;
+  font-size: .78rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: var(--muted);
+  transition: color .15s;
+}
+.doc-toc ol { list-style: none; padding: 0; margin: 0; border-left: 3px solid var(--line); }
 .doc-toc li { margin: 0; }
-.doc-toc a { display: block; padding: 4px 0 4px 14px; color: var(--muted); text-decoration: none; }
+.doc-toc a {
+  display: block;
+  margin-left: -3px;
+  padding: 3px 8px 3px 13px;
+  border-left: 3px solid transparent;
+  border-radius: 0 6px 6px 0;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color .15s, background-color .15s, border-color .15s;
+}
 .doc-toc a:hover { color: var(--text); }
+/* Where the reader is: the entry pressed down like a key, its category's heading in full colour. */
+.doc-toc a[aria-current="location"] {
+  color: var(--text);
+  font-weight: 600;
+  background: var(--surface-2);
+  border-left-color: var(--accent);
+}
+.doc-toc-group.active .doc-toc-cat { color: var(--text); }
 
 /* A key cap. */
 kbd {
@@ -484,8 +514,9 @@ kbd {
 /* The contents go above the text when there's no room beside it. */
 @media (max-width: 860px) {
   .doc { grid-template-columns: 1fr; gap: 0; }
-  .doc-toc { position: static; padding-bottom: 0; }
-  .doc-toc ol { columns: 2; }
+  .doc-toc { position: static; max-height: none; overflow: visible; padding-bottom: 0; columns: 2; column-gap: 24px; }
+  .doc-toc-group { break-inside: avoid; }
+  .doc-toc-title { column-span: all; }
 }
 
 @media (max-width: 640px) {
