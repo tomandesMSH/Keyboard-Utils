@@ -155,8 +155,8 @@ sealed class NoteTrainerForm : AntdUI.Window
 
     string LevelName(NoteQuizLevel level) => level switch
     {
-        NoteQuizLevel.Treble => T("Houslový klíč (c1 – g2, bez posuvek)", "Treble clef (C4 – G5, no accidentals)"),
-        NoteQuizLevel.Bass => T("Basový klíč (F – c1, bez posuvek)", "Bass clef (F2 – C4, no accidentals)"),
+        NoteQuizLevel.Treble => T($"Houslový klíč ({NoteNames.Name(60)} – {NoteNames.Name(79)}, bez posuvek)", $"Treble clef ({NoteNames.Name(60)} – {NoteNames.Name(79)}, no accidentals)"),
+        NoteQuizLevel.Bass => T($"Basový klíč ({NoteNames.Name(41)} – {NoteNames.Name(60)}, bez posuvek)", $"Bass clef ({NoteNames.Name(41)} – {NoteNames.Name(60)}, no accidentals)"),
         NoteQuizLevel.Both => T("Oba klíče", "Both clefs"),
         NoteQuizLevel.Advanced => T("Pokročilý (pomocné linky, křížky a béčka)", "Advanced (ledger lines, sharps and flats)"),
         NoteQuizLevel.Intervals => T("Intervaly (sekunda – oktáva)", "Intervals (second – octave)"),

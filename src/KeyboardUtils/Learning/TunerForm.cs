@@ -36,7 +36,7 @@ sealed class TunerForm : AntdUI.Window
         Size = new Size(560, 480);
         MaximizeBox = MinimizeBox = false;
 
-        referenceBox.Items.AddRange(References.Select(hz => (object)$"a1 = {hz} Hz").ToArray());
+        referenceBox.Items.AddRange(References.Select(hz => (object)$"{NoteNames.Name(69)} = {hz} Hz").ToArray());
         int saved = Array.IndexOf(References, (int)Math.Round(config.TunerA4));
         referenceBox.SelectedIndex = saved >= 0 ? saved : Array.IndexOf(References, 440);
         referenceBox.SelectedIndexChanged += (_, _) =>

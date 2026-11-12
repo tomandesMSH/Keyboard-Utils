@@ -470,7 +470,8 @@ sealed partial class MainForm : AntdUI.Window
             MenuItem(T("Ladička...", "Tuner..."), OpenTuner),
             MenuItem(T("Knihovna akordů (kytara)...", "Chord library (guitar)..."), OpenChordLibrary),
             new AntdUI.ContextMenuStripItemDivider(),
-            new AntdUI.ContextMenuStripItem(T("Historie cvičení...", "Practice history...")) { Enabled = currentScore != null, Tag = (Action)ShowPracticeHistory });
+            new AntdUI.ContextMenuStripItem(T("Historie cvičení...", "Practice history...")) { Enabled = currentScore != null, Tag = (Action)ShowPracticeHistory },
+            MenuItem(T("Zpráva pro učitele (PDF)...", "Report for the teacher (PDF)..."), ShowTeacherReport));
 
         editMenuButton.Click += (_, _) => ShowMenu(editMenuButton,
             MenuItem(T("Makro klávesnice...", "Macro keyboard..."), ShowMacroKeyboard),
@@ -738,6 +739,14 @@ sealed partial class MainForm : AntdUI.Window
             {
                 Checked = config.BigNotices,
                 Tag = (Action)(() => { config.BigNotices = !config.BigNotices; config.Save(); }),
+            },
+            new AntdUI.ContextMenuStripItem(T("Názvy not", "Note names"))
+            {
+                Sub =
+                [
+                    new AntdUI.ContextMenuStripItem(T("Školní (c1, fis2, H)", "School (c1, f♯2, B)")) { Checked = config.NoteNaming == NoteNaming.School, Tag = (Action)(() => SetNoteNaming(NoteNaming.School)) },
+                    new AntdUI.ContextMenuStripItem(T("Vědecké (C4, F♯5, H2)", "Scientific (C4, F♯5, B2)")) { Checked = config.NoteNaming == NoteNaming.Scientific, Tag = (Action)(() => SetNoteNaming(NoteNaming.Scientific)) },
+                ],
             },
             new AntdUI.ContextMenuStripItem(T("Značky akordů nad notami", "Chord symbols above the notes"))
             {

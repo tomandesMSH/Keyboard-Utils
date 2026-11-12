@@ -124,6 +124,9 @@ V hlavním okně (seznam ukáže **F1** nebo **Nastavení > Klávesové zkratky.
 
 Při psaní do políčka rychlosti klávesy patří políčku.
 
+**Názvy not:** v **Nastavení > Názvy not** vybereš **školní** (c1, fis2, C, H1 – jak se učí v hudební škole; výchozí)
+nebo **vědecké** (C4, F♯5, C2, B0). Platí všude: popisky kláves, ladička, hmaty, trénink čtení not, stavový řádek.
+
 ### Vstup not (co appka slyší)
 
 V **Nastavení > Vstup not** vybereš, odkud appka bere zahrané noty:
@@ -163,6 +166,11 @@ v notách mají ty takty červenou značku s počtem chyb a tlačítko **Procvi�
 je pak **Poslechnout si** a **Uložit nahrávku** (MP3, případně WAV / MIDI do `Dokumenty\Keyboard Utils\Nahrávky`).
 Zvuková nahrávka se sama ořízne o ticho na začátku a konci a zesílí, když jsi hrál(a) potichu. Zvuk z počítače
 se nenahrává (byl by v něm i doprovod).
+
+**Zpráva pro učitele:** **Cvičení > Zpráva pro učitele (PDF)...** udělá z historie cvičení přehled za tento týden,
+posledních 7 / 30 dní, tento měsíc nebo vlastní období: minuty a dny cvičení, splněný denní cíl, graf minut po
+dnech a tabulku skladeb (pokusy, minuty, nejlepší a poslední výsledek, tempo, těžké takty), dole místo na poznámku
+a podpis učitele. Uloží se jako PDF – pošleš ho e-mailem nebo vytiskneš. Jméno na zprávě si appka pamatuje.
 
 **Denní cíl a série:** vpravo dole je vidět, kolik minut jsi dnes cvičil(a) v režimu učení, a 🔥 série dní v řadě
 se splněným cílem (najetím myší posledních 7 dní). Cíl (výchozí 20 min, 0 = vypnuto) změníš kliknutím na ukazatel. Počítá se jen režim učení, z `history.json`.
@@ -211,7 +219,8 @@ jsou v `%APPDATA%\KeyboardUtils\instruments` a hostuje je repozitář
   oranžově co appka slyší, červeně chyba; kroužky ukazují noty, které přijdou. **Hraje se na něj jako na nástroj:**
   kliknutím na pražec / místo prstu „zmáčkneš“ strunu (znovu ji pustíš, × pustí všechny), vpravo u kytary **brnkáš**
   tahem myši přes ozvučník (klik = jedna struna, rychlejší tah = hlasitěji), u houslí, violy a cella **táhneš
-  smyčcem** po struně (tón zní, dokud táhneš; krátký klik = pizzicato);
+  smyčcem** po struně (tón zní, dokud táhneš; krátký klik = pizzicato). Při přehrávání skladby se struny chvějí
+  s ní – kytara brnká, u houslí, violy a cella se struna chvěje celou dobu tónu;
 - u kytary **tabulatura (TAB) pod notami**: na šesti linkách čísla pražců, na které struně se tón hraje (horní linka =
   nejtenčí struna). Akordy jdou na různé struny, ruka zůstává v poloze, ve které hraje; když má MusicXML struny
   zapsané, platí ty. Hmatník ukazuje tóny na stejných místech, uložené MusicXML struny a pražce obsahuje. Vypnout jde

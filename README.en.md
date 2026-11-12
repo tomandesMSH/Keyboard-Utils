@@ -127,6 +127,10 @@ In the main window (the list is shown by **F1** or **Settings > Keyboard shortcu
 
 While typing in the speed box, keys go to the box.
 
+**Note names:** in **Settings > Note names** choose **school** (c1, f♯2, C, B1 – Czech music-school style, the
+default) or **scientific** (C4, F♯5, C2, B0). It applies everywhere: key labels, tuner, fingerings, note-reading
+trainer, status line.
+
 ### Note input (what the app hears)
 
 In **Settings > Note input** choose where the app gets the played notes from:
@@ -168,6 +172,11 @@ bars …", those bars get a red mark with the number of mistakes in the sheet mu
 the notes played. The score then has **Listen back** and **Save the recording** (MP3, or WAV / MIDI to
 `Documents\Keyboard Utils\Nahrávky`). An audio recording trims the silence at the start and end by itself and is
 boosted when you played quietly. Computer sound isn't recorded (it would include the accompaniment).
+
+**Report for the teacher:** **Practice > Report for the teacher (PDF)...** turns the practice history into an
+overview of this week, the last 7 / 30 days, this month or any period: minutes and days practised, daily goals met,
+a chart of minutes per day and a table of songs (attempts, minutes, best and last result, speed, hard bars), with
+room for the teacher's note and signature. It's saved as a PDF to email or print. The name on it is remembered.
 
 **Daily goal and streak:** the bottom right shows how many minutes you practised in learning mode today, and a 🔥
 streak of days in a row with the goal met (hover for the last 7 days). Click the indicator to change the goal
@@ -218,7 +227,8 @@ don't need. Packs live in `%APPDATA%\KeyboardUtils\instruments` and are hosted i
   notes coming up. **You play it like the instrument:** click a fret / finger place to "press" a string (click again to
   let it go, × releases them all); on the right, on the guitar you **strum** by dragging the mouse across the sound
   hole (a click = one string, a faster drag = louder), on the violin, viola and cello you **bow** along a string (the
-  note sounds as long as you drag; a short click = pizzicato);
+  note sounds as long as you drag; a short click = pizzicato). While a song plays the strings move with it – the
+  guitar's are plucked, and on violin, viola and cello the string moves for as long as each note lasts;
 - for the guitar, **tablature (TAB) under the notes**: fret numbers on six lines showing which string each note is
   played on (top line = the thinnest string). Chord notes go on different strings and the hand stays in its position;
   strings written in a MusicXML file are kept. The fingerboard shows the notes in the same places, and saved MusicXML

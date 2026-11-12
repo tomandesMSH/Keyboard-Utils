@@ -399,6 +399,26 @@ partial class MainForm
         }
     }
 
+    /// <summary>Settings > Note names: school (c1) or scientific (C4); every view redraws with the new names.</summary>
+    void SetNoteNaming(NoteNaming naming)
+    {
+        config.NoteNaming = naming;
+        config.Save();
+        NoteNames.Naming = naming;
+        pianoRoll.Invalidate();
+        fretboard.Invalidate();
+        windChart.Invalidate();
+        tuner?.Invalidate(true);
+        SetStatus(T($"Názvy not: {NoteNames.Name(60)}, {NoteNames.Name(78)}, {NoteNames.Name(47)}.", $"Note names: {NoteNames.Name(60)}, {NoteNames.Name(78)}, {NoteNames.Name(47)}."));
+    }
+
+    /// <summary>Cvičení > Zpráva pro učitele: the practice of a period as a PDF.</summary>
+    void ShowTeacherReport()
+    {
+        using var form = new TeacherReportForm(config, practiceHistory, instrument);
+        form.ShowDialog(this);
+    }
+
     TunerForm? tuner;
 
     /// <summary>The tuner, for the chosen instrument. Not modal: it can stay open beside the song.</summary>

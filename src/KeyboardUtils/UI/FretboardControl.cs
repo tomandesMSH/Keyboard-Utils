@@ -94,6 +94,7 @@ sealed class FretboardControl : Control, IThemed
             StopBow();
             instrument = value;
             stopped.Clear();
+            songBowed.Clear();
             ringingSince.Clear();
             playedFret.Clear();
             UpdateTab();
@@ -139,7 +140,37 @@ sealed class FretboardControl : Control, IThemed
         // Playing on: the guitar's strings are plucked as the song's notes start (not on a jump or while learning).
         if (IsGuitar && Learning == null && seconds > previous && seconds - previous < 0.5)
             PluckSongNotes(previous, seconds);
+        // Violin, viola, cello: the strings of the notes sounding now move as if bowed, as long as each note lasts.
+        if (instrument.IsBowed)
+            BowSongNotes(seconds);
         Invalidate();
+    }
+
+    /// <summary>Bowed instruments: string → place, for the song's notes sounding now (while the song plays on).</summary>
+    readonly Dictionary<int, int> songBowed = [];
+    long songMovedMs;
+
+    void BowSongNotes(double seconds)
+    {
+        songBowed.Clear();
+        songMovedMs = clock.ElapsedMilliseconds;
+        if (score == null || Learning != null)
+            return;
+        foreach (var part in score.Parts)
+        {
+            if (part.Muted)
+                continue;
+            foreach (var note in part.Notes)
+            {
+                if (note.StartSeconds > seconds || note.StartSeconds + note.DurationSeconds <= seconds)
+                    continue;
+                // The player's own hand and bow come first.
+                if (SpotOf(note) is { } spot && !stopped.ContainsKey(spot.String) && spot.String != bowedString)
+                    songBowed[spot.String] = spot.Semitones;
+            }
+        }
+        if (songBowed.Count > 0)
+            animation.Start();
     }
 
     /// <summary>The song's notes that started between two moments make their strings vibrate.</summary>
@@ -435,7 +466,10 @@ sealed class FretboardControl : Control, IThemed
         // The bow resting too long: it stopped sounding.
         if (playing && bowedString != null && now - lastMoveMs > BowRestMs && bowMoved)
             StopBow();
-        bool any = bowPending != null || ringingSince.Any(r => now - r.Value < RingMs || r.Key == bowedString);
+        // The song stopped moving (paused): its bowed strings come to rest.
+        if (songBowed.Count > 0 && now - songMovedMs > 150)
+            songBowed.Clear();
+        bool any = bowPending != null || songBowed.Count > 0 || ringingSince.Any(r => now - r.Value < RingMs || r.Key == bowedString);
         Invalidate();
         if (!any)
             animation.Stop();
@@ -517,6 +551,7 @@ sealed class FretboardControl : Control, IThemed
             float y = StringY(s);
             using var pen = new Pen(StringColor, Math.Max(1f, 3.2f - s * 0.45f));
             float from = stopped.TryGetValue(s, out int at) ? SpotX(at)
+                : songBowed.TryGetValue(s, out int bowedAt) && bowedAt > 0 ? SpotX(bowedAt)
                 : playedFret.TryGetValue(s, out int fret) && fret > 0 ? SpotX(fret) : board.Left;
             if (from > board.Left)
                 g.DrawLine(pen, board.Left - 30, y, from, y);
@@ -527,6 +562,8 @@ sealed class FretboardControl : Control, IThemed
                 double age = now - since;
                 amplitude = bowed ? 2.2f : age < RingMs ? (float)(3.5 * (1 - age / RingMs)) : 0;
             }
+            if (songBowed.ContainsKey(s))
+                amplitude = Math.Max(amplitude, 2.2f);
             if (amplitude <= 0.05f)
                 g.DrawLine(pen, from > board.Left ? from : board.Left - 30, y, zone.Right, y);
             else
@@ -601,7 +638,7 @@ sealed class FretboardControl : Control, IThemed
     }
 
     /// <summary>A string's name without the octave: E A D G H E (Czech) / B (English).</summary>
-    static string LetterOf(int pitch) => new string(Tuning.Name(pitch).TakeWhile(c => !char.IsDigit(c)).ToArray());
+    static string LetterOf(int pitch) => NoteNames.Letter(pitch);
 
     void DrawDots(Graphics g, int[] strings)
     {

@@ -45,6 +45,7 @@ static class Program
             config.Save();
         }
         Lang.Current = config.Language ?? AppLanguage.Czech;
+        NoteNames.Naming = config.NoteNaming;
         AppTheme.SetDark(config.DarkMode);
 
         // Muzio's links and "Open with" for MIDI / MusicXML files (after the language: the file type has a name).

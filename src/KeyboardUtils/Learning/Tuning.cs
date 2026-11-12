@@ -39,13 +39,6 @@ static class Tuning
     /// <summary>Close enough to call it in tune.</summary>
     public const double InTuneCents = 5;
 
-    static readonly string[] Czech = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "B", "H"];
-    static readonly string[] English = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
-
-    /// <summary>A note's name with its octave: A4, H3 (Czech) / B3 (English).</summary>
-    public static string Name(int midi)
-    {
-        int pc = ((midi % 12) + 12) % 12;
-        return T(Czech[pc], English[pc]) + (midi / 12 - 1);
-    }
+    /// <summary>A note's name with its octave, as chosen in Settings: a1 / A4, h / H3 (Czech) or B3 (English).</summary>
+    public static string Name(int midi) => NoteNames.Name(midi);
 }

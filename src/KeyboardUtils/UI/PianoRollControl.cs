@@ -761,7 +761,7 @@ sealed class PianoRollControl : Control, IThemed
         bool showOctaves = whiteKeyWidth >= 16 && height >= 40;
         bool showLetters = allKeyLabels && whiteKeyWidth >= 10 && height >= 40;
         string? LabelOf(int note) => note % 12 == 0 && showOctaves ? NoteNames.Describe(note)
-            : showLetters ? NoteNames.Describe(note)[..1]
+            : showLetters ? NoteNames.Letter(note)
             : null;
 
         foreach (var (note, layout) in keyLayout.Where(k => !k.Value.Black))

@@ -206,12 +206,48 @@ enum SongView
     SheetAndKeyboard,
 }
 
-/// <summary>MIDI pitch (0-127) &lt;-&gt; scientific pitch notation (e.g. 60 -&gt; "C4").</summary>
+/// <summary>How notes are named: the Czech school's c1, fis2, C, H1 or the scientific C4, F♯5.</summary>
+enum NoteNaming { School, Scientific }
+
+/// <summary>A MIDI pitch's name, the way chosen in Settings (<see cref="Naming"/>): school or scientific.</summary>
 static class NoteNames
 {
-    static readonly string[] Names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    /// <summary>Set at start from the settings (the app's default is school names); scientific until then.</summary>
+    public static NoteNaming Naming { get; set; } = NoteNaming.Scientific;
 
-    public static string Describe(int pitch) => $"{Names[((pitch % 12) + 12) % 12]}{pitch / 12 - 1}";
+    static readonly string[] Czech = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "B", "H"];
+    static readonly string[] English = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
+    static readonly string[] CzechSchool = ["c", "cis", "d", "dis", "e", "f", "fis", "g", "gis", "a", "b", "h"];
+    static readonly string[] EnglishSchool = ["c", "c♯", "d", "e♭", "e", "f", "f♯", "g", "a♭", "a", "b♭", "b"];
+
+    static int PitchClass(int midi) => ((midi % 12) + 12) % 12;
+
+    public static string Name(int midi) => Name(midi, Naming);
+
+    /// <summary>
+    /// School: c1 = middle C (60), c2, c3...; c = the small octave (48), C = the great octave (36), C1 = contra (24),
+    /// C2 = subcontra (12). Scientific: C4 = middle C. Czech names say H for B and B for B♭.
+    /// </summary>
+    public static string Name(int midi, NoteNaming naming)
+    {
+        int pc = PitchClass(midi), octave = midi / 12 - 1;
+        if (naming == NoteNaming.Scientific)
+            return T(Czech[pc], English[pc]) + octave;
+        string name = T(CzechSchool[pc], EnglishSchool[pc]);
+        return octave switch
+        {
+            >= 4 => name + (octave - 3),                                     // c1, c2, ...
+            3 => name,                                                       // the small octave: c
+            2 => char.ToUpperInvariant(name[0]) + name[1..],                 // the great octave: C
+            _ => char.ToUpperInvariant(name[0]) + name[1..] + (2 - octave),  // contra C1, subcontra C2
+        };
+    }
+
+    /// <summary>Just the letter (with ♯ / ♭), upper case: string names, key labels. Czech H for B.</summary>
+    public static string Letter(int pitchClass) => T(Czech[PitchClass(pitchClass)], English[PitchClass(pitchClass)]);
+
+    /// <summary>The name as used before the setting existed (kept for the callers' wording).</summary>
+    public static string Describe(int pitch) => Name(pitch);
 }
 
 sealed class AppConfig
@@ -341,6 +377,12 @@ sealed class AppConfig
 
     /// <summary>Chord symbols above the notes (the file's; guessed ones for the guitar).</summary>
     public bool ChordSymbols { get; set; } = true;
+
+    /// <summary>Note names: the Czech school's (c1, fis2, C, H1) or scientific (C4, F♯5).</summary>
+    public NoteNaming NoteNaming { get; set; } = NoteNaming.School;
+
+    /// <summary>The name on the teacher's report (remembered from last time).</summary>
+    public string? StudentName { get; set; }
 
     /// <summary>Tempo the recording is written in when saved - MusicXML snaps notes to 16ths at this speed.</summary>
     public int CreateTempoBpm { get; set; } = 100;
