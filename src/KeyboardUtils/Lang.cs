@@ -23,7 +23,8 @@ static class Lang
         AntdUI.Modal.open(new AntdUI.Modal.Config(target, title, content, type)
         {
             OkText = T("OK", "OK"),
-            CancelText = T("Zrušit", "Cancel"),
+            // A message, not a question: just OK (no Cancel button that would do the same).
+            CancelText = null,
         });
 
     /// <summary>A yes/no question; true when answered OK.</summary>
