@@ -461,11 +461,11 @@ nav a[aria-current="page"] { color: var(--text); }
   margin: 0 0 14px;
 }
 .doc-toc-group ol { min-height: 0; overflow: hidden; }
-.doc-toc-group.collapsed { grid-template-rows: auto 0fr; margin-bottom: 6px; }
+.doc-toc-group.collapsed { grid-template-rows: auto 0fr; }
 .doc-toc-group.collapsed ol { opacity: 0; visibility: hidden; }
 /* Animated only after the page has set itself up (not on load), and not for readers who asked for less motion. */
 @media (prefers-reduced-motion: no-preference) {
-  .doc-toc.ready .doc-toc-group { transition: grid-template-rows .28s ease, margin-bottom .28s ease; }
+  .doc-toc.ready .doc-toc-group { transition: grid-template-rows .28s ease; }
   .doc-toc.ready .doc-toc-group ol { transition: opacity .22s ease .06s, visibility 0s linear 0s; }
   .doc-toc.ready .doc-toc-group.collapsed ol { transition: opacity .16s ease, visibility 0s linear .28s; }
 }
@@ -495,7 +495,8 @@ nav a[aria-current="page"] { color: var(--text); }
   height: 6px;
   border-right: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
-  transform: rotate(45deg) translate(-2px, -1px);
+  transform-origin: 50% 50%;
+  transform: rotate(45deg);
   transition: transform .15s;
   flex: none;
 }
