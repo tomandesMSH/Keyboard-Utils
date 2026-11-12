@@ -10,7 +10,7 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
-    <Version>1.10.0</Version>
+    <Version>1.10.1</Version>
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
     <!-- dotnet publish makes one KeyboardUtils.exe (the libraries, native ones too, inside it): the website's
          download button fetches just that file. It still needs the .NET 10 Desktop Runtime. -->
