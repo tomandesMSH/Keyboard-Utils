@@ -7,6 +7,9 @@ sealed class ScoreNote
     public double StartSeconds { get; init; }
     public double DurationSeconds { get; init; }
     public int Velocity { get; init; } = 100;
+
+    /// <summary>Guitar: the string the file says to play it on (MusicXML, 1 = the highest); null = the app chooses.</summary>
+    public int? TabString { get; init; }
 }
 
 /// <summary>One track (MIDI) or part (MusicXML) - what "Advanced: mute instrument" toggles.</summary>
@@ -46,6 +49,9 @@ sealed class Score
 
     /// <summary>The key is the minor one of <see cref="KeyFifths"/> (A minor for 0): its raised seventh is spelled as such.</summary>
     public bool KeyMinor { get; set; }
+
+    /// <summary>Chord symbols written in the file (MusicXML &lt;harmony&gt;), as they sound; empty when there are none.</summary>
+    public List<ChordSymbol> Chords { get; set; } = [];
 
     public double DurationSeconds => Parts.SelectMany(p => p.Notes)
         .Select(n => n.StartSeconds + n.DurationSeconds)

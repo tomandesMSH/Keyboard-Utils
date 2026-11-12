@@ -122,6 +122,7 @@ sealed partial class MainForm
             SetStatus(T("Režim učení", "Learning mode") + (config.LearningMode == LearningMode.InTempo ? T(" - v tempu", " - in tempo") : ""));
         pianoRoll.Learning = session;
         fretboard.Learning = session;
+        windChart.Learning = session;
         sheet.Learning = session;
         sheet.NotesChanged();
         partsPanel.Enabled = false;
@@ -182,6 +183,7 @@ sealed partial class MainForm
         learning = null;
         pianoRoll.Learning = null;
         fretboard.Learning = null;
+        windChart.Learning = null;
         sheet.Learning = null;
         sheet.NotesChanged();
         if (noteSource is IExpectedNotesListener listener)

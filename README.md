@@ -212,6 +212,20 @@ jsou v `%APPDATA%\KeyboardUtils\instruments` a hostuje je repozitář
   kliknutím na pražec / místo prstu „zmáčkneš“ strunu (znovu ji pustíš, × pustí všechny), vpravo u kytary **brnkáš**
   tahem myši přes ozvučník (klik = jedna struna, rychlejší tah = hlasitěji), u houslí, violy a cella **táhneš
   smyčcem** po struně (tón zní, dokud táhneš; krátký klik = pizzicato);
+- u kytary **tabulatura (TAB) pod notami**: na šesti linkách čísla pražců, na které struně se tón hraje (horní linka =
+  nejtenčí struna). Akordy jdou na různé struny, ruka zůstává v poloze, ve které hraje; když má MusicXML struny
+  zapsané, platí ty. Hmatník ukazuje tóny na stejných místech, uložené MusicXML struny a pražce obsahuje. Vypnout jde
+  v **Nastavení > Kytara: tabulatura pod notami**;
+- **značky akordů nad notami** (C, Am, G7, F/C…): z MusicXML (`<harmony>`) u každého nástroje, u kytary i odhadnuté
+  z not, když je soubor nemá (po půltaktech, jen jasné akordy; melodie sama žádné nedostane). Kliknutím na značku se
+  ukáže hmat akordu a zazní – s kytarou se zahraje na hmatníku. Vypnout jde v **Nastavení > Značky akordů nad notami**;
+- **Cvičení > Knihovna akordů (kytara)...**: hmaty akordů, které se kytarista učí první (C, D, E, F, G, A, Dm, Em, Am,
+  Hm, septakordy, maj7, sus), jako ve zpěvníku – čísla prstů, × nehraje, ○ prázdná struna. Kliknutím akord zazní
+  a s kytarou se zmáčkne a brnkne na hmatníku;
+- **hmaty místo klaviatury** u zobcové flétny a trubky: velký hmat noty, kterou hraješ (v režimu učení kterou máš
+  zahrát), vedle menší hmaty dalších not; kliknutím na hmat zazní. Zobcová flétna má barokní i německý prstoklad
+  (**Nastavení > Zobcová flétna: prstoklad**), trubka ukazuje stisknuté ventily. Příčná flétna, klarinet a saxofon
+  zatím mají klaviaturu;
 - tlačítko **Ladička** přímo vedle Poslouchat / Režim učení;
 
 - **noty na jedné osnově v klíči nástroje** (houslový, kytarový s osmičkou, altový, basový) a u transponujících

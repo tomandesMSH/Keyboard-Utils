@@ -289,6 +289,7 @@ sealed partial class MainForm : AntdUI.Window
 
         songViews.Panel1.Controls.Add(pianoRoll);
         songViews.Panel1.Controls.Add(fretboard);
+        songViews.Panel1.Controls.Add(windChart);
         songViews.Panel2.Controls.Add(sheet);
         songPanel.Controls.Add(songViews);
         // Added before the parts panel, so it spans only the song views' width.
@@ -334,6 +335,16 @@ sealed partial class MainForm : AntdUI.Window
                 playbackEngine.PlayNote(pitch, 1500, velocity);
             if (noteSource is ScreenKeyboardNoteSource screen)
                 screen.Press(pitch);
+        };
+        // Clicking the big fingering: hear the note (and with on-screen input, it counts as played).
+        windChart.NoteClicked += pitch =>
+        {
+            playbackEngine.PlayNote(pitch);
+            if (noteSource is ScreenKeyboardNoteSource screen)
+            {
+                screen.Press(pitch);
+                screen.Release(pitch);
+            }
         };
         fretboard.NoteEnded += pitch =>
         {
@@ -457,6 +468,7 @@ sealed partial class MainForm : AntdUI.Window
             MenuItem(T("Stupnice a rozcvičky...", "Scales and warm-ups..."), OpenExercise),
             MenuItem(T("Trénink čtení not...", "Note-reading trainer..."), OpenNoteTrainer),
             MenuItem(T("Ladička...", "Tuner..."), OpenTuner),
+            MenuItem(T("Knihovna akordů (kytara)...", "Chord library (guitar)..."), OpenChordLibrary),
             new AntdUI.ContextMenuStripItemDivider(),
             new AntdUI.ContextMenuStripItem(T("Historie cvičení...", "Practice history...")) { Enabled = currentScore != null, Tag = (Action)ShowPracticeHistory });
 
@@ -585,6 +597,9 @@ sealed partial class MainForm : AntdUI.Window
     {
         pianoRoll.SetScore(score);
         fretboard.SetScore(score);
+        windChart.SetScore(score);
+        guessedChords = null;
+        ApplyChordSymbols(score);
         sheet.FallbackBpm = config.CreateTempoBpm;
         sheet.SetScore(score);
     }
@@ -593,6 +608,7 @@ sealed partial class MainForm : AntdUI.Window
     {
         pianoRoll.SetCurrentTime(seconds);
         fretboard.SetCurrentTime(seconds);
+        windChart.SetCurrentTime(seconds);
         sheet.SetCurrentTime(seconds);
     }
 
@@ -722,6 +738,24 @@ sealed partial class MainForm : AntdUI.Window
             {
                 Checked = config.BigNotices,
                 Tag = (Action)(() => { config.BigNotices = !config.BigNotices; config.Save(); }),
+            },
+            new AntdUI.ContextMenuStripItem(T("Značky akordů nad notami", "Chord symbols above the notes"))
+            {
+                Checked = config.ChordSymbols,
+                Tag = (Action)(() => { config.ChordSymbols = !config.ChordSymbols; config.Save(); ApplyChordSymbols(currentScore); }),
+            },
+            new AntdUI.ContextMenuStripItem(T("Kytara: tabulatura pod notami", "Guitar: tablature under the notes"))
+            {
+                Checked = config.GuitarTab,
+                Tag = (Action)(() => { config.GuitarTab = !config.GuitarTab; config.Save(); sheet.ShowTab = config.GuitarTab; }),
+            },
+            new AntdUI.ContextMenuStripItem(T("Zobcová flétna: prstoklad", "Recorder fingering"))
+            {
+                Sub =
+                [
+                    new AntdUI.ContextMenuStripItem(T("Barokní", "Baroque")) { Checked = config.RecorderFingering == RecorderSystem.Baroque, Tag = (Action)(() => SetRecorderFingering(RecorderSystem.Baroque)) },
+                    new AntdUI.ContextMenuStripItem(T("Německý", "German")) { Checked = config.RecorderFingering == RecorderSystem.German, Tag = (Action)(() => SetRecorderFingering(RecorderSystem.German)) },
+                ],
             },
             new AntdUI.ContextMenuStripItem(T("Zobrazit menu Muzio", "Show the Muzio menu"))
             {

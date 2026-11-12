@@ -96,6 +96,11 @@ static class ScoreExporter
         double ToUnits(double seconds) => timing.ToQuarters(seconds) * Divisions;
 
         var notes = score.Parts.SelectMany((p, index) => p.Notes.Select(n => (n, index)));
+        // Guitar: string and fret of every note, as the TAB under the notes shows them.
+        var tab = instrument.Strings.Length > 0 && !instrument.IsBowed
+            ? Tablature.Assign(score.Parts.SelectMany(p => p.Notes), instrument.Strings)
+            : null;
+        int strings = instrument.Strings.Length;
         var (treble, bass, measures, _) = single
             ? SheetQuantizer.Quantize(notes, ToUnits, measureLength, _ => PartStaff.Treble, instrument.Transpose)
             : SheetQuantizer.Quantize(notes, ToUnits, measureLength, i => score.Parts[i].Staff);
@@ -153,7 +158,7 @@ static class ScoreExporter
                 measure.Add(direction);
             }
 
-            WriteMeasure(measure, treble, m, measureLength, trebleAccidentals, spelling, staff: 1, voice: 1);
+            WriteMeasure(measure, treble, m, measureLength, trebleAccidentals, spelling, staff: 1, voice: 1, tab, strings);
             if (!single)
             {
                 measure.Add(new XElement("backup", new XElement("duration", measureLength)));
@@ -189,7 +194,8 @@ static class ScoreExporter
     }
 
     static void WriteMeasure(XElement measure, List<Segment> staffSegments, int measureIndex, int measureLength,
-        AccidentalState accidentals, (int Letter, int Alter)[] spelling, int staff, int voice)
+        AccidentalState accidentals, (int Letter, int Alter)[] spelling, int staff, int voice,
+        Dictionary<ScoreNote, StringSpot>? tab = null, int strings = 0)
     {
         var indices = SheetQuantizer.InMeasure(staffSegments, measureIndex, measureLength).Select(s => s.Index).ToList();
         accidentals.NewBar();
@@ -222,14 +228,16 @@ static class ScoreExporter
                 {
                     int pitch = segment.Notes[k].Pitch;
                     int? sign = accidentals.Next(pitch, tieStop);
-                    measure.Add(NoteElement((pitch, spelling[pitch % 12]), sign, chord: k > 0, value, tieStart, tieStop, staff, voice));
+                    // MusicXML counts strings from the highest (1).
+                    (int, int)? technical = tab != null && tab.TryGetValue(segment.Notes[k].Source, out var spot) ? (strings - spot.String, spot.Semitones) : null;
+                    measure.Add(NoteElement((pitch, spelling[pitch % 12]), sign, chord: k > 0, value, tieStart, tieStop, staff, voice, technical));
                 }
             }
         }
     }
 
     static XElement NoteElement((int Pitch, (int Letter, int Alter) Spelled)? note, int? accidental, bool chord, NoteValue value,
-        bool tieStart, bool tieStop, int staff, int voice)
+        bool tieStart, bool tieStop, int staff, int voice, (int String, int Fret)? technical = null)
     {
         // Element order is fixed by the MusicXML schema.
         var element = new XElement("note");
@@ -257,13 +265,15 @@ static class ScoreExporter
         if (accidental is { } sign)
             element.Add(new XElement("accidental", sign > 0 ? "sharp" : sign < 0 ? "flat" : "natural"));
         element.Add(new XElement("staff", staff));
-        if (tieStart || tieStop)
+        if (tieStart || tieStop || technical != null)
         {
             var notations = new XElement("notations");
             if (tieStop)
                 notations.Add(new XElement("tied", new XAttribute("type", "stop")));
             if (tieStart)
                 notations.Add(new XElement("tied", new XAttribute("type", "start")));
+            if (technical is { } t)
+                notations.Add(new XElement("technical", new XElement("string", t.String), new XElement("fret", t.Fret)));
             element.Add(notations);
         }
         return element;

@@ -219,6 +219,21 @@ don't need. Packs live in `%APPDATA%\KeyboardUtils\instruments` and are hosted i
   let it go, × releases them all); on the right, on the guitar you **strum** by dragging the mouse across the sound
   hole (a click = one string, a faster drag = louder), on the violin, viola and cello you **bow** along a string (the
   note sounds as long as you drag; a short click = pizzicato);
+- for the guitar, **tablature (TAB) under the notes**: fret numbers on six lines showing which string each note is
+  played on (top line = the thinnest string). Chord notes go on different strings and the hand stays in its position;
+  strings written in a MusicXML file are kept. The fingerboard shows the notes in the same places, and saved MusicXML
+  includes the strings and frets. Turn it off in **Settings > Guitar: tablature under the notes**;
+- **chord symbols above the notes** (C, Am, G7, F/C…): from MusicXML (`<harmony>`) for any instrument, and for the
+  guitar also guessed from the notes when the file has none (per half bar, clear chords only; a melody on its own gets
+  none). Click a symbol to see the chord's shape and hear it – with the guitar it's played on the fingerboard. Turn it
+  off in **Settings > Chord symbols above the notes**;
+- **Practice > Chord library (guitar)...**: the chords a guitarist learns first (C, D, E, F, G, A, Dm, Em, Am, Bm,
+  sevenths, maj7, sus) as songbook boxes – finger numbers, × not played, ○ open string. Click one to hear it; with
+  the guitar it's pressed and strummed on the fingerboard;
+- **fingering charts instead of the keyboard** for the recorder and the trumpet: a big chart for the note you play (in
+  learning mode, the one to play), smaller ones for the next notes; click a chart to hear it. The recorder has baroque
+  and German fingering (**Settings > Recorder fingering**), the trumpet shows the valves to press. Flute, clarinet and
+  saxophone keep the keyboard for now;
 - a **Tuner** button right next to Listen / Learning mode;
 - **music on a single staff in the instrument's clef** (treble, guitar treble with an 8, alto, bass) and, for
   transposing instruments, as the player reads it – clarinet and trumpet a tone higher, saxophone a sixth, with the key

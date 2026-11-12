@@ -40,7 +40,7 @@ static class MusicXmlImporter
             {
                 Name = string.IsNullOrWhiteSpace(name) ? T($"Část {score.Parts.Count + 1}", $"Part {score.Parts.Count + 1}") : name,
             };
-            ImportPart(partElement, part, timing);
+            ImportPart(partElement, part, timing, score.Chords);
             if (timing != null)
             {
                 score.Timing = new ScoreTiming(timing.Tempo, timing.Beats, timing.BeatType);
@@ -52,7 +52,41 @@ static class MusicXmlImporter
                 score.Parts.Add(part);
         }
 
+        // Several parts may write the same chords: once each, in order.
+        score.Chords = score.Chords.DistinctBy(c => (Math.Round(c.StartSeconds, 3), c.Root, c.Kind, c.Bass)).OrderBy(c => c.StartSeconds).ToList();
         return score;
+    }
+
+    /// <summary>A &lt;harmony&gt; element's chord (as it sounds), or null when it names none.</summary>
+    static ChordSymbol? Harmony(XElement harmony, double seconds, int transpose)
+    {
+        static int? PitchClass(XElement? step, XElement? alter) =>
+            step == null ? null
+            : ("CDEFGAB".IndexOf(step.Value.Trim().ToUpperInvariant()) is int i and >= 0 ? new[] { 0, 2, 4, 5, 7, 9, 11 }[i] : null)
+              + (int)Math.Round(ParseDouble(alter?.Value ?? "0"));
+        var rootElement = harmony.Element("root");
+        if (PitchClass(rootElement?.Element("root-step"), rootElement?.Element("root-alter")) is not { } rootPc)
+            return null;
+        string kind = harmony.Element("kind")?.Value.Trim() ?? "major";
+        ChordKind? parsed = kind switch
+        {
+            "major" or "major-sixth" or "power" => ChordKind.Major,
+            "minor" or "minor-sixth" => ChordKind.Minor,
+            "dominant" or "dominant-seventh" or "dominant-ninth" or "dominant-11th" or "dominant-13th" => ChordKind.Dominant7,
+            "major-seventh" or "major-ninth" or "major-11th" or "major-13th" => ChordKind.Major7,
+            "minor-seventh" or "minor-ninth" or "minor-11th" or "minor-13th" => ChordKind.Minor7,
+            "diminished" or "diminished-seventh" or "half-diminished" => ChordKind.Diminished,
+            "augmented" or "augmented-seventh" => ChordKind.Augmented,
+            "suspended-second" => ChordKind.Sus2,
+            "suspended-fourth" => ChordKind.Sus4,
+            _ => null, // "none" (N.C.) and the rare ones
+        };
+        if (parsed is not { } chordKind)
+            return null;
+        var bassElement = harmony.Element("bass");
+        int? bass = PitchClass(bassElement?.Element("bass-step"), bassElement?.Element("bass-alter"));
+        int Sounding(int pc) => ((pc + transpose) % 12 + 12) % 12;
+        return new ChordSymbol(seconds, Sounding(rootPc), chordKind, bass is { } b ? Sounding(b) : null);
     }
 
     /// <summary>Collects tempo changes and the first time signature while a part is read.</summary>
@@ -66,7 +100,7 @@ static class MusicXmlImporter
         public bool KeyMinor { get; set; }
     }
 
-    static void ImportPart(XElement partElement, ScorePart part, TimingReader? timing)
+    static void ImportPart(XElement partElement, ScorePart part, TimingReader? timing, List<ChordSymbol> chords)
     {
         int divisions = 1;
         double microsecondsPerQuarter = 500_000; // 120 BPM default, used until a <sound tempo="..."/> says otherwise.
@@ -130,6 +164,12 @@ static class MusicXmlImporter
                             SetTempo(tempo.Value);
                         break;
 
+                    case "harmony":
+                        double at = currentSeconds + ParseDouble(element.Element("offset")?.Value ?? "0") * SecondsPerDivision();
+                        if (Harmony(element, at, transpose) is { } chord)
+                            chords.Add(chord);
+                        break;
+
                     case "backup":
                         Advance(-ParseDouble(element.Element("duration")?.Value ?? "0"));
                         break;
@@ -149,6 +189,8 @@ static class MusicXmlImporter
                         {
                             int midi = Math.Clamp(ToMidiNumber(pitch) + transpose, 0, 127);
                             var ties = element.Elements("tie").Select(t => t.Attribute("type")?.Value).ToList();
+                            // Guitar TAB in the file: <notations><technical><string>.
+                            int? tabString = int.TryParse(element.Element("notations")?.Element("technical")?.Element("string")?.Value, out int s) ? s : null;
                             // A tie continues the same sounding note (across a bar line, or a length with no single
                             // symbol): extend it instead of striking the key again.
                             if (ties.Contains("stop") && tiedNotes.Remove(midi, out int tiedIndex))
@@ -160,6 +202,7 @@ static class MusicXmlImporter
                                     StartSeconds = tied.StartSeconds,
                                     DurationSeconds = startSeconds + durationSeconds - tied.StartSeconds,
                                     Velocity = tied.Velocity,
+                                    TabString = tied.TabString,
                                 };
                                 if (ties.Contains("start"))
                                     tiedNotes[midi] = tiedIndex;
@@ -171,6 +214,7 @@ static class MusicXmlImporter
                                     Pitch = midi,
                                     StartSeconds = startSeconds,
                                     DurationSeconds = durationSeconds,
+                                    TabString = tabString,
                                 });
                                 if (ties.Contains("start"))
                                     tiedNotes[midi] = part.Notes.Count - 1;

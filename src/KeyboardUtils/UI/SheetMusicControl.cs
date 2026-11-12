@@ -54,6 +54,54 @@ sealed class SheetMusicControl : Control, IThemed
     /// <summary>One staff (an instrument other than piano) instead of the grand staff.</summary>
     bool SingleStaff => !instrument.IsPiano;
 
+    /// <summary>Guitar: the TAB under the staff (Settings > Guitar: tablature under the notes).</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool ShowTab
+    {
+        get => showTab;
+        set
+        {
+            if (value == showTab)
+                return;
+            showTab = value;
+            Rebuild();
+        }
+    }
+    bool showTab = true;
+
+    /// <summary>Chord symbols above the staff (from the file, or guessed for the guitar); null = none.</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public IReadOnlyList<ChordSymbol>? ChordSymbols
+    {
+        get => chordSymbols;
+        set
+        {
+            chordSymbols = value;
+            LayoutSystems();
+        }
+    }
+    IReadOnlyList<ChordSymbol>? chordSymbols;
+
+    bool HasChords => chordSymbols is { Count: > 0 } && score != null;
+
+    /// <summary>A chord symbol was clicked.</summary>
+    public event Action<ChordSymbol, Point>? ChordClicked;
+
+    /// <summary>Where each chord symbol was drawn (content coordinates), for clicks.</summary>
+    readonly List<(RectangleF Bounds, ChordSymbol Chord)> chordHits = [];
+
+    /// <summary>A plucked string instrument (the guitar) with the TAB switched on.</summary>
+    bool TabShown => showTab && instrument.Strings.Length > 0 && !instrument.IsBowed;
+
+    /// <summary>String and fret of every written note, for the TAB.</summary>
+    Dictionary<ScoreNote, StringSpot> tabSpots = new(ReferenceEqualityComparer.Instance);
+
+    float TabGap => 1.5f * S;
+    float TabHeight => (instrument.Strings.Length - 1) * TabGap;
+
+    /// <summary>Where the bar lines end: the bass staff, or the TAB under a single staff.</summary>
+    float SystemBottom(SystemLine line) => TabShown ? line.TabTop + TabHeight : line.BassTop + 4 * S;
+
     /// <summary>Staff steps of the key signature's sharps or flats on a staff in <paramref name="clef"/>.</summary>
     static int[] KeySteps(Clef clef, bool sharps)
     {
@@ -97,7 +145,7 @@ sealed class SheetMusicControl : Control, IThemed
     sealed class SystemLine
     {
         public int First, Count;
-        public float Top, TrebleTop, BassTop, Bottom, Left, Right;
+        public float Top, TrebleTop, BassTop, TabTop, Bottom, Left, Right;
         public bool ShowTimeSignature;
         public readonly List<MeasureLayout> Measures = [];
     }
@@ -286,6 +334,9 @@ sealed class SheetMusicControl : Control, IThemed
             : SheetQuantizer.Quantize(notes, s => timing.ToQuarters(s) * SheetQuantizer.Divisions, measureLength,
                 i => score.Parts[i].Staff);
         measureCount = grandStaff.Measures;
+        tabSpots = TabShown
+            ? Tablature.Assign(notes.Select(n => n.n), instrument.Strings)
+            : new(ReferenceEqualityComparer.Instance);
 
         BuildEvents(0, grandStaff.Treble);
         if (!SingleStaff)
@@ -514,6 +565,8 @@ sealed class SheetMusicControl : Control, IThemed
         }
 
         float above = Math.Max(4 * s, (Extreme(0, true) - 8) * s / 2 + 4 * s);
+        if (HasChords)
+            above += 2.6f * s; // a row for the chord symbols at the top of the line
         if (SingleStaff)
         {
             float under = Math.Max(4 * s, Math.Max(0, -Extreme(0, false)) * s / 2 + 4 * s);
@@ -521,6 +574,12 @@ sealed class SheetMusicControl : Control, IThemed
             line.TrebleTop = y + above;
             line.BassTop = line.TrebleTop; // no second staff
             line.Bottom = line.TrebleTop + 4 * s + under;
+            if (TabShown)
+            {
+                // The TAB right under the staff (and its ledger lines), then the usual room below.
+                line.TabTop = line.TrebleTop + 4 * s + Math.Max(3 * s, under - 2 * s);
+                line.Bottom = line.TabTop + TabHeight + 3.5f * s;
+            }
             y = line.Bottom;
             return;
         }
@@ -591,6 +650,14 @@ sealed class SheetMusicControl : Control, IThemed
             Capture = true;
             return;
         }
+        // A chord symbol: show / play that chord (instead of seeking).
+        var content = new PointF(e.X, e.Y + scrollY);
+        foreach (var (bounds, chord) in chordHits)
+            if (RectangleF.Inflate(bounds, 2, 2).Contains(content))
+            {
+                ChordClicked?.Invoke(chord, PointToScreen(new Point((int)bounds.Left, (int)(bounds.Bottom - scrollY))));
+                return;
+            }
         if (MeasureAt(e.Location) is { } measure)
         {
             pressPoint = e.Location;
@@ -682,6 +749,7 @@ sealed class SheetMusicControl : Control, IThemed
         g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
 
         var state = g.Save();
+        chordHits.Clear();
         g.TranslateTransform(0, -scrollY);
         if (score != null)
             DrawTitle(g);
@@ -752,7 +820,10 @@ sealed class SheetMusicControl : Control, IThemed
         foreach (float top in staffTop.Take(staves))
             for (int i = 0; i < 5; i++)
                 g.DrawLine(staffPen, line.Left, top + i * s, line.Right, top + i * s);
-        float systemBottom = line.BassTop + 4 * s;
+        if (TabShown)
+            for (int i = 0; i < instrument.Strings.Length; i++)
+                g.DrawLine(staffPen, line.Left, line.TabTop + i * TabGap, line.Right, line.TabTop + i * TabGap);
+        float systemBottom = SystemBottom(line);
         g.DrawLine(barPen, line.Left, line.TrebleTop, line.Left, systemBottom);
         foreach (var measure in line.Measures)
         {
@@ -773,6 +844,15 @@ sealed class SheetMusicControl : Control, IThemed
         Clef[] clefs = SingleStaff ? [instrument.Clef] : [Clef.Treble, Clef.Bass];
         for (int staff = 0; staff < staves; staff++)
             MusicGlyphs.DrawClef(g, ink, clefs[staff], clefX, staffTop[staff], s);
+        if (TabShown)
+        {
+            // "TAB" written down the start of the tablature, as on printed guitar music.
+            using var tabFont = new Font("Segoe UI", 1.45f * s, FontStyle.Bold, GraphicsUnit.Pixel);
+            using var center = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+            float third = TabHeight / 3;
+            for (int i = 0; i < 3; i++)
+                g.DrawString("TAB"[i].ToString(), tabFont, ink, new RectangleF(clefX, line.TabTop + i * third, 2.4f * s, third), center);
+        }
         float keyX = clefX + 3.6f * s;
         for (int staff = 0; staff < staves; staff++)
         {
@@ -811,6 +891,61 @@ sealed class SheetMusicControl : Control, IThemed
                 else if (e.Beam == null || e.Beam[0] == e)
                     DrawChordOrBeam(g, e.Beam ?? [e], staffTop[e.Staff]);
         DrawTies(g, line, staffTop);
+        if (TabShown)
+            DrawTab(g, line);
+        if (HasChords)
+            DrawChordSymbols(g, line);
+    }
+
+    /// <summary>The chord names in a row at the top of the line, each where its chord starts.</summary>
+    void DrawChordSymbols(Graphics g, SystemLine line)
+    {
+        float s = S;
+        double lineStart = line.First * measureLength, lineEnd = (line.First + line.Count) * measureLength;
+        using var font = new Font("Segoe UI Semibold", 1.7f * s, GraphicsUnit.Pixel);
+        using var ink = new SolidBrush(AppTheme.Ink);
+        double now = CurrentUnits;
+        ChordSymbol? current = currentSeconds > 0 ? chordSymbols!.LastOrDefault(c => timing.ToQuarters(c.StartSeconds) * SheetQuantizer.Divisions <= now + 0.01) : null;
+        foreach (var chord in chordSymbols!)
+        {
+            double units = timing.ToQuarters(chord.StartSeconds) * SheetQuantizer.Divisions;
+            if (units < lineStart - 0.01 || units >= lineEnd)
+                continue;
+            float x = XAt(line, units) - HeadWidth / 2;
+            var size = g.MeasureString(chord.Name, font);
+            var bounds = new RectangleF(x, line.Top + 0.2f * s, size.Width, size.Height);
+            using var brush = new SolidBrush(chord == current ? PlayheadColor : AppTheme.Ink);
+            g.DrawString(chord.Name, font, chord == current ? brush : ink, bounds.Location);
+            chordHits.Add((bounds, chord));
+        }
+    }
+
+    /// <summary>The fret numbers on the TAB lines (top line = the highest string), under their notes.</summary>
+    void DrawTab(Graphics g, SystemLine line)
+    {
+        float s = S;
+        int strings = instrument.Strings.Length;
+        using var font = new Font("Segoe UI", 1.3f * s, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var paper = new SolidBrush(AppTheme.Paper);
+        using var center = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+        foreach (var measure in line.Measures)
+            foreach (var e in eventsByMeasure[measure.Index])
+            {
+                // A note held on over a bar line isn't plucked again: no second number.
+                if (e.IsRest || e.TiedFromPrevious)
+                    continue;
+                foreach (var note in e.Notes)
+                {
+                    if (!tabSpots.TryGetValue(note.Source, out var spot))
+                        continue;
+                    string text = spot.Semitones.ToString();
+                    float x = e.X + HeadWidth / 2, y = line.TabTop + (strings - 1 - spot.String) * TabGap;
+                    float w = (text.Length * 0.75f + 0.3f) * s, h = 1.3f * s;
+                    g.FillRectangle(paper, x - w / 2, y - h / 2, w, h);
+                    using var brush = new SolidBrush(NoteColor(note, e));
+                    g.DrawString(text, font, brush, new RectangleF(x - w, y - h, 2 * w, 2 * h), center);
+                }
+            }
     }
 
     /// <summary>
@@ -847,7 +982,7 @@ sealed class SheetMusicControl : Control, IThemed
         if (score == null)
             return;
         double lineStart = line.First * measureLength, lineEnd = (line.First + line.Count) * measureLength;
-        float top = line.TrebleTop - 1.5f * S, bottom = line.BassTop + 5.5f * S;
+        float top = line.TrebleTop - 1.5f * S, bottom = SystemBottom(line) + 1.5f * S;
         void Band(double from, double to, int alpha, bool edges)
         {
             if (to <= lineStart || from >= lineEnd)
@@ -886,7 +1021,7 @@ sealed class SheetMusicControl : Control, IThemed
         var measure = line.Measures[measureIndex - line.First];
         float x = XAt(line, units);
 
-        float top = line.TrebleTop - 1.5f * S, bottom = line.BassTop + 5.5f * S;
+        float top = line.TrebleTop - 1.5f * S, bottom = SystemBottom(line) + 1.5f * S;
         using var band = new SolidBrush(Color.FromArgb(AppTheme.Dark ? 40 : 28, PlayheadColor));
         g.FillRectangle(band, measure.X, top, measure.Width, bottom - top);
         using var pen = new Pen(Color.FromArgb(200, PlayheadColor), Math.Max(2, 0.22f * S));

@@ -14,6 +14,9 @@ partial class MainForm
     /// <summary>The fingerboard shown in place of the keyboard for a string instrument.</summary>
     readonly FretboardControl fretboard = new() { Dock = DockStyle.Fill, Visible = false };
 
+    /// <summary>The fingering chart shown in place of the keyboard for a wind instrument that has one.</summary>
+    readonly WindChartControl windChart = new() { Dock = DockStyle.Fill, Visible = false };
+
     /// <summary>"Ladička" beside the song's buttons, for every instrument but the piano.</summary>
     readonly AntdUI.Button tunerButton = new() { AutoSize = true, Radius = 8, Visible = false };
 
@@ -59,6 +62,10 @@ partial class MainForm
         ApplyInstrumentSound();
         sheet.Instrument = instrument;
         fretboard.Instrument = instrument;
+        windChart.Instrument = instrument;
+        windChart.RecorderSystem = config.RecorderFingering;
+        sheet.ShowTab = config.GuitarTab;
+        sheet.ChordClicked += OnChordClicked;
         ApplyNoteView();
 
         instrumentStrip.TabSelected += id => _ = OnInstrumentTabAsync(Instrument.ById(id));
@@ -104,6 +111,8 @@ partial class MainForm
         }
         sheet.Instrument = chosen;
         fretboard.Instrument = chosen;
+        windChart.Instrument = chosen;
+        ApplyChordSymbols(currentScore);
         ApplyNoteView();
         ApplyInstrumentToInput();
         RebuildInstrumentTabs();
@@ -254,16 +263,25 @@ partial class MainForm
 
     // --- Keyboard or fingerboard, the tuner button ------------------------------------------------------
 
-    /// <summary>A string instrument gets the fingerboard; writing and editing notes always use the keyboard view.</summary>
-    bool ShowsFretboard => instrument.Strings.Length > 0 && recorder == null && noteEditor == null;
+    enum NoteView { Keyboard, Fretboard, WindChart }
 
-    /// <summary>Puts the keyboard or the fingerboard under the notes, with the matching names (called often: cheap).</summary>
+    /// <summary>A string instrument gets the fingerboard, a wind one with a chart its fingerings; writing and editing
+    /// notes always use the keyboard view.</summary>
+    NoteView CurrentNoteView =>
+        recorder != null || noteEditor != null ? NoteView.Keyboard
+        : instrument.Strings.Length > 0 ? NoteView.Fretboard
+        : WindChartControl.Covers(instrument) ? NoteView.WindChart
+        : NoteView.Keyboard;
+
+    /// <summary>Puts the keyboard, the fingerboard or the fingering chart under the notes, with the matching names (called often: cheap).</summary>
     void ApplyNoteView()
     {
-        bool board = ShowsFretboard;
-        if (fretboard.Visible != board)
+        var view = CurrentNoteView;
+        bool board = view != NoteView.Keyboard;
+        if (fretboard.Visible != (view == NoteView.Fretboard) || windChart.Visible != (view == NoteView.WindChart))
         {
-            fretboard.Visible = board;
+            fretboard.Visible = view == NoteView.Fretboard;
+            windChart.Visible = view == NoteView.WindChart;
             pianoRoll.Visible = !board;
             ApplyViewNames();
         }
@@ -277,10 +295,11 @@ partial class MainForm
     /// <summary>"Klávesy / Noty / Noty + klávesy", or "Hmatník" for a string instrument.</summary>
     void ApplyViewNames()
     {
-        bool board = fretboard.Visible;
-        string[] viewNames = board
+        string[] viewNames = fretboard.Visible
             ? [T("Hmatník", "Fingerboard"), T("Noty", "Sheet"), T("Noty + hmatník", "Sheet + fingerboard")]
-            : [T("Klávesy", "Keyboard"), T("Noty", "Sheet"), T("Noty + klávesy", "Sheet + keyboard")];
+            : windChart.Visible
+                ? [T("Hmaty", "Fingerings"), T("Noty", "Sheet"), T("Noty + hmaty", "Sheet + fingerings")]
+                : [T("Klávesy", "Keyboard"), T("Noty", "Sheet"), T("Noty + klávesy", "Sheet + keyboard")];
         for (int i = 0; i < viewSwitch.Items.Count && i < viewNames.Length; i++)
             viewSwitch.Items[i].Text = viewNames[i];
         viewSwitch.Width = viewNames.Sum(name => TextRenderer.MeasureText(name, viewSwitch.Font).Width + LogicalToDeviceUnits(12));
@@ -293,12 +312,91 @@ partial class MainForm
     {
         pianoRoll.SetKeyHeld(pitch, down);
         fretboard.SetKeyHeld(pitch, down);
+        windChart.SetKeyHeld(pitch, down);
     }
 
     void FlashNote(int pitch, int durationMs = 400, Color? color = null)
     {
         pianoRoll.FlashKey(pitch, durationMs, color);
         fretboard.FlashKey(pitch, durationMs, color);
+        windChart.FlashKey(pitch, durationMs, color);
+    }
+
+    /// <summary>Settings > Recorder fingering: baroque or German.</summary>
+    void SetRecorderFingering(RecorderSystem system)
+    {
+        config.RecorderFingering = system;
+        config.Save();
+        windChart.RecorderSystem = system;
+    }
+
+    /// <summary>Chords guessed for the open song (once), when its file has none.</summary>
+    List<ChordSymbol>? guessedChords;
+
+    /// <summary>Chord symbols over the notes: the file's for any instrument; guessed ones for the guitar.</summary>
+    void ApplyChordSymbols(Score? score)
+    {
+        if (score == null || !config.ChordSymbols)
+        {
+            sheet.ChordSymbols = null;
+            return;
+        }
+        if (score.Chords.Count > 0)
+        {
+            sheet.ChordSymbols = score.Chords;
+            return;
+        }
+        if (instrument.Id != "guitar")
+        {
+            sheet.ChordSymbols = null;
+            return;
+        }
+        guessedChords ??= ChordGuesser.Guess(score);
+        sheet.ChordSymbols = guessedChords;
+    }
+
+    /// <summary>A chord symbol clicked: its box pops up and it's played (on the fingerboard with the guitar).</summary>
+    void OnChordClicked(ChordSymbol symbol, Point at)
+    {
+        var shape = GuitarChords.For(symbol.Root, symbol.Kind);
+        if (shape != null)
+            PlayGuitarChord(shape);
+        new ChordPopup(shape, symbol.Name, at).Show(this);
+    }
+
+    ChordLibraryForm? chordLibrary;
+
+    /// <summary>Cvičení > Knihovna akordů: not modal, one at a time.</summary>
+    void OpenChordLibrary()
+    {
+        if (chordLibrary is { IsDisposed: false })
+        {
+            chordLibrary.Activate();
+            return;
+        }
+        chordLibrary = new ChordLibraryForm(PlayGuitarChord);
+        chordLibrary.FormClosed += (_, _) => chordLibrary = null;
+        chordLibrary.Show(this);
+    }
+
+    /// <summary>A chord from the library (or a chord symbol): on the fingerboard if the guitar is out, otherwise just heard.</summary>
+    void PlayGuitarChord(GuitarChord chord)
+    {
+        if (fretboard.Visible && instrument.Id == "guitar")
+        {
+            fretboard.PlayChord(chord.Frets);
+            return;
+        }
+        _ = StrumAsync(chord.Pitches(Instrument.ById("guitar").Strings).ToList());
+    }
+
+    async Task StrumAsync(List<int> pitches)
+    {
+        foreach (int pitch in pitches)
+        {
+            playbackEngine.PlayNote(pitch, 1500, 85);
+            await Task.Delay(25);
+        }
     }
 
     TunerForm? tuner;

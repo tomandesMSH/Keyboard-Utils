@@ -96,6 +96,7 @@ sealed class FretboardControl : Control, IThemed
             stopped.Clear();
             ringingSince.Clear();
             playedFret.Clear();
+            UpdateTab();
             Invalidate();
         }
     }
@@ -114,8 +115,20 @@ sealed class FretboardControl : Control, IThemed
     {
         score = newScore;
         currentSeconds = 0;
+        UpdateTab();
         Invalidate();
     }
+
+    /// <summary>The guitar's song notes sit where the TAB says (the same tablature as under the sheet music).</summary>
+    Dictionary<ScoreNote, StringSpot> tab = new(ReferenceEqualityComparer.Instance);
+
+    void UpdateTab() =>
+        tab = score != null && IsGuitar
+            ? Tablature.Assign(score.Parts.SelectMany(p => p.Notes), instrument.Strings)
+            : new(ReferenceEqualityComparer.Instance);
+
+    /// <summary>Where a song note is played: its TAB place on the guitar, the beginner's place otherwise.</summary>
+    StringSpot? SpotOf(ScoreNote note) => tab.TryGetValue(note, out var spot) ? spot : Fingering.For(instrument, note.Pitch);
 
     public void SetCurrentTime(double seconds)
     {
@@ -144,7 +157,7 @@ sealed class FretboardControl : Control, IThemed
             {
                 if (note.StartSeconds <= after || note.StartSeconds > upTo)
                     continue;
-                if (Fingering.For(instrument, note.Pitch) is not { } spot || stopped.ContainsKey(spot.String))
+                if (SpotOf(note) is not { } spot || stopped.ContainsKey(spot.String))
                     continue;
                 ringingSince[spot.String] = now;
                 playedFret[spot.String] = spot.Semitones;
@@ -174,6 +187,40 @@ sealed class FretboardControl : Control, IThemed
         flashTimer.Stop();
         flashTimer.Interval = Math.Max(1, durationMs);
         flashTimer.Start();
+        Invalidate();
+    }
+
+    /// <summary>
+    /// The left hand takes a chord shape (frets per string from the low one, -1 = not played) and the right hand strums
+    /// it, low to high - heard through <see cref="NoteStarted"/> like a strum with the mouse.
+    /// </summary>
+    public void PlayChord(int[] frets)
+    {
+        if (!IsGuitar || frets.Length != instrument.Strings.Length)
+            return;
+        StopBow();
+        stopped.Clear();
+        playedFret.Clear();
+        for (int s = 0; s < frets.Length; s++)
+            if (frets[s] > 0)
+                stopped[s] = frets[s];
+        var strings = Enumerable.Range(0, frets.Length).Where(s => frets[s] >= 0).ToList();
+        if (strings.Count == 0)
+            return;
+        int next = 0;
+        Pluck(strings[next++], 85);
+        var strum = new System.Windows.Forms.Timer { Interval = 25 };
+        strum.Tick += (_, _) =>
+        {
+            if (next < strings.Count)
+                Pluck(strings[next++], 85);
+            if (next >= strings.Count)
+            {
+                strum.Stop();
+                strum.Dispose();
+            }
+        };
+        strum.Start();
         Invalidate();
     }
 
@@ -559,7 +606,13 @@ sealed class FretboardControl : Control, IThemed
     void DrawDots(Graphics g, int[] strings)
     {
         var dots = new Dictionary<int, (Color Color, bool Faint)>();
-        void Add(int pitch, Color color, bool faint = false) => dots.TryAdd(pitch, (color, faint));
+        // Song notes know their place (the TAB's); played / expected keys use the hand's or the beginner's.
+        var songSpots = new Dictionary<int, StringSpot>();
+        void Add(int pitch, Color color, bool faint = false, ScoreNote? note = null)
+        {
+            if (dots.TryAdd(pitch, (color, faint)) && note != null && SpotOf(note) is { } spot)
+                songSpots[pitch] = spot;
+        }
 
         if (flash is { } f)
             Add(f.Pitch, f.Color);
@@ -581,9 +634,9 @@ sealed class FretboardControl : Control, IThemed
                 {
                     double end = note.StartSeconds + note.DurationSeconds;
                     if (Learning == null && note.StartSeconds <= currentSeconds && end > currentSeconds)
-                        Add(note.Pitch, color);
+                        Add(note.Pitch, color, note: note);
                     else if (practiced && note.StartSeconds > currentSeconds && note.StartSeconds <= currentSeconds + LookAheadSeconds)
-                        Add(note.Pitch, color, faint: true);
+                        Add(note.Pitch, color, faint: true, note: note);
                 }
             }
         }
@@ -594,7 +647,7 @@ sealed class FretboardControl : Control, IThemed
         foreach (var (pitch, (color, faint)) in dots.OrderByDescending(d => d.Value.Faint))
         {
             // A note the left hand is pressing shows there; otherwise the beginner's place.
-            var spot = PressedSpotFor(pitch) ?? Fingering.For(instrument, pitch);
+            var spot = PressedSpotFor(pitch) ?? songSpots.GetValueOrDefault(pitch) ?? Fingering.For(instrument, pitch);
             if (spot == null)
                 continue;
             float x = SpotX(spot.Semitones), y = StringY(spot.String);

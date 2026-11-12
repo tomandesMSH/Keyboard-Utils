@@ -333,6 +333,15 @@ sealed class AppConfig
     /// <summary>The Muzio menu in the menu bar (it can be hidden for those who don't use Muzio).</summary>
     public bool ShowMuzio { get; set; } = true;
 
+    /// <summary>The recorder's fingering chart: baroque (most recorders and schools) or German.</summary>
+    public RecorderSystem RecorderFingering { get; set; }
+
+    /// <summary>Guitar: the TAB (string and fret numbers) under the sheet music.</summary>
+    public bool GuitarTab { get; set; } = true;
+
+    /// <summary>Chord symbols above the notes (the file's; guessed ones for the guitar).</summary>
+    public bool ChordSymbols { get; set; } = true;
+
     /// <summary>Tempo the recording is written in when saved - MusicXML snaps notes to 16ths at this speed.</summary>
     public int CreateTempoBpm { get; set; } = 100;
 

@@ -69,6 +69,7 @@ sealed partial class MainForm
         noteSource = null;
         pianoRoll.ClearHeldKeys();
         fretboard.ClearHeldKeys();
+        windChart.ClearHeldKeys();
         listenButton.Text = T("Poslouchat", "Listen");
     }
 
