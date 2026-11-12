@@ -169,9 +169,7 @@ partial class MainForm
             if (!InstrumentPacks.IsInstalled(candidate))
             {
                 var entry = catalog.FirstOrDefault(e => e.Id == candidate.Id);
-                label += entry != null
-                    ? T($"   ⤓ stáhnout {InstrumentPacks.SizeText(entry.Bytes)}", $"   ⤓ download {InstrumentPacks.SizeText(entry.Bytes)}")
-                    : T("   ⤓ stáhnout", "   ⤓ download");
+                label += entry != null ? $"   ⤓ {InstrumentPacks.SizeText(entry.Bytes)}" : "   ⤓";
             }
             var chosen = candidate;
             items.Add(new AntdUI.ContextMenuStripItem(label) { Tag = (Action)(() => _ = AddInstrumentAsync(chosen)) });

@@ -46,6 +46,9 @@ sealed class FretboardControl : Control, IThemed
 
     /// <summary>When each string was last sounded (for the vibration), and whether it's being bowed.</summary>
     readonly Dictionary<int, long> ringingSince = [];
+
+    /// <summary>A string plucked by the song's playback: the fret it was played at (it vibrates from there).</summary>
+    readonly Dictionary<int, int> playedFret = [];
     readonly System.Windows.Forms.Timer animation = new() { Interval = 30 };
     readonly Stopwatch clock = Stopwatch.StartNew();
 
@@ -92,6 +95,7 @@ sealed class FretboardControl : Control, IThemed
             instrument = value;
             stopped.Clear();
             ringingSince.Clear();
+            playedFret.Clear();
             Invalidate();
         }
     }
@@ -117,8 +121,38 @@ sealed class FretboardControl : Control, IThemed
     {
         if (seconds == currentSeconds)
             return;
+        double previous = currentSeconds;
         currentSeconds = seconds;
+        // Playing on: the guitar's strings are plucked as the song's notes start (not on a jump or while learning).
+        if (IsGuitar && Learning == null && seconds > previous && seconds - previous < 0.5)
+            PluckSongNotes(previous, seconds);
         Invalidate();
+    }
+
+    /// <summary>The song's notes that started between two moments make their strings vibrate.</summary>
+    void PluckSongNotes(double after, double upTo)
+    {
+        if (score == null)
+            return;
+        long now = clock.ElapsedMilliseconds;
+        bool any = false;
+        foreach (var part in score.Parts)
+        {
+            if (part.Muted)
+                continue;
+            foreach (var note in part.Notes)
+            {
+                if (note.StartSeconds <= after || note.StartSeconds > upTo)
+                    continue;
+                if (Fingering.For(instrument, note.Pitch) is not { } spot || stopped.ContainsKey(spot.String))
+                    continue;
+                ringingSince[spot.String] = now;
+                playedFret[spot.String] = spot.Semitones;
+                any = true;
+            }
+        }
+        if (any)
+            animation.Start();
     }
 
     public void SetKeyHeld(int pitch, bool down)
@@ -312,6 +346,7 @@ sealed class FretboardControl : Control, IThemed
     {
         int pitch = Strumming.Pitch(instrument.Strings, stringIndex, stopped);
         ringingSince[stringIndex] = clock.ElapsedMilliseconds;
+        playedFret.Remove(stringIndex);
         NoteStarted?.Invoke(pitch, velocity, false);
         animation.Start();
         // The note input hears it as a short press.
@@ -434,7 +469,8 @@ sealed class FretboardControl : Control, IThemed
         {
             float y = StringY(s);
             using var pen = new Pen(StringColor, Math.Max(1f, 3.2f - s * 0.45f));
-            float from = stopped.TryGetValue(s, out int at) ? SpotX(at) : board.Left;
+            float from = stopped.TryGetValue(s, out int at) ? SpotX(at)
+                : playedFret.TryGetValue(s, out int fret) && fret > 0 ? SpotX(fret) : board.Left;
             if (from > board.Left)
                 g.DrawLine(pen, board.Left - 30, y, from, y);
             float amplitude = 0;
@@ -476,9 +512,11 @@ sealed class FretboardControl : Control, IThemed
             using var band = new SolidBrush(Color.FromArgb(48, 44, 42));
             g.FillRectangle(band, zone);
         }
-        using var hint = new SolidBrush(Color.FromArgb(150, 230, 225, 215));
-        string text = IsGuitar ? T("brnkni", "strum") : T("táhni smyčcem", "draw the bow");
-        g.DrawString(text, font, hint, new RectangleF(zone.Left, zone.Bottom + 2, zone.Width, 16), center);
+        if (!IsGuitar)
+        {
+            using var hint = new SolidBrush(Color.FromArgb(150, 230, 225, 215));
+            g.DrawString(T("táhni smyčcem", "draw the bow"), font, hint, new RectangleF(zone.Left, zone.Bottom + 2, zone.Width, 16), center);
+        }
     }
 
     static void DrawVibrating(Graphics g, Pen pen, float from, float to, float y, float amplitude, long now)
