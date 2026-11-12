@@ -283,6 +283,9 @@ sealed class AppConfig
     /// <summary>Seconds to answer each note; 0 = no limit.</summary>
     public int NoteQuizSeconds { get; set; }
 
+    /// <summary>Note-reading trainer: played notes (microphone / MIDI) count too. Off by default: just clicking.</summary>
+    public bool NoteQuizPlay { get; set; }
+
     /// <summary>Mistakes per written note (<see cref="QuizNote.Key"/>): those come up more often (<see cref="NoteQuiz.Weakness"/>).</summary>
     public Dictionary<string, int> NoteQuizWeakness { get; set; } = [];
 
@@ -326,6 +329,9 @@ sealed class AppConfig
 
     /// <summary>What a macro key or a shortcut did, shown big over the song for a moment.</summary>
     public bool BigNotices { get; set; } = true;
+
+    /// <summary>The Muzio menu in the menu bar (it can be hidden for those who don't use Muzio).</summary>
+    public bool ShowMuzio { get; set; } = true;
 
     /// <summary>Tempo the recording is written in when saved - MusicXML snaps notes to 16ths at this speed.</summary>
     public int CreateTempoBpm { get; set; } = 100;

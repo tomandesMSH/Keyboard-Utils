@@ -179,7 +179,8 @@ A task with attached sheet music in [Muzio](https://keyboardheromuzio.vercel.app
 Utils** button. On start the app registers `keyboardutils://` links (just for you, without admin rights); the link
 carries a short-lived signed link to the file. The app downloads only MIDI / MusicXML from Muzio's storage
 (`*.supabase.co`, https, at most 5 MB) to `%LOCALAPPDATA%\KeyboardUtils\Muzio` and opens it. If it's already running,
-a newly started copy hands the file over (a named pipe) and exits.
+a newly started copy hands the file over (a named pipe) and exits. If you don't use Muzio, hide its menu with **Hide the Muzio menu**
+in the **Muzio > Muzio...** window (**Settings > Show the Muzio menu** brings it back).
 
 ### Scales and warm-ups
 
@@ -192,7 +193,7 @@ metronome and the history all work; save it with Save song as.
 ### Note-reading trainer
 
 **Practice > Note-reading trainer...** shows a note on the staff; play it (MIDI / microphone / computer sound – both
-the key and the octave must match), or click its name or press the letter (C D E F G A H). Levels: treble clef
+the key and the octave must match), or click its name or press the letter (C D E F G A H); the **Microphone** checkbox (off by default) turns on answering by playing. Levels: treble clef
 (c1–g2), bass (F–c1), both, advanced (ledger lines, sharps and flats) and **intervals** (second–octave, answer with a
 button or the digits 2–8). An optional **time limit** of 5 / 3 / 2 s per note. A round has 20 notes; the best result
 and the streak of correct answers are remembered. Notes you get wrong come up more often (in later rounds too).

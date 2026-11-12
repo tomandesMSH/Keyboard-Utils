@@ -56,11 +56,16 @@ sealed class TunerControl : Control, IThemed
             StringClicked?.Invoke(instrument.Strings[index]);
     }
 
+    /// <summary>"1 cent, 2 centy, 5 centů" (cs) / "1 cent, 2 cents" (en).</summary>
+    internal static string CentsWord(int n) =>
+        n == 1 ? "cent" : n is >= 2 and <= 4 ? T("centy", "cents") : T("centů", "cents");
+
     protected override void OnPaint(PaintEventArgs e)
     {
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
-        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+        // ClearType on the opaque background: sharp small text (plain antialiasing blurs it).
+        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
         g.Clear(AppTheme.Paper);
         float u = Math.Min(Width / 40f, Height / 30f);
         if (u < 2)
@@ -87,7 +92,7 @@ sealed class TunerControl : Control, IThemed
         using (var small = new Font("Segoe UI", 1.5f * u, GraphicsUnit.Pixel))
         {
             string detail = hz is { } f4
-                ? $"{f4:0.0} Hz" + (cents is { } c1 ? $"  ·  {(c1 >= 0 ? "+" : "−")}{Math.Abs(c1):0} " + T("centů", "cents") : "")
+                ? $"{f4:0.0} Hz" + (cents is { } c1 ? $"  ·  {(c1 >= 0 ? "+" : "−")}{Math.Abs(c1):0} " + CentsWord((int)Math.Round(Math.Abs(c1))) : "")
                 : T("Zahraj jeden tón…", "Play one note…");
             if (target is { } t2 && instrument.Transpose != 0 && instrument.Transpose % 12 != 0)
                 detail += "  ·  " + T("psaná ", "written ") + Tuning.Name(instrument.Written(t2));

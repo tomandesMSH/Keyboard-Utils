@@ -420,6 +420,7 @@ sealed partial class MainForm : AntdUI.Window
         Controls.Add(statusRow);
 
         menuBar.Controls.AddRange([fileMenuButton, libraryMenuButton, practiceMenuButton, muzioMenuButton, editMenuButton, settingsMenuButton, helpMenuButton]);
+        muzioMenuButton.Visible = config.ShowMuzio;
         Controls.Add(menuBar);
 
         // Title bar must be added LAST (and never BringToFront - that resets its z-index to 0, which for
@@ -722,6 +723,11 @@ sealed partial class MainForm : AntdUI.Window
                 Checked = config.BigNotices,
                 Tag = (Action)(() => { config.BigNotices = !config.BigNotices; config.Save(); }),
             },
+            new AntdUI.ContextMenuStripItem(T("Zobrazit menu Muzio", "Show the Muzio menu"))
+            {
+                Checked = config.ShowMuzio,
+                Tag = (Action)(() => SetShowMuzio(!config.ShowMuzio)),
+            },
             new AntdUI.ContextMenuStripItem(T("Nástroje (stáhnout, odebrat)...", "Instruments (download, remove)...")) { Tag = (Action)ShowInstrumentPacks },
             new AntdUI.ContextMenuStripItem(T("MIDI výstup", "MIDI output")) { Sub = deviceItems.ToArray() },
             new AntdUI.ContextMenuStripItem(T("Vstup not", "Note input")) { Sub = BuildNoteInputItems() },
@@ -765,15 +771,23 @@ sealed partial class MainForm : AntdUI.Window
     /// <summary>Muzio > Muzio...: what Muzio is, and a way there.</summary>
     void ShowAboutMuzio()
     {
-        if (Confirm(this, "Muzio",
-            T("Muzio je webová aplikace ZUŠ Moravský Krumlov pro žáky a učitele: učitel zadává úkoly a noty, žák cvičí, "
-              + "nahrává se a sbírá body a odznaky za každodenní cvičení.\n\n"
-              + "Noty z úkolu v Muziu otevřeš v Keyboard Utils tlačítkem „Otevřít v Keyboard Utils“.",
-              "Muzio is the web app of ZUŠ Moravský Krumlov for pupils and teachers: teachers set assignments and scores, pupils "
-              + "practise, record themselves and earn points and badges for practising every day.\n\n"
-              + "Open an assignment's score in Keyboard Utils with its \"Open in Keyboard Utils\" button."),
-            T("Otevřít Muzio", "Open Muzio")))
+        using var form = new MuzioInfoForm();
+        form.ShowDialog(this);
+        if (form.Result == MuzioInfoForm.Choice.Hide)
+            SetShowMuzio(false);
+        else if (form.Result == MuzioInfoForm.Choice.Open)
             AboutForm.Open(MuzioUrl);
+    }
+
+    /// <summary>The Muzio menu shown or hidden (Settings > Show the Muzio menu, or "Hide" in Muzio > Muzio...).</summary>
+    void SetShowMuzio(bool show)
+    {
+        config.ShowMuzio = show;
+        config.Save();
+        muzioMenuButton.Visible = show;
+        if (!show)
+            SetStatus(T("Menu Muzio je skryté - zpátky ho zapneš v Nastavení > Zobrazit menu Muzio.",
+                "The Muzio menu is hidden - turn it back on in Settings > Show the Muzio menu."));
     }
 
     /// <summary>Úpravy > Makro klávesnice: the macro keys in their own window (made once, then shown and hidden).</summary>

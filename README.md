@@ -173,7 +173,8 @@ U úkolu s přiloženými notami v [Muziu](https://keyboardheromuzio.vercel.app/
 Utils**. Appka si při spuštění zaregistruje odkazy `keyboardutils://` (jen pro tebe, bez práv správce); odkaz nese
 krátce platný podepsaný odkaz na soubor. Appka stáhne jen MIDI / MusicXML z úložiště Muzia (`*.supabase.co`, https,
 nejvýš 5 MB) do `%LOCALAPPDATA%\KeyboardUtils\Muzio` a otevře ho. Když už běží, předá jí ho nově spuštěná kopie
-(pojmenovaná roura) a sama skončí.
+(pojmenovaná roura) a sama skončí. Kdo Muzio nepoužívá, schová jeho menu tlačítkem **Skrýt menu Muzio** v okně
+**Muzio > Muzio...** (zpátky ho zapne **Nastavení > Zobrazit menu Muzio**).
 
 ### Stupnice a rozcvičky
 
@@ -186,7 +187,7 @@ takže funguje režim učení, smyčka se zrychlováním, metronom i historie; u
 ### Trénink čtení not
 
 **Cvičení > Trénink čtení not...** ukáže notu na osnově; zahraj ji (MIDI / mikrofon / zvuk z počítače – musí sedět
-klávesa i oktáva), nebo klikni na její jméno či zmáčkni písmeno (C D E F G A H). Úrovně: houslový klíč (c1–g2),
+klávesa i oktáva), nebo klikni na její jméno či zmáčkni písmeno (C D E F G A H); zaškrtávátko **Mikrofon** (výchozí vypnuté) zapne odpovídání hraním. Úrovně: houslový klíč (c1–g2),
 basový (F–c1), oba, pokročilý (pomocné linky, křížky a béčka) a **intervaly** (sekunda–oktáva, odpověď tlačítkem
 nebo číslicí 2–8). Volitelný **časový limit** 5 / 3 / 2 s na notu. Kolo má 20 not; pamatuje se nejlepší výsledek
 a série správných odpovědí. Noty, ve kterých chybuješ, chodí častěji (i v dalších kolech).

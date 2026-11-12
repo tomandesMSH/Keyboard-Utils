@@ -15,9 +15,14 @@ sealed class NoteTrainerForm : AntdUI.Window
     readonly Instrument instrument;
     readonly NoteQuizLevel[] levels;
     readonly Action<int>? playNote;
-    readonly string? inputName;
+    readonly Func<string?>? startInput;
+    string? inputName;
     readonly AntdUI.Select levelBox = new() { Size = new Size(330, 36), List = true };
-    readonly AntdUI.Select timeBox = new() { Size = new Size(140, 36), List = true, Margin = new Padding(10, 0, 0, 0) };
+    // The same margins as the level box, so they sit on one line.
+    readonly AntdUI.Select timeBox = new() { Size = new Size(140, 36), List = true, Margin = new Padding(10, 3, 0, 3) };
+    /// <summary>"Mikrofon": whether played notes count (off = just the buttons and letters). Like the app's other switches.</summary>
+    readonly AntdUI.Checkbox playBox = new() { AutoSize = true, Margin = new Padding(14, 7, 0, 3) };
+    bool play => playBox.Checked;
     readonly AntdUI.Label bestLabel = new() { AutoSize = true, ForeColor = SystemColors.GrayText, Margin = new Padding(12, 9, 0, 0) };
     readonly NoteFlashControl staff = new() { Dock = DockStyle.Fill };
     readonly AntdUI.Label progress = new() { Dock = DockStyle.Bottom, Height = 30, TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Segoe UI", 11f, FontStyle.Bold) };
@@ -37,20 +42,34 @@ sealed class NoteTrainerForm : AntdUI.Window
     bool Intervals => Level == NoteQuizLevel.Intervals;
     int SecondsPerNote => TimeLimits[Math.Max(0, timeBox.SelectedIndex)];
 
+    /// <summary>Answers only with the buttons / letters: played notes are ignored (and nothing is listened to).</summary>
+    bool ClickOnly => !play;
+
+    /// <summary>What the toggle names: the note input set in Settings.</summary>
+    string InputWord => config.NoteInput switch
+    {
+        NoteInputKind.Midi => "MIDI",
+        NoteInputKind.Microphone => T("Mikrofon", "Microphone"),
+        NoteInputKind.ScreenKeyboard => T("Hraní", "Playing"),
+        _ => T("Zvuk z počítače", "Computer sound"),
+    };
+
+
     /// <param name="instrument">The player's: its own levels, and played notes are taken as it sounds.</param>
     /// <param name="playNote">Plays a pitch (the right note after a wrong answer); null = silent.</param>
-    /// <param name="inputName">What the player plays on ("MIDI: ...", "Mikrofon"), for the hint; null = no instrument listening.</param>
-    public NoteTrainerForm(AppConfig config, Action<int>? playNote, string? inputName, Instrument? instrument = null)
+    /// <param name="startInput">Starts listening to the instrument (when playing is chosen); returns what's listened to
+    /// ("MIDI: ...", "Mikrofon") for the hint, or null when the note input can't be played (the on-screen keyboard).</param>
+    public NoteTrainerForm(AppConfig config, Action<int>? playNote, Func<string?>? startInput, Instrument? instrument = null)
     {
         this.config = config;
         this.instrument = instrument ?? Instrument.Piano;
         levels = NoteQuiz.LevelsFor(this.instrument);
         this.playNote = playNote;
-        this.inputName = inputName;
+        this.startInput = startInput;
         Text = T("Trénink čtení not", "Note-reading trainer");
         Icon = AppIcon.Icon;
         StartPosition = FormStartPosition.CenterParent;
-        Size = new Size(660, 580);
+        Size = new Size(760, 580);
         MaximizeBox = MinimizeBox = false;
         KeyPreview = true;
 
@@ -58,8 +77,12 @@ sealed class NoteTrainerForm : AntdUI.Window
         levelBox.SelectedIndex = Math.Max(0, Array.IndexOf(levels, config.NoteQuizLevel));
         timeBox.Items.AddRange([T("Bez limitu", "No time limit"), T("5 s na notu", "5 s a note"), T("3 s na notu", "3 s a note"), T("2 s na notu", "2 s a note")]);
         timeBox.SelectedIndex = Math.Max(0, Array.IndexOf(TimeLimits, config.NoteQuizSeconds));
+        playBox.Text = InputWord;
+        playBox.Checked = config.NoteQuizPlay;
+        if (play)
+            inputName = startInput?.Invoke();
         var top = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = false, Padding = new Padding(16, 10, 16, 6) };
-        top.Controls.AddRange([levelBox, timeBox, bestLabel]);
+        top.Controls.AddRange([levelBox, timeBox, playBox, bestLabel]);
 
         var answers = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, WrapContents = false };
         for (int i = 0; i < 7; i++)
@@ -70,7 +93,7 @@ sealed class NoteTrainerForm : AntdUI.Window
             answerButtons[i] = button;
             answers.Controls.Add(button);
         }
-        answers.Padding = new Padding(Math.Max(16, (660 - 7 * 86) / 2), 4, 16, 4);
+        answers.Padding = new Padding(Math.Max(16, (760 - 7 * 86) / 2), 4, 16, 4);
 
         var close = new AntdUI.Button { Text = T("Zavřít", "Close"), AutoSize = true, Radius = 8 };
         close.Click += (_, _) => Close();
@@ -108,6 +131,16 @@ sealed class NoteTrainerForm : AntdUI.Window
             config.NoteQuizSeconds = SecondsPerNote;
             config.Save();
             StartRound();
+        };
+        playBox.CheckedChanged += (_, _) =>
+        {
+            config.NoteQuizPlay = play;
+            config.Save();
+            if (play)
+                inputName = startInput?.Invoke();
+            UpdateHint();
+            // Letters typed next go to the answers, not the checkbox.
+            ActiveControl = null;
         };
         KeyDown += OnKeyDown;
         FormClosed += (_, _) =>
@@ -152,16 +185,22 @@ sealed class NoteTrainerForm : AntdUI.Window
             answerButtons[i].Text = Intervals ? NoteQuiz.IntervalName(i + 2) : NoteQuiz.LetterName(i);
             answerButtons[i].Font = new Font("Segoe UI", Intervals ? 9.5f : 14f, FontStyle.Bold);
         }
-        hint.Text = Intervals
-            ? T("Jaký je to interval? Klikni, nebo zmáčkni číslo 2–8 (2 = sekunda … 8 = oktáva).",
-                "Which interval is it? Click, or press 2–8 (2 = second … 8 = octave).")
-            : inputName != null
-                ? T($"Zahraj notu ({inputName}), nebo klikni na její jméno / zmáčkni písmeno na klávesnici.",
-                    $"Play the note ({inputName}), or click its name / press the letter on the keyboard.")
-                : T("Klikni na jméno noty, nebo zmáčkni písmeno na klávesnici.", "Click the note's name, or press the letter on the keyboard.");
+        UpdateHint();
         UpdateBest();
         ShowNext();
     }
+
+    void UpdateHint() =>
+        hint.Text = Intervals
+            ? T("Jaký je to interval? Klikni, nebo zmáčkni číslo 2–8 (2 = sekunda … 8 = oktáva).",
+                "Which interval is it? Click, or press 2–8 (2 = second … 8 = octave).")
+            : ClickOnly
+                ? T("Klikni na jméno noty, nebo zmáčkni písmeno na klávesnici.", "Click the note's name, or press the letter on the keyboard.")
+                : inputName != null
+                    ? T($"Zahraj notu ({inputName}), nebo klikni na její jméno / zmáčkni písmeno na klávesnici.",
+                        $"Play the note ({inputName}), or click its name / press the letter on the keyboard.")
+                    : T("Na hraní nastav v Nastavení > Vstup not mikrofon nebo MIDI. Zatím klikni na jméno noty / zmáčkni písmeno.",
+                        "To play, choose a microphone or MIDI in Settings > Note input. For now, click the note's name / press the letter.");
 
     void ShowNext()
     {
@@ -197,7 +236,7 @@ sealed class NoteTrainerForm : AntdUI.Window
     /// <summary>A key played on the instrument (MainForm routes note-ons here while this window is open).</summary>
     public void OnNoteOn(int pitch)
     {
-        if (showingAnswer || quiz.Current == null || Intervals)
+        if (showingAnswer || quiz.Current == null || Intervals || ClickOnly)
             return;
         Answered(quiz.AnswerPitch(pitch, shown.Elapsed.TotalSeconds));
     }

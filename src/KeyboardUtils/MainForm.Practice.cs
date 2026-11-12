@@ -105,12 +105,15 @@ sealed partial class MainForm
             return;
         StopLearningMode(showResult: false);
         FinishCreateMode();
-        // An instrument to answer with: listening starts if it isn't on (the on-screen keyboard can't be clicked
-        // behind the trainer, so then it's the name buttons).
-        if (noteSource == null && config.NoteInput != NoteInputKind.ScreenKeyboard)
-            StartListening();
-        string? input = noteSource is { } source and not ScreenKeyboardNoteSource ? source.Name : null;
-        using var trainer = new NoteTrainerForm(config, pitch => playbackEngine.PlayNote(pitch), input, instrument);
+        // Playing the notes (not just clicking): listening starts if it isn't on (the on-screen keyboard can't be
+        // clicked behind the trainer, so then it's the name buttons).
+        string? StartInput()
+        {
+            if (noteSource == null && config.NoteInput != NoteInputKind.ScreenKeyboard)
+                StartListening();
+            return noteSource is { } source and not ScreenKeyboardNoteSource ? source.Name : null;
+        }
+        using var trainer = new NoteTrainerForm(config, pitch => playbackEngine.PlayNote(pitch), StartInput, instrument);
         noteTrainer = trainer;
         try
         {
