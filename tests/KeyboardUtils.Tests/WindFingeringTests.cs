@@ -20,6 +20,7 @@ public class WindFingeringTests
     [Theory]
     [InlineData("recorder")]
     [InlineData("trumpet")]
+    [InlineData("flute")]
     public void Every_note_of_the_chart_has_a_fingering_with_one_state_per_key(string id)
     {
         var instrument = Instrument.ById(id);
@@ -47,7 +48,7 @@ public class WindFingeringTests
     [Fact]
     public void Instruments_without_a_chart_have_none()
     {
-        foreach (var id in new[] { "piano", "guitar", "violin", "flute", "clarinet", "altosax" })
+        foreach (var id in new[] { "piano", "guitar", "violin", "clarinet", "altosax" })
         {
             Assert.Null(WindFingerings.ChartFor(Instrument.ById(id)));
             Assert.Null(WindFingerings.For(Instrument.ById(id), 72));
@@ -117,5 +118,52 @@ public class WindFingeringTests
     {
         // Written C4 sounds B♭3 (58).
         Assert.Equal(60, WindFingerings.For(Trumpet, 58)!.WrittenPitch);
+    }
+
+    static readonly Instrument Flute = Instrument.ById("flute");
+
+    static string FluteKeys(int written)
+    {
+        var chart = WindFingerings.ChartFor(Flute)!;
+        var fingering = WindFingerings.For(Flute, written)!;
+        return string.Join(" ", chart.Keys.Where((k, i) => fingering.Keys[i] == KeyState.Closed).Select(k => k.Label));
+    }
+
+    [Theory]
+    [InlineData(60, "T L1 L2 L3 R1 R2 R3 C")]  // c1: everything, the low C key
+    [InlineData(62, "T L1 L2 L3 R1 R2 R3")]    // d1: no E♭ key
+    [InlineData(67, "T L1 L2 L3 Eb")]          // g1
+    [InlineData(70, "T L1 R1 Eb")]             // b1 (long B♭)
+    [InlineData(72, "L1 Eb")]                  // c2: thumb off
+    [InlineData(73, "Eb")]                     // cis2: all open
+    [InlineData(74, "T L2 L3 R1 R2 R3")]       // d2: the index lifted
+    [InlineData(86, "T L2 L3 Eb")]             // d3
+    [InlineData(91, "L1 L2 L3 Eb")]            // g3
+    [InlineData(93, "T L2 R1 Eb")]             // a3
+    public void Flute_keys_by_note(int written, string keys) => Assert.Equal(keys, FluteKeys(written));
+
+    [Fact]
+    public void Flute_overblown_notes_share_the_fingering_an_octave_lower()
+    {
+        for (int written = 76; written <= 85; written++)
+            Assert.Equal(FluteKeys(written - 12), FluteKeys(written));
+        Assert.Null(WindFingerings.For(Flute, 94)); // b3 needs trill keys: not in the chart
+    }
+
+    [Fact]
+    public void A_fingering_names_its_notes()
+    {
+        // Flute e1 / e2: the same fingering, the breath picks.
+        var e = WindFingerings.For(Flute, 64)!.Keys;
+        Assert.Equal([64, 76], WindFingerings.NotesFor(Flute, e));
+        // Recorder: one note per fingering (the thumb pinched makes the second octave).
+        var recorder = Instrument.ById("recorder");
+        var g1 = WindFingerings.For(recorder, recorder.Sounding(67))!.Keys;
+        Assert.Equal([recorder.Sounding(67)], WindFingerings.NotesFor(recorder, g1));
+        // Trumpet, no valves: c4, g4, c5, e5, g5, c6 (written).
+        var open = WindFingerings.For(Trumpet, Trumpet.Sounding(60))!.Keys;
+        Assert.Equal(new[] { 60, 67, 72, 76, 79, 84 }.Select(Trumpet.Sounding), WindFingerings.NotesFor(Trumpet, open));
+        // Not a fingering at all.
+        Assert.Empty(WindFingerings.NotesFor(recorder, [KeyState.Open, KeyState.Closed, KeyState.Open, KeyState.Closed, KeyState.Open, KeyState.Closed, KeyState.Open, KeyState.Closed]));
     }
 }

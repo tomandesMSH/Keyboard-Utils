@@ -346,6 +346,18 @@ sealed partial class MainForm : AntdUI.Window
                 screen.Release(pitch);
             }
         };
+        // Blowing the fingering chart: the note sounds while the button is held, and counts as played.
+        windChart.NoteStarted += (pitch, velocity, _) =>
+        {
+            playbackEngine.StartNote(pitch, velocity);
+            if (noteSource is ScreenKeyboardNoteSource screen)
+                screen.Press(pitch);
+        };
+        windChart.NoteEnded += pitch =>
+        {
+            playbackEngine.StopNote(pitch);
+            (noteSource as ScreenKeyboardNoteSource)?.Release(pitch);
+        };
         fretboard.NoteEnded += pitch =>
         {
             playbackEngine.StopNote(pitch);
