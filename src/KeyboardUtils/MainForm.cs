@@ -190,7 +190,6 @@ sealed partial class MainForm : AntdUI.Window
     bool applyingSplit;
     int liveNoteCount = -1;
     readonly System.Windows.Forms.Timer playbackTimer = new() { Interval = 33 };
-    readonly AntdUI.Tabs tabs = new() { Dock = DockStyle.Fill };
     /// <summary>What was the "Makro klávesnice" tab, now shown in its own window (Úpravy > Makro klávesnice).</summary>
     readonly Panel macroPanel = new() { Dock = DockStyle.Fill };
     MacroKeyboardForm? macroWindow;
@@ -323,16 +322,24 @@ sealed partial class MainForm : AntdUI.Window
                 pianoRoll.FlashKey(pitch);
         };
         pianoRoll.KeyReleased += pitch => (noteSource as ScreenKeyboardNoteSource)?.Release(pitch);
-        // The fingerboard plays the same way: a click sounds the note, and with on-screen input it's a played note.
-        fretboard.KeySelected += pitch =>
+        // The fingerboard is played like the instrument (frets pressed on the left, strummed / bowed on the right); with
+        // on-screen input what it plays counts as played notes (learning, writing notes).
+        fretboard.NoteStarted += (pitch, velocity, sustained) =>
         {
-            playbackEngine.PlayNote(pitch);
+            if (sustained)
+                playbackEngine.StartNote(pitch, velocity);
+            else if (instrument.IsBowed)
+                playbackEngine.PlayPizzicato(pitch, velocity); // a quick click with the bow: plucked
+            else
+                playbackEngine.PlayNote(pitch, 1500, velocity);
             if (noteSource is ScreenKeyboardNoteSource screen)
                 screen.Press(pitch);
-            else
-                fretboard.FlashKey(pitch);
         };
-        fretboard.KeyReleased += pitch => (noteSource as ScreenKeyboardNoteSource)?.Release(pitch);
+        fretboard.NoteEnded += pitch =>
+        {
+            playbackEngine.StopNote(pitch);
+            (noteSource as ScreenKeyboardNoteSource)?.Release(pitch);
+        };
 
         // Drag the notes to move through the song; playback pauses while dragging and resumes on release.
         pianoRoll.Seekable = true;
@@ -396,7 +403,9 @@ sealed partial class MainForm : AntdUI.Window
         macroPanel.Controls.Add(keyboardRow);
         macroPanel.Controls.Add(macroInfoLabel);
 
-        Controls.Add(tabs);
+        // The song fills the window under the instrument tabs (Fill first, then the strip on top).
+        Controls.Add(songPanel);
+        Controls.Add(instrumentStrip);
         // Bottom bar: status text on the left, the keyboard size slider on the right (only on the song tab).
         keyboardSizeGroup = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false, Padding = new Padding(0, 0, 12, 0) };
         keyboardSizeGroup.Controls.AddRange([keyboardSizeLabel, keyboardSizeSlider]);
@@ -408,7 +417,6 @@ sealed partial class MainForm : AntdUI.Window
         statusRow.Controls.Add(updateGroup);
         statusRow.Controls.Add(keyboardSizeGroup);
         updateButton.Click += (_, _) => _ = UpdateAsync();
-        tabs.SelectedIndexChanged += (_, _) => OnTabChanged();
         Controls.Add(statusRow);
 
         menuBar.Controls.AddRange([fileMenuButton, libraryMenuButton, practiceMenuButton, muzioMenuButton, editMenuButton, settingsMenuButton, helpMenuButton]);
@@ -714,7 +722,7 @@ sealed partial class MainForm : AntdUI.Window
                 Checked = config.BigNotices,
                 Tag = (Action)(() => { config.BigNotices = !config.BigNotices; config.Save(); }),
             },
-            new AntdUI.ContextMenuStripItem(T("Moje nástroje...", "My instruments...")) { Tag = (Action)EditMyInstruments },
+            new AntdUI.ContextMenuStripItem(T("Nástroje (stáhnout, odebrat)...", "Instruments (download, remove)...")) { Tag = (Action)ShowInstrumentPacks },
             new AntdUI.ContextMenuStripItem(T("MIDI výstup", "MIDI output")) { Sub = deviceItems.ToArray() },
             new AntdUI.ContextMenuStripItem(T("Vstup not", "Note input")) { Sub = BuildNoteInputItems() },
             new AntdUI.ContextMenuStripItem(T("Mikrofon a citlivost...", "Microphone and sensitivity...")) { Tag = (Action)ShowMicrophoneSetup },
@@ -808,8 +816,7 @@ sealed partial class MainForm : AntdUI.Window
         editMenuButton.Text = T("Úpravy", "Edit");
         settingsMenuButton.Text = T("Nastavení", "Settings");
         helpMenuButton.Text = T("Nápověda", "Help");
-        foreach (var (page, tabInstrument) in instrumentPages)
-            page.Text = tabInstrument.Name;
+        RebuildInstrumentTabs();
         tunerButton.Text = T("Ladička", "Tuner");
         if (macroWindow != null)
             macroWindow.Text = T("Makro klávesnice", "Macro keyboard");

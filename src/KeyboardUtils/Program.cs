@@ -37,8 +37,10 @@ static class Program
             // First start: light or dark as Windows has it; the picker can switch it, and that's what's kept.
             AppTheme.SetDark(AppTheme.WindowsPrefersDark());
             using var picker = new LanguagePickerForm();
-            if (picker.ShowDialog() == DialogResult.OK && picker.Result is { } language)
-                config.Language = language;
+            // Closed without picking a language: the user didn't want to start the app.
+            if (picker.ShowDialog() != DialogResult.OK || picker.Result is not { } language)
+                return;
+            config.Language = language;
             config.DarkMode = AppTheme.Dark;
             config.Save();
         }

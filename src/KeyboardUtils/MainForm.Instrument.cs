@@ -1,9 +1,11 @@
 namespace KeyboardUtils;
 
 /// <summary>
-/// The player's instruments: one tab each at the top ("Piano | Kytara | +"), the chosen one sets the staff and clef,
-/// the sound, how the microphone listens - and what's under the falling notes: a keyboard, or a fingerboard for a
-/// string instrument. The song itself is the same on every tab; switching moves it along.
+/// The player's instruments, as browser-like tabs at the top ("Piano | Kytara | +"): close one with ×, drag them
+/// round, + adds one. Only the piano is built in; every other instrument is a pack (its real sound) downloaded the
+/// first time it's added (<see cref="InstrumentPacks"/>), managed in Settings > Instruments. The chosen instrument
+/// sets the staff and clef, the sound, how the microphone listens, and what's under the falling notes - a keyboard,
+/// or a fingerboard for a string instrument. The song itself is the same on every tab.
 /// </summary>
 partial class MainForm
 {
@@ -15,35 +17,63 @@ partial class MainForm
     /// <summary>"Ladička" beside the song's buttons, for every instrument but the piano.</summary>
     readonly AntdUI.Button tunerButton = new() { AutoSize = true, Radius = 8, Visible = false };
 
-    /// <summary>Everything that was the "Skladba" tab: moved into the selected instrument's tab.</summary>
+    /// <summary>Everything that was the "Skladba" tab: under the instrument tabs, the same for each.</summary>
     readonly Panel songPanel = new() { Dock = DockStyle.Fill };
 
-    readonly List<(AntdUI.TabPage Page, Instrument Instrument)> instrumentPages = [];
-    readonly AntdUI.TabPage addInstrumentPage = new() { Text = "+" };
-    bool rebuildingTabs;
+    readonly BrowserTabStrip instrumentStrip = new() { Dock = DockStyle.Top };
 
-    /// <summary>My instruments, in tab order (always at least one, always holding the current one).</summary>
+    /// <summary>A pack download in progress (one at a time).</summary>
+    bool downloadingPack;
+
+    /// <summary>My instruments, in tab order (always at least one). Instruments whose pack isn't installed show with ⤓.</summary>
     List<Instrument> MyInstruments
     {
         get
         {
             var list = (config.MyInstruments ?? []).Select(Instrument.ById).Distinct().ToList();
-            if (list.Count == 0 || !list.Contains(Instrument.ById(config.Instrument)))
+            if (list.Count == 0)
                 list.Add(Instrument.ById(config.Instrument));
             return list;
         }
     }
 
-    /// <summary>At start: the saved instrument, before the MIDI output is opened (the piano sound pack is piano-only).</summary>
+    void SaveMyInstruments(IEnumerable<Instrument> list)
+    {
+        config.MyInstruments = list.Select(i => i.Id).Distinct().ToList();
+        config.Save();
+    }
+
+    /// <summary>At start: the saved instrument (the piano when its pack isn't here), before the MIDI output is opened.</summary>
     void LoadInstrument()
     {
-        instrument = Instrument.ById(config.Instrument);
-        config.MyInstruments = MyInstruments.Select(i => i.Id).ToList();
+        var saved = Instrument.ById(config.Instrument);
+        SaveMyInstruments(MyInstruments.Contains(saved) ? MyInstruments : [.. MyInstruments, saved]);
+        // An instrument chosen in 1.6, before instruments were packs: its tab waits for the download.
+        instrument = InstrumentPacks.IsInstalled(saved) ? saved : Instrument.Piano;
+        if (instrument != saved)
+            Shown += (_, _) => SetStatus(T($"{saved.Name}: nově balíček ke stažení se skutečným zvukem nástroje - stáhneš ho kliknutím na záložku nahoře.",
+                $"{saved.Name} now comes as a pack with its real sound - click its tab at the top to download it."));
+        if (!MyInstruments.Contains(instrument))
+            SaveMyInstruments([instrument, .. MyInstruments]);
         playbackEngine.Program = instrument.GmProgram;
+        ApplyInstrumentSound();
         sheet.Instrument = instrument;
         fretboard.Instrument = instrument;
         ApplyNoteView();
+
+        instrumentStrip.TabSelected += id => _ = OnInstrumentTabAsync(Instrument.ById(id));
+        instrumentStrip.TabClosed += id => CloseInstrumentTab(Instrument.ById(id));
+        instrumentStrip.TabsReordered += ids => SaveMyInstruments(ids.Select(Instrument.ById));
+        instrumentStrip.AddClicked += _ => ShowAddInstrumentMenu();
         RebuildInstrumentTabs();
+    }
+
+    /// <summary>The pack's own sound for a pack instrument; the usual output for the piano.</summary>
+    void ApplyInstrumentSound()
+    {
+        var manifest = instrument.IsPiano ? null : InstrumentPacks.Manifest(instrument.Id);
+        playbackEngine.SetInstrumentSound(manifest != null ? InstrumentPacks.SoundPath(instrument.Id) : null,
+            manifest?.MainPreset ?? 0, manifest?.PizzicatoPreset);
     }
 
     void SetInstrument(Instrument chosen)
@@ -55,13 +85,14 @@ partial class MainForm
         instrument = chosen;
         config.Instrument = chosen.Id;
         if (!MyInstruments.Contains(chosen))
-            config.MyInstruments = [.. MyInstruments.Select(i => i.Id), chosen.Id];
+            SaveMyInstruments([.. MyInstruments, chosen]);
         config.Save();
 
         bool wasPlaying = playbackEngine.IsRunning;
         playbackEngine.Pause();
         double at = playbackEngine.CurrentSeconds;
         playbackEngine.Program = chosen.GmProgram;
+        ApplyInstrumentSound();
         playbackEngine.SetOutputDevice(config.MidiOutputDevice);
         if (currentScore != null)
         {
@@ -75,7 +106,7 @@ partial class MainForm
         fretboard.Instrument = chosen;
         ApplyNoteView();
         ApplyInstrumentToInput();
-        SelectInstrumentTab();
+        RebuildInstrumentTabs();
         SetStatus(chosen.IsPiano
             ? T("Piano - noty na dvou osnovách.", "Piano - music on the grand staff.")
             : T($"{chosen.Name} - noty v jeho klíči, tak jak je čteš.", $"{chosen.Name} - music in its clef, as you read it."));
@@ -90,101 +121,137 @@ partial class MainForm
 
     // --- The tabs ----------------------------------------------------------------------------------------
 
-    /// <summary>One tab per instrument of mine, then "+" (while there's any left to add).</summary>
-    void RebuildInstrumentTabs()
-    {
-        rebuildingTabs = true;
-        try
-        {
-            songPanel.Parent?.Controls.Remove(songPanel);
-            tabs.Pages.Clear();
-            instrumentPages.Clear();
-            foreach (var mine in MyInstruments)
-            {
-                var page = new AntdUI.TabPage { Text = mine.Name };
-                instrumentPages.Add((page, mine));
-                tabs.Pages.Add(page);
-            }
-            if (MyInstruments.Count < Instrument.All.Count)
-                tabs.Pages.Add(addInstrumentPage);
-            SelectInstrumentTab();
-        }
-        finally
-        {
-            rebuildingTabs = false;
-        }
-    }
+    void RebuildInstrumentTabs() =>
+        instrumentStrip.SetTabs(MyInstruments.Select(i => new StripTab(i.Id, i.Name, !InstrumentPacks.IsInstalled(i))).ToList(), instrument.Id);
 
-    /// <summary>Shows the current instrument's tab, with the song in it.</summary>
-    void SelectInstrumentTab()
+    /// <summary>A tab clicked: switch to it - downloading its pack first when it isn't here yet.</summary>
+    async Task OnInstrumentTabAsync(Instrument chosen)
     {
-        var page = instrumentPages.FirstOrDefault(p => p.Instrument == instrument).Page;
-        if (page == null)
+        if (chosen == instrument)
             return;
-        bool was = rebuildingTabs;
-        rebuildingTabs = true;
-        try
+        if (!InstrumentPacks.IsInstalled(chosen) && !await EnsureInstalledAsync(chosen))
         {
-            if (songPanel.Parent != page)
-            {
-                songPanel.Parent?.Controls.Remove(songPanel);
-                page.Controls.Add(songPanel);
-            }
-            if (tabs.SelectedTab != page)
-                tabs.SelectedTab = page;
-        }
-        finally
-        {
-            rebuildingTabs = was;
-        }
-    }
-
-    void OnTabChanged()
-    {
-        if (rebuildingTabs)
-            return;
-        if (tabs.SelectedTab == addInstrumentPage)
-        {
-            // "+": back to where we were, and a menu of the instruments not added yet.
-            SelectInstrumentTab();
-            var mine = MyInstruments;
-            ShowMenu(tabs, Instrument.All.Where(i => !mine.Contains(i))
-                .Select(i => (AntdUI.IContextMenuStripItem)new AntdUI.ContextMenuStripItem(i.Name) { Tag = (Action)(() => AddInstrument(i)) })
-                .ToArray());
+            RebuildInstrumentTabs(); // the selection back where it was
             return;
         }
-        var chosen = instrumentPages.FirstOrDefault(p => p.Page == tabs.SelectedTab).Instrument;
-        if (chosen == null || chosen == instrument)
-            return;
         SetInstrument(chosen);
     }
 
-    void AddInstrument(Instrument added)
+    /// <summary>×: the tab goes (the pack stays installed - Settings > Instruments removes it). Never the last one.</summary>
+    void CloseInstrumentTab(Instrument closed)
     {
-        config.MyInstruments = [.. MyInstruments.Select(i => i.Id), added.Id];
-        config.Save();
+        var mine = MyInstruments;
+        if (mine.Count <= 1)
+            return;
+        int index = mine.IndexOf(closed);
+        mine.Remove(closed);
+        SaveMyInstruments(mine);
+        if (closed == instrument)
+        {
+            // Its neighbour takes over, preferably one that's installed.
+            var next = mine.Skip(Math.Max(0, index - 1)).Concat(mine).FirstOrDefault(InstrumentPacks.IsInstalled) ?? Instrument.Piano;
+            if (!mine.Contains(next))
+                SaveMyInstruments([next, .. mine]);
+            SetInstrument(next);
+        }
         RebuildInstrumentTabs();
+    }
+
+    /// <summary>+: the instruments not on a tab yet - installed ones open at once, the others say what they'd download.</summary>
+    void ShowAddInstrumentMenu()
+    {
+        var mine = MyInstruments;
+        var catalog = InstrumentPacks.CachedCatalogEntries();
+        var items = new List<AntdUI.IContextMenuStripItem>();
+        foreach (var candidate in Instrument.All.Where(i => !mine.Contains(i)))
+        {
+            string label = candidate.Name;
+            if (!InstrumentPacks.IsInstalled(candidate))
+            {
+                var entry = catalog.FirstOrDefault(e => e.Id == candidate.Id);
+                label += entry != null
+                    ? T($"   ⤓ stáhnout {InstrumentPacks.SizeText(entry.Bytes)}", $"   ⤓ download {InstrumentPacks.SizeText(entry.Bytes)}")
+                    : T("   ⤓ stáhnout", "   ⤓ download");
+            }
+            var chosen = candidate;
+            items.Add(new AntdUI.ContextMenuStripItem(label) { Tag = (Action)(() => _ = AddInstrumentAsync(chosen)) });
+        }
+        if (items.Count > 0)
+            items.Add(new AntdUI.ContextMenuStripItemDivider());
+        items.Add(new AntdUI.ContextMenuStripItem(T("Spravovat nástroje...", "Manage instruments...")) { Tag = (Action)ShowInstrumentPacks });
+        ShowMenu(instrumentStrip, items.ToArray());
+        // Sizes for next time, if this was the first look (or they changed).
+        if (catalog.Count == 0)
+            _ = InstrumentPacks.CatalogAsync();
+    }
+
+    async Task AddInstrumentAsync(Instrument added)
+    {
+        if (!InstrumentPacks.IsInstalled(added) && !await EnsureInstalledAsync(added))
+            return;
+        SaveMyInstruments([.. MyInstruments, added]);
         SetInstrument(added);
     }
 
-    /// <summary>Settings > My instruments: which tabs there are (at least one).</summary>
-    void EditMyInstruments()
+    /// <summary>
+    /// Downloads an instrument's pack after asking (its size, what it is); true when it's installed now. Progress in
+    /// the status line.
+    /// </summary>
+    async Task<bool> EnsureInstalledAsync(Instrument wanted)
     {
-        using var form = new MyInstrumentsForm(MyInstruments);
-        if (form.ShowDialog(this) != DialogResult.OK)
-            return;
-        var chosen = form.Chosen;
-        config.MyInstruments = chosen.Select(i => i.Id).ToList();
-        config.Save();
-        if (chosen.Contains(instrument))
+        if (InstrumentPacks.IsInstalled(wanted))
+            return true;
+        if (downloadingPack)
         {
-            RebuildInstrumentTabs();
-            return;
+            SetStatus(T("Jeden balíček se už stahuje - chvilku strpení.", "A pack is already downloading - just a moment."));
+            return false;
         }
-        // The current instrument was removed: the first one left takes over.
-        config.Instrument = chosen[0].Id;
+        downloadingPack = true;
+        try
+        {
+            SetStatus(T("Zjišťuji, co je ke stažení...", "Checking what's available..."));
+            var entry = (await InstrumentPacks.CatalogAsync()).FirstOrDefault(e => e.Id == wanted.Id);
+            if (entry == null)
+            {
+                ShowModal(this, wanted.Name, T("Seznam balíčků se nepodařilo načíst - zkontroluj připojení k internetu.",
+                    "Couldn't load the list of packs - check your internet connection."), AntdUI.TType.Error);
+                return false;
+            }
+            if (!Confirm(this, wanted.Name,
+                    T($"{wanted.Name} je balíček ke stažení ({InstrumentPacks.SizeText(entry.Bytes)}): noty v klíči nástroje, jeho rozsah a skutečný zvuk nástroje.\n\nZvuk: {entry.Credits}",
+                      $"{wanted.Name} is a pack to download ({InstrumentPacks.SizeText(entry.Bytes)}): music in the instrument's clef, its range and its real sound.\n\nSound: {entry.Credits}"),
+                    T("Stáhnout", "Download")))
+                return false;
+            var progress = new Progress<double>(p => SetStatus(T($"Stahuji {wanted.Name}... {p:P0}", $"Downloading {wanted.Name}... {p:P0}")));
+            string? error = await InstrumentPacks.InstallAsync(entry, progress);
+            if (error != null)
+            {
+                SetStatus(error);
+                ShowModal(this, wanted.Name, error, AntdUI.TType.Error);
+                return false;
+            }
+            SetStatus(T($"{wanted.Name}: staženo.", $"{wanted.Name}: downloaded."));
+            return true;
+        }
+        finally
+        {
+            downloadingPack = false;
+        }
+    }
+
+    /// <summary>Settings > Instruments: install several, or remove what's not needed.</summary>
+    void ShowInstrumentPacks()
+    {
+        using var form = new InstrumentPacksForm(this);
+        form.ShowDialog(this);
         RebuildInstrumentTabs();
-        SetInstrument(chosen[0]);
+    }
+
+    /// <summary>Before a pack is deleted: if it's the one playing, switch to the piano so its sound file is let go.</summary>
+    internal void ReleaseInstrumentPack(Instrument removed)
+    {
+        if (removed == instrument)
+            SetInstrument(Instrument.Piano);
     }
 
     // --- Keyboard or fingerboard, the tuner button ------------------------------------------------------
@@ -205,7 +272,6 @@ partial class MainForm
         bool tuner = !instrument.IsPiano;
         if (tunerButton.Visible != tuner)
             tunerButton.Visible = tuner;
-        // The key-size slider only means something for the keyboard.
         if (keyboardSizeGroup != null && keyboardSizeGroup.Visible == board)
             keyboardSizeGroup.Visible = !board;
     }
@@ -219,7 +285,6 @@ partial class MainForm
             : [T("Klávesy", "Keyboard"), T("Noty", "Sheet"), T("Noty + klávesy", "Sheet + keyboard")];
         for (int i = 0; i < viewSwitch.Items.Count && i < viewNames.Length; i++)
             viewSwitch.Items[i].Text = viewNames[i];
-        // As wide as its items: extra width stays empty after the last one. (AntdUI's AutoSize shrinks it to nothing.)
         viewSwitch.Width = viewNames.Sum(name => TextRenderer.MeasureText(name, viewSwitch.Font).Width + LogicalToDeviceUnits(12));
         viewSwitch.Invalidate();
     }

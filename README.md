@@ -1,5 +1,7 @@
 # Keyboard Utils
 
+[![Read in English](https://img.shields.io/badge/Read%20in-English-2563eb?style=for-the-badge)](README.en.md)
+
 Pomocník pro hraní na klávesy (piano). Načte skladbu z MIDI nebo MusicXML (třeba export z MuseScore),
 ukáže ji jako padající noty (piano roll) a poslouchá, co hraješ – přes mikrofon, MIDI klávesy, zvuk z počítače
 nebo klikáním na klaviaturu v appce. Umí režim učení s hodnocením, zápis zahraných not do MIDI / MusicXML
@@ -191,19 +193,29 @@ a série správných odpovědí. Noty, ve kterých chybuješ, chodí častěji (
 
 ### Jiné nástroje než klavír
 
-**Nahoře jsou záložky s tvými nástroji** (třeba Piano | Kytara | Housle); **+** přidá další, **Nastavení > Moje
-nástroje...** je umí i odebrat. Na výběr: piano, kytara, housle, viola, violoncello, příčná flétna, zobcová flétna
-(sopránová), klarinet in B, trubka in B, altový saxofon in Es. Přepnutím záložky přepneš nástroj; skladba zůstane
-otevřená. Pro jiný nástroj než piano:
+**Nahoře jsou záložky s tvými nástroji** jako v prohlížeči (třeba Piano | Kytara | Housle): **+** přidá další,
+**×** (nebo prostřední tlačítko myši) záložku zavře a tažením je přeskládáš. Na výběr: piano, kytara, housle, viola,
+violoncello, příčná flétna, zobcová flétna (sopránová), klarinet in B, trubka in B, altový saxofon in Es. Přepnutím
+záložky přepneš nástroj; skladba zůstane otevřená.
+
+**Piano je v aplikaci vždycky, ostatní nástroje jsou balíčky ke stažení** (3–14 MB) se skutečným zvukem nástroje –
+nahrávky z projektů [FreePats](https://freepats.zenvoid.org) a [VSCO 2 Community Edition](https://versilian-studios.com/vsco-community/)
+(Versilian Studios), obojí CC0. Balíček se stáhne, když nástroj poprvé přidáš (záložka, která ho ještě potřebuje, má
+před názvem ⤓); **Nastavení > Nástroje (stáhnout, odebrat)...** stáhne několik naráz nebo smaže nepotřebné. Balíčky
+jsou v `%APPDATA%\KeyboardUtils\instruments` a hostuje je repozitář
+[KUtils-Addons](https://github.com/tomandesMSH/KUtils-Addons). Pro jiný nástroj než piano:
 
 - **hmatník místo klaviatury** u kytary (6 strun, pražce 0–12) a houslí, violy a violoncella (4 struny, prsty pro
   1. polohu, 0 = prázdná struna): svítí, kde se hraje – při přehrávání barvou části, v režimu učení modře co hrát,
-  oranžově co appka slyší, červeně chyba; kroužky ukazují noty, které přijdou;
+  oranžově co appka slyší, červeně chyba; kroužky ukazují noty, které přijdou. **Hraje se na něj jako na nástroj:**
+  kliknutím na pražec / místo prstu „zmáčkneš“ strunu (znovu ji pustíš, × pustí všechny), vpravo u kytary **brnkáš**
+  tahem myši přes ozvučník (klik = jedna struna, rychlejší tah = hlasitěji), u houslí, violy a cella **táhneš
+  smyčcem** po struně (tón zní, dokud táhneš; krátký klik = pizzicato);
 - tlačítko **Ladička** přímo vedle Poslouchat / Režim učení;
 
 - **noty na jedné osnově v klíči nástroje** (houslový, kytarový s osmičkou, altový, basový) a u transponujících
   nástrojů tak, jak je hráč čte – klarinet a trubka o tón výš, saxofon o sextu, i s předznamenáním;
-- **zvuk nástroje** při přehrávání (General MIDI ve Windows; zvukový balíček klavíru hraje jen klavír);
+- **zvuk nástroje** při přehrávání i při hraní na hmatník – z jeho balíčku (housle, viola a cello mají i pizzicato);
 - **mikrofon počítá s legatem a vibratem** (smyčcové a dechové nástroje) a ignoruje tóny mimo rozsah nástroje;
 - **Trénink čtení not** má úrovně pro nástroj (začátek a celý rozsah) a navíc altový a tenorový klíč; zahraný tón se
   hodnotí podle toho, jak zní;

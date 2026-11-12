@@ -35,6 +35,21 @@ sealed class PlaybackEngine : IDisposable
     {
         (outputDevice as IDisposable)?.Dispose();
         outputDevice = null;
+        // An instrument pack's own sound (a real violin, guitar...) - whatever the MIDI output is set to.
+        if (instrumentSound is { } pack)
+        {
+            try
+            {
+                outputDevice = new SoundFontOutputDevice(pack.Path);
+                program = pack.Main;
+                SendProgram();
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or NAudio.MmException or UnauthorizedAccessException or NotSupportedException)
+            {
+                // A broken pack: the Windows synth with the General MIDI instrument instead.
+            }
+        }
         // The sound pack is a piano only: another instrument plays on the default synth, which has them all.
         if (deviceName == PianoSoundModule.DeviceName && PianoSoundModule.IsInstalled && program == 0)
         {
@@ -55,6 +70,32 @@ sealed class PlaybackEngine : IDisposable
     }
 
     int program;
+
+    /// <summary>The instrument pack whose SoundFont plays (null: the MIDI output / piano sound as set).</summary>
+    (string Path, int Main, int? Pizzicato)? instrumentSound;
+
+    /// <summary>
+    /// Plays the instrument from its pack's SoundFont (<paramref name="soundFont"/>, with its main preset and, for bowed
+    /// strings, a pizzicato one), or null for the usual output. Call <see cref="SetOutputDevice"/> after it.
+    /// </summary>
+    public void SetInstrumentSound(string? soundFont, int mainPreset = 0, int? pizzicatoPreset = null) =>
+        instrumentSound = soundFont != null && File.Exists(soundFont) ? (soundFont, mainPreset, pizzicatoPreset) : null;
+
+    /// <summary>A plucked note of a bowed instrument: its pack's pizzicato sound when it has one, otherwise a short note.</summary>
+    public void PlayPizzicato(int pitch, int velocity = 90)
+    {
+        if (instrumentSound is not { Pizzicato: { } preset } || outputDevice is not { } device)
+        {
+            PlayNote(pitch, 250, velocity);
+            return;
+        }
+        // Its own channel (the score's parts rarely reach 15), switched to the pizzicato preset.
+        var channel = (FourBitNumber)14;
+        var note = (SevenBitNumber)Math.Clamp(pitch, 0, 127);
+        device.SendEvent(new ProgramChangeEvent((SevenBitNumber)preset) { Channel = channel });
+        device.SendEvent(new NoteOnEvent(note, (SevenBitNumber)Math.Clamp(velocity, 1, 127)) { Channel = channel });
+        _ = Task.Delay(1500).ContinueWith(_ => device.SendEvent(new NoteOffEvent(note, (SevenBitNumber)0) { Channel = channel }));
+    }
 
     /// <summary>
     /// The General MIDI instrument every part plays with (0 = piano; <see cref="Instrument.GmProgram"/>). Set it before
@@ -188,13 +229,24 @@ sealed class PlaybackEngine : IDisposable
     }
 
     /// <summary>Fires a single note at the output device, independent of score playback. Fire-and-forget.</summary>
-    public void PlayNote(int pitch, int durationMs = 400)
+    public void PlayNote(int pitch, int durationMs = 400, int velocity = 100)
     {
         if (outputDevice is not { } device)
             return;
         var noteNumber = (SevenBitNumber)Math.Clamp(pitch, 0, 127);
-        device.SendEvent(new NoteOnEvent(noteNumber, (SevenBitNumber)100));
+        device.SendEvent(new NoteOnEvent(noteNumber, (SevenBitNumber)Math.Clamp(velocity, 1, 127)));
         _ = Task.Delay(durationMs).ContinueWith(_ => device.SendEvent(new NoteOffEvent(noteNumber, (SevenBitNumber)0)));
+    }
+
+    /// <summary>A note that sounds until <see cref="StopNote"/> (a bowed string on the on-screen fingerboard).</summary>
+    public void StartNote(int pitch, int velocity = 90)
+    {
+        outputDevice?.SendEvent(new NoteOnEvent((SevenBitNumber)Math.Clamp(pitch, 0, 127), (SevenBitNumber)Math.Clamp(velocity, 1, 127)));
+    }
+
+    public void StopNote(int pitch)
+    {
+        outputDevice?.SendEvent(new NoteOffEvent((SevenBitNumber)Math.Clamp(pitch, 0, 127), (SevenBitNumber)0));
     }
 
     /// <summary>1 = as written, 0.5 = half speed. <see cref="CurrentSeconds"/> stays in score time either way.</summary>

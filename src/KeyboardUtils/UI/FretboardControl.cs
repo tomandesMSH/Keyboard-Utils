@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Drawing.Drawing2D;
 
 namespace KeyboardUtils;
@@ -5,8 +6,10 @@ namespace KeyboardUtils;
 /// <summary>
 /// The fingerboard of a string instrument, in place of the piano keyboard: strings across (the lowest at the bottom),
 /// the guitar's frets or the violin family's finger places, and dots where to play - what sounds in playback, what to
-/// play next in learning mode (blue), what the instrument is heard playing (orange), a wrong note (red). Each dot
-/// carries the fret or the finger. Dark in both themes, like the falling notes.
+/// play next in learning mode (blue), what the instrument is heard playing (orange), a wrong note (red).
+/// It can be played like the real thing: clicks on the frets press strings (the left hand), and the zone on the right
+/// is the right hand - strum across the strings or pluck one (guitar), or draw the bow along one, a click being
+/// pizzicato (violin, viola, cello). Dark in both themes, like the falling notes.
 /// </summary>
 sealed class FretboardControl : Control, IThemed
 {
@@ -17,9 +20,19 @@ sealed class FretboardControl : Control, IThemed
     static readonly Color LabelColor = Color.FromArgb(190, 190, 196);
     static readonly Color HintColor = Color.FromArgb(150, 190, 255);
     static readonly Color HeldColor = Color.FromArgb(255, 152, 0);
+    static readonly Color StoppedColor = Color.FromArgb(230, 228, 220);
 
     /// <summary>How far ahead the next notes are shown (faintly), in seconds.</summary>
     const double LookAheadSeconds = 1.2;
+
+    /// <summary>A plucked string rings visibly this long; a bowed one while the bow moves.</summary>
+    const long RingMs = 450;
+
+    /// <summary>The bow stops sounding when the mouse rests this long.</summary>
+    const long BowRestMs = 400;
+
+    /// <summary>A click in the bow zone shorter than this, without moving, is pizzicato.</summary>
+    const long PizzicatoMs = 150;
 
     Instrument instrument = Instrument.ById("guitar");
     Score? score;
@@ -27,6 +40,22 @@ sealed class FretboardControl : Control, IThemed
     readonly HashSet<int> held = [];
     readonly System.Windows.Forms.Timer flashTimer = new();
     (int Pitch, Color Color)? flash;
+
+    /// <summary>The left hand: string → semitones above the open string where it's pressed.</summary>
+    readonly Dictionary<int, int> stopped = [];
+
+    /// <summary>When each string was last sounded (for the vibration), and whether it's being bowed.</summary>
+    readonly Dictionary<int, long> ringingSince = [];
+    readonly System.Windows.Forms.Timer animation = new() { Interval = 30 };
+    readonly Stopwatch clock = Stopwatch.StartNew();
+
+    // The right hand at work.
+    bool playing;
+    float lastY;
+    long lastMoveMs, downMs;
+    Point downAt;
+    int? bowedString, bowedPitch, bowPending;
+    bool bowMoved;
 
     public FretboardControl()
     {
@@ -38,12 +67,16 @@ sealed class FretboardControl : Control, IThemed
             flash = null;
             Invalidate();
         };
+        animation.Tick += (_, _) => OnAnimationTick();
     }
 
     protected override void Dispose(bool disposing)
     {
         if (disposing)
+        {
             flashTimer.Dispose();
+            animation.Dispose();
+        }
         base.Dispose(disposing);
     }
 
@@ -53,7 +86,12 @@ sealed class FretboardControl : Control, IThemed
         get => instrument;
         set
         {
+            if (value == instrument)
+                return;
+            StopBow();
             instrument = value;
+            stopped.Clear();
+            ringingSince.Clear();
             Invalidate();
         }
     }
@@ -61,6 +99,12 @@ sealed class FretboardControl : Control, IThemed
     /// <summary>Learning mode: the notes to play now are lit blue, the other parts aren't shown sounding.</summary>
     [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public LearningSession? Learning { get; set; }
+
+    /// <summary>A note was played on the fingerboard. <c>sustained</c>: bowed, sounding until <see cref="NoteEnded"/>.</summary>
+    public event Action<int, int, bool>? NoteStarted;
+
+    /// <summary>A bowed note stopped, or a plucked one has rung out (for the note input).</summary>
+    public event Action<int>? NoteEnded;
 
     public void SetScore(Score? newScore)
     {
@@ -99,56 +143,12 @@ sealed class FretboardControl : Control, IThemed
         Invalidate();
     }
 
-    // --- Playing it with the mouse ------------------------------------------------------------------------
-
-    /// <summary>A place on the fingerboard was pressed: the note it sounds (like a key of the on-screen keyboard).</summary>
-    public event Action<int>? KeySelected;
-
-    /// <summary>The mouse button went up after <see cref="KeySelected"/>.</summary>
-    public event Action<int>? KeyReleased;
-
-    int? pressed;
-
-    protected override void OnMouseDown(MouseEventArgs e)
+    /// <summary>Lets go of every pressed string (and stops the bow).</summary>
+    public void ReleaseAll()
     {
-        base.OnMouseDown(e);
-        if (e.Button != MouseButtons.Left || PitchAt(e.Location) is not { } pitch)
-            return;
-        pressed = pitch;
-        Capture = true;
-        KeySelected?.Invoke(pitch);
-    }
-
-    protected override void OnMouseUp(MouseEventArgs e)
-    {
-        base.OnMouseUp(e);
-        if (pressed is { } pitch)
-            KeyReleased?.Invoke(pitch);
-        pressed = null;
-        Capture = false;
-    }
-
-    protected override void OnMouseMove(MouseEventArgs e)
-    {
-        base.OnMouseMove(e);
-        Cursor = PitchAt(e.Location) != null ? Cursors.Hand : Cursors.Default;
-    }
-
-    /// <summary>The note at a point: the nearest string, the fret (or place) under the pointer, open left of the nut.</summary>
-    int? PitchAt(Point p)
-    {
-        var strings = instrument.Strings;
-        if (strings.Length == 0)
-            return null;
-        var board = BoardRect;
-        if (p.Y < board.Top - 6 || p.Y > board.Bottom + 6 || p.X > board.Right || p.X < board.Left - 30)
-            return null;
-        int s = Enumerable.Range(0, strings.Length).MinBy(i => Math.Abs(StringY(i) - p.Y));
-        int place = 0;
-        for (int n = 1; n <= Places; n++)
-            if (p.X >= WireX(n - 1) && p.X < WireX(n))
-                place = n;
-        return strings[s] + place;
+        StopBow();
+        stopped.Clear();
+        Invalidate();
     }
 
     // --- Geometry ------------------------------------------------------------------------------------
@@ -158,12 +158,25 @@ sealed class FretboardControl : Control, IThemed
 
     bool IsGuitar => instrument.Id == "guitar";
 
+    /// <summary>The frets / finger places (left part).</summary>
     RectangleF BoardRect
     {
         get
         {
             float labels = 34, openRoom = 30;
-            return new RectangleF(labels + openRoom, 14, Math.Max(40, Width - labels - openRoom - 14), Math.Max(30, Height - 40));
+            float left = labels + openRoom;
+            float width = Math.Max(40, (Width - left - 14) * 0.74f);
+            return new RectangleF(left, 14, width, Math.Max(30, Height - 40));
+        }
+    }
+
+    /// <summary>The right hand's zone: the sound hole (guitar) or where the bow goes (violin family).</summary>
+    RectangleF PlayZone
+    {
+        get
+        {
+            var board = BoardRect;
+            return new RectangleF(board.Right + 10, board.Top, Math.Max(30, Width - board.Right - 24), board.Height);
         }
     }
 
@@ -193,6 +206,174 @@ sealed class FretboardControl : Control, IThemed
         return board.Bottom - gap * (s + 0.5f);
     }
 
+    float[] StringYs() => Enumerable.Range(0, instrument.Strings.Length).Select(StringY).ToArray();
+
+    int NearestString(float y) => Enumerable.Range(0, instrument.Strings.Length).MinBy(s => Math.Abs(StringY(s) - y));
+
+    /// <summary>The little "×" that lets go of all pressed strings.</summary>
+    RectangleF ReleaseButton => new(BoardRect.Left - 30, 0, 16, 14);
+
+    // --- Playing it with the mouse ------------------------------------------------------------------------
+
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        base.OnMouseDown(e);
+        if (e.Button != MouseButtons.Left || instrument.Strings.Length == 0)
+            return;
+        if (ReleaseButton.Contains(e.Location) && stopped.Count > 0)
+        {
+            ReleaseAll();
+            return;
+        }
+        var zone = PlayZone;
+        if (e.X >= zone.Left - 4)
+        {
+            // The right hand.
+            Capture = true;
+            playing = true;
+            lastY = e.Y;
+            downAt = e.Location;
+            downMs = lastMoveMs = clock.ElapsedMilliseconds;
+            if (!IsGuitar)
+            {
+                // Not sounding yet: moving (or holding) makes it a bow stroke, letting go at once a pizzicato.
+                bowPending = NearestString(e.Y);
+                bowMoved = false;
+                animation.Start();
+            }
+            return;
+        }
+        // The left hand: press a string at a fret / finger place; the same place again lets it go.
+        if (PlaceAt(e.Location) is not { } place)
+            return;
+        if (place.Semitones == 0 || stopped.GetValueOrDefault(place.String, -1) == place.Semitones)
+            stopped.Remove(place.String);
+        else
+            stopped[place.String] = place.Semitones;
+        Invalidate();
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        if (!playing)
+        {
+            Cursor = e.X >= PlayZone.Left - 4 || PlaceAt(e.Location) != null || (ReleaseButton.Contains(e.Location) && stopped.Count > 0)
+                ? Cursors.Hand : Cursors.Default;
+            return;
+        }
+        long now = clock.ElapsedMilliseconds;
+        if (IsGuitar)
+        {
+            // Every string crossed since the last move sounds, in the order the hand crosses them.
+            double speed = Math.Abs(e.Y - lastY) / Math.Max(1.0, now - lastMoveMs);
+            foreach (int s in Strumming.CrossedStrings(lastY, e.Y, StringYs()))
+                Pluck(s, Strumming.Velocity(speed));
+        }
+        else if (Math.Abs(e.X - downAt.X) + Math.Abs(e.Y - downAt.Y) > 3)
+        {
+            bowMoved = true;
+            StartBow();
+            if (bowedString is { } s)
+                ringingSince[s] = now;
+        }
+        lastY = e.Y;
+        lastMoveMs = now;
+    }
+
+    protected override void OnMouseUp(MouseEventArgs e)
+    {
+        base.OnMouseUp(e);
+        if (!playing)
+            return;
+        playing = false;
+        Capture = false;
+        long held = clock.ElapsedMilliseconds - downMs;
+        bool click = Math.Abs(e.X - downAt.X) + Math.Abs(e.Y - downAt.Y) <= 3;
+        if (IsGuitar)
+        {
+            // A click in the sound hole plucks the nearest string.
+            if (click)
+                Pluck(NearestString(e.Y), 85);
+            return;
+        }
+        // Let go before the bow started: a pizzicato (plucked) note.
+        if (bowPending is { } plucked && click && held < PizzicatoMs)
+        {
+            bowPending = null;
+            Pluck(plucked, 90);
+            return;
+        }
+        bowPending = null;
+        StopBow();
+    }
+
+    void Pluck(int stringIndex, int velocity)
+    {
+        int pitch = Strumming.Pitch(instrument.Strings, stringIndex, stopped);
+        ringingSince[stringIndex] = clock.ElapsedMilliseconds;
+        NoteStarted?.Invoke(pitch, velocity, false);
+        animation.Start();
+        // The note input hears it as a short press.
+        var ends = new System.Windows.Forms.Timer { Interval = 300 };
+        ends.Tick += (_, _) =>
+        {
+            ends.Dispose();
+            NoteEnded?.Invoke(pitch);
+        };
+        ends.Start();
+    }
+
+    /// <summary>The pending bow stroke starts sounding (the mouse moved, or stayed down long enough).</summary>
+    void StartBow()
+    {
+        if (bowPending is not { } s)
+            return;
+        bowPending = null;
+        bowedString = s;
+        bowedPitch = Strumming.Pitch(instrument.Strings, s, stopped);
+        ringingSince[s] = clock.ElapsedMilliseconds;
+        NoteStarted?.Invoke(bowedPitch.Value, 90, true);
+    }
+
+    void StopBow()
+    {
+        if (bowedPitch is { } pitch)
+            NoteEnded?.Invoke(pitch);
+        bowedString = null;
+        bowedPitch = null;
+    }
+
+    void OnAnimationTick()
+    {
+        long now = clock.ElapsedMilliseconds;
+        // Held without moving past the pizzicato time: it's a bow stroke after all.
+        if (playing && bowPending != null && now - downMs >= PizzicatoMs)
+            StartBow();
+        // The bow resting too long: it stopped sounding.
+        if (playing && bowedString != null && now - lastMoveMs > BowRestMs && bowMoved)
+            StopBow();
+        bool any = bowPending != null || ringingSince.Any(r => now - r.Value < RingMs || r.Key == bowedString);
+        Invalidate();
+        if (!any)
+            animation.Stop();
+    }
+
+    /// <summary>A place on the board: the nearest string, the fret (or place) under the pointer, open left of the nut.</summary>
+    (int String, int Semitones)? PlaceAt(Point p)
+    {
+        if (instrument.Strings.Length == 0)
+            return null;
+        var board = BoardRect;
+        if (p.Y < board.Top - 6 || p.Y > board.Bottom + 6 || p.X > board.Right || p.X < board.Left - 30)
+            return null;
+        int place = 0;
+        for (int n = 1; n <= Places; n++)
+            if (p.X >= WireX(n - 1) && p.X < WireX(n))
+                place = n;
+        return (NearestString(p.Y), place);
+    }
+
     // --- Drawing -------------------------------------------------------------------------------------
 
     protected override void OnPaint(PaintEventArgs e)
@@ -202,18 +383,20 @@ sealed class FretboardControl : Control, IThemed
         g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
         g.Clear(BackColor);
         var strings = instrument.Strings;
-        if (strings.Length == 0 || Width < 120 || Height < 60)
+        if (strings.Length == 0 || Width < 160 || Height < 60)
             return;
         var board = BoardRect;
+        var zone = PlayZone;
 
-        using (var wood = new SolidBrush(IsGuitar ? Board : Ebony))
-            g.FillRectangle(wood, board);
         using var labelFont = new Font("Segoe UI", 9f, FontStyle.Bold);
         using var smallFont = new Font("Segoe UI", 8f);
         using var label = new SolidBrush(LabelColor);
         using var center = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
 
-        // The nut, then the frets (guitar) or the finger places (violin family: faint lines, tapes for the fingers).
+        using (var wood = new SolidBrush(IsGuitar ? Board : Ebony))
+            g.FillRectangle(wood, board);
+        DrawPlayZone(g, zone, smallFont, center);
+
         using (var nut = new Pen(Color.FromArgb(230, 222, 200), 5))
             g.DrawLine(nut, board.Left, board.Top, board.Left, board.Bottom);
         if (IsGuitar)
@@ -235,7 +418,6 @@ sealed class FretboardControl : Control, IThemed
             using var place = new Pen(Color.FromArgb(40, 255, 255, 255), 1);
             for (int n = 1; n <= Places; n++)
                 g.DrawLine(place, WireX(n), board.Top, WireX(n), board.Bottom);
-            // Tapes where a beginner's fingers go (first position): 1, 2 (high), 3, 4.
             int[] tapes = instrument.Id == "cello" ? [2, 3, 4, 5] : [2, 4, 5, 7];
             using var tape = new Pen(Color.FromArgb(150, 245, 240, 225), 3);
             for (int i = 0; i < tapes.Length; i++)
@@ -246,16 +428,91 @@ sealed class FretboardControl : Control, IThemed
             }
         }
 
-        // The strings, thicker the lower they sound, with their names on the left.
+        // The strings - through the board and the right hand's zone - wavy while they ring.
+        long now = clock.ElapsedMilliseconds;
         for (int s = 0; s < strings.Length; s++)
         {
             float y = StringY(s);
             using var pen = new Pen(StringColor, Math.Max(1f, 3.2f - s * 0.45f));
-            g.DrawLine(pen, board.Left - 30, y, board.Right, y);
+            float from = stopped.TryGetValue(s, out int at) ? SpotX(at) : board.Left;
+            if (from > board.Left)
+                g.DrawLine(pen, board.Left - 30, y, from, y);
+            float amplitude = 0;
+            if (ringingSince.TryGetValue(s, out long since))
+            {
+                bool bowed = bowedString == s && playing;
+                double age = now - since;
+                amplitude = bowed ? 2.2f : age < RingMs ? (float)(3.5 * (1 - age / RingMs)) : 0;
+            }
+            if (amplitude <= 0.05f)
+                g.DrawLine(pen, from > board.Left ? from : board.Left - 30, y, zone.Right, y);
+            else
+                DrawVibrating(g, pen, from > board.Left ? from : board.Left - 30, zone.Right, y, amplitude, now);
             g.DrawString(LetterOf(strings[s]), labelFont, label, new RectangleF(0, y - 10, 30, 20), center);
         }
 
+        if (stopped.Count > 0)
+            g.DrawString("×", labelFont, label, ReleaseButton, center);
+        DrawStopped(g);
         DrawDots(g, strings);
+    }
+
+    void DrawPlayZone(Graphics g, RectangleF zone, Font font, StringFormat center)
+    {
+        if (IsGuitar)
+        {
+            // The sound hole: a dark circle with a rosette ring.
+            float d = Math.Min(zone.Width, zone.Height) * 0.92f;
+            var hole = new RectangleF(zone.Left + (zone.Width - d) / 2, zone.Top + (zone.Height - d) / 2, d, d);
+            using (var top = new SolidBrush(Color.FromArgb(150, 110, 70)))
+                g.FillRectangle(top, zone);
+            using (var rosette = new Pen(Color.FromArgb(90, 60, 35), 6))
+                g.DrawEllipse(rosette, hole);
+            using (var dark = new SolidBrush(Color.FromArgb(18, 14, 12)))
+                g.FillEllipse(dark, hole);
+        }
+        else
+        {
+            using var band = new SolidBrush(Color.FromArgb(48, 44, 42));
+            g.FillRectangle(band, zone);
+        }
+        using var hint = new SolidBrush(Color.FromArgb(150, 230, 225, 215));
+        string text = IsGuitar ? T("brnkni", "strum") : T("táhni smyčcem", "draw the bow");
+        g.DrawString(text, font, hint, new RectangleF(zone.Left, zone.Bottom + 2, zone.Width, 16), center);
+    }
+
+    static void DrawVibrating(Graphics g, Pen pen, float from, float to, float y, float amplitude, long now)
+    {
+        var points = new List<PointF>();
+        float phase = now / 18f;
+        for (float x = from; x <= to; x += 4)
+        {
+            // Still at the ends, widest in the middle.
+            float t = (x - from) / Math.Max(1, to - from);
+            points.Add(new PointF(x, y + amplitude * MathF.Sin(t * MathF.PI) * MathF.Sin(phase + t * 40)));
+        }
+        if (points.Count > 1)
+            g.DrawLines(pen, points.ToArray());
+    }
+
+    /// <summary>The left hand: a light dot where each string is pressed, with the fret or the finger.</summary>
+    void DrawStopped(Graphics g)
+    {
+        if (stopped.Count == 0)
+            return;
+        float radius = Math.Clamp(BoardRect.Height / instrument.Strings.Length * 0.34f, 6, 12);
+        using var font = new Font("Segoe UI", Math.Max(7f, radius * 0.8f), FontStyle.Bold, GraphicsUnit.Pixel);
+        using var center = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+        using var fill = new SolidBrush(StoppedColor);
+        using var ink = new SolidBrush(Color.FromArgb(40, 34, 30));
+        foreach (var (s, semitones) in stopped)
+        {
+            var rect = new RectangleF(SpotX(semitones) - radius, StringY(s) - radius, 2 * radius, 2 * radius);
+            g.FillEllipse(fill, rect);
+            var spot = Fingering.For(instrument, instrument.Strings[s] + semitones);
+            string text = IsGuitar ? semitones.ToString() : spot is { String: var fs, Label: var l } && fs == s ? l : "";
+            g.DrawString(text, font, ink, rect, center);
+        }
     }
 
     /// <summary>A string's name without the octave: E A D G H E (Czech) / B (English).</summary>
@@ -263,7 +520,6 @@ sealed class FretboardControl : Control, IThemed
 
     void DrawDots(Graphics g, int[] strings)
     {
-        // What to show, by pitch, strongest first: a flash, a heard note, a note to play, a sounding note, a next note.
         var dots = new Dictionary<int, (Color Color, bool Faint)>();
         void Add(int pitch, Color color, bool faint = false) => dots.TryAdd(pitch, (color, faint));
 
@@ -286,7 +542,6 @@ sealed class FretboardControl : Control, IThemed
                 foreach (var note in p.Notes)
                 {
                     double end = note.StartSeconds + note.DurationSeconds;
-                    // In learning mode the player's own notes show as hints, not as "sounding".
                     if (Learning == null && note.StartSeconds <= currentSeconds && end > currentSeconds)
                         Add(note.Pitch, color);
                     else if (practiced && note.StartSeconds > currentSeconds && note.StartSeconds <= currentSeconds + LookAheadSeconds)
@@ -298,10 +553,11 @@ sealed class FretboardControl : Control, IThemed
         float radius = Math.Clamp(BoardRect.Height / strings.Length * 0.38f, 7, 14);
         using var font = new Font("Segoe UI", Math.Max(7f, radius * 0.75f), FontStyle.Bold, GraphicsUnit.Pixel);
         using var center = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-        // Faint ones first, so the strong ones are drawn over them.
         foreach (var (pitch, (color, faint)) in dots.OrderByDescending(d => d.Value.Faint))
         {
-            if (Fingering.For(instrument, pitch) is not { } spot)
+            // A note the left hand is pressing shows there; otherwise the beginner's place.
+            var spot = PressedSpotFor(pitch) ?? Fingering.For(instrument, pitch);
+            if (spot == null)
                 continue;
             float x = SpotX(spot.Semitones), y = StringY(spot.String);
             var rect = new RectangleF(x - radius, y - radius, 2 * radius, 2 * radius);
@@ -315,10 +571,22 @@ sealed class FretboardControl : Control, IThemed
                 g.FillEllipse(fill, rect);
             using var outline = new Pen(Color.FromArgb(200, 255, 255, 255), 1.5f);
             g.DrawEllipse(outline, rect);
-            // The guitar shows the fret; the violin family the finger (0 = open string).
             string text = IsGuitar ? spot.Semitones.ToString() : spot.Label;
             using var ink = new SolidBrush(color.GetBrightness() > 0.6f ? Color.FromArgb(30, 30, 30) : Color.White);
             g.DrawString(text, font, ink, rect, center);
         }
+    }
+
+    /// <summary>Where the left hand plays <paramref name="pitch"/> right now (a pressed string, or an open one), if anywhere.</summary>
+    StringSpot? PressedSpotFor(int pitch)
+    {
+        for (int s = 0; s < instrument.Strings.Length; s++)
+        {
+            int at = stopped.GetValueOrDefault(s);
+            bool ringing = bowedString == s || (ringingSince.TryGetValue(s, out long since) && clock.ElapsedMilliseconds - since < 2 * RingMs);
+            if (instrument.Strings[s] + at == pitch && (stopped.ContainsKey(s) || ringing))
+                return new StringSpot(s, at, null, IsGuitar ? at.ToString() : Fingering.For(instrument, pitch) is { } f && f.String == s ? f.Label : "");
+        }
+        return null;
     }
 }

@@ -22,6 +22,9 @@ sealed record Instrument(string Id, string Czech, string English, Clef Clef, int
 
     public bool IsPiano => Id == PianoId;
 
+    /// <summary>A string instrument played with a bow (violin, viola, cello).</summary>
+    public bool IsBowed => Strings.Length > 0 && Sustained;
+
     public const string PianoId = "piano";
 
     public static readonly Instrument Piano = new(PianoId, "Piano", "Piano", Clef.Treble, 0, 21, 108, 0, false, []);
