@@ -191,8 +191,10 @@ sealed partial class MainForm : AntdUI.Window
     int liveNoteCount = -1;
     readonly System.Windows.Forms.Timer playbackTimer = new() { Interval = 33 };
     readonly AntdUI.Tabs tabs = new() { Dock = DockStyle.Fill };
-    readonly AntdUI.TabPage songTab = new();
-    readonly AntdUI.TabPage bindingsTab = new();
+    /// <summary>What was the "Makro klávesnice" tab, now shown in its own window (Úpravy > Makro klávesnice).</summary>
+    readonly Panel macroPanel = new() { Dock = DockStyle.Fill };
+    MacroKeyboardForm? macroWindow;
+    FlowLayoutPanel? keyboardSizeGroup;
     readonly ListView list = new()
     {
         Dock = DockStyle.Fill,
@@ -248,6 +250,7 @@ sealed partial class MainForm : AntdUI.Window
             }
             UpdatePlayPauseButton();
             UpdateSaveRecordingButton();
+            ApplyNoteView();
         };
         playbackTimer.Start();
         _ = Task.Run(ActionLoop);
@@ -276,7 +279,7 @@ sealed partial class MainForm : AntdUI.Window
         songControlsRow.Controls.AddRange(
         [
             ControlGroup(loadGroupLabel, openSongButton, importStemsButton, removeSongButton),
-            ControlGroup(playingGroupLabel, listenButton, learningButton, createButton, saveRecordingButton),
+            ControlGroup(playingGroupLabel, listenButton, learningButton, createButton, saveRecordingButton, tunerButton),
         ]);
         // Song title on the left, the view switch on the right of the same row (Fill first, then Right).
         var viewSwitchGroup = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false, Padding = new Padding(0, 0, 6, 0) };
@@ -286,14 +289,15 @@ sealed partial class MainForm : AntdUI.Window
         songInfoRow.Controls.Add(viewSwitchGroup);
 
         songViews.Panel1.Controls.Add(pianoRoll);
+        songViews.Panel1.Controls.Add(fretboard);
         songViews.Panel2.Controls.Add(sheet);
-        songTab.Controls.Add(songViews);
+        songPanel.Controls.Add(songViews);
         // Added before the parts panel, so it spans only the song views' width.
-        songTab.Controls.Add(BuildTransportRow());
-        songTab.Controls.Add(partsPanel);
+        songPanel.Controls.Add(BuildTransportRow());
+        songPanel.Controls.Add(partsPanel);
         // A thick line between the toolbar and the song, added after the parts panel so it spans the full width.
-        songTab.Controls.Add(new SeparatorLine { Dock = DockStyle.Top, Height = 3 });
-        songTab.Controls.Add(songInfoRow);
+        songPanel.Controls.Add(new SeparatorLine { Dock = DockStyle.Top, Height = 3 });
+        songPanel.Controls.Add(songInfoRow);
 
         keyboardSizeSlider.Value = Math.Clamp(config.KeyboardKeyWidth, PianoRollControl.MinKeyWidth, PianoRollControl.MaxKeyWidth);
         pianoRoll.KeyWidth = keyboardSizeSlider.Value;
@@ -303,9 +307,9 @@ sealed partial class MainForm : AntdUI.Window
             config.KeyboardKeyWidth = keyboardSizeSlider.Value;
             config.Save();
         };
-        songTab.Controls.Add(songControlsRow);
+        songPanel.Controls.Add(songControlsRow);
         // Not docked: floats over the song views when shown.
-        songTab.Controls.Add(toast);
+        songPanel.Controls.Add(toast);
         BuildSongViews();
 
         pianoRoll.Clickable = true;
@@ -319,6 +323,16 @@ sealed partial class MainForm : AntdUI.Window
                 pianoRoll.FlashKey(pitch);
         };
         pianoRoll.KeyReleased += pitch => (noteSource as ScreenKeyboardNoteSource)?.Release(pitch);
+        // The fingerboard plays the same way: a click sounds the note, and with on-screen input it's a played note.
+        fretboard.KeySelected += pitch =>
+        {
+            playbackEngine.PlayNote(pitch);
+            if (noteSource is ScreenKeyboardNoteSource screen)
+                screen.Press(pitch);
+            else
+                fretboard.FlashKey(pitch);
+        };
+        fretboard.KeyReleased += pitch => (noteSource as ScreenKeyboardNoteSource)?.Release(pitch);
 
         // Drag the notes to move through the song; playback pauses while dragging and resumes on release.
         pianoRoll.Seekable = true;
@@ -367,6 +381,7 @@ sealed partial class MainForm : AntdUI.Window
         learningButton.Click += (_, _) => ToggleLearningMode(showSetup: true);
         createButton.Click += (_, _) => ToggleCreateMode();
         saveRecordingButton.Click += (_, _) => SaveCurrentSong();
+        tunerButton.Click += (_, _) => OpenTuner();
 
         // --- Bindings tab: macro keyboard mapping (same shape as step 1) ---
         var keyboardRow = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6, 6, 6, 0), WrapContents = false };
@@ -376,16 +391,14 @@ sealed partial class MainForm : AntdUI.Window
         var bindingRow = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(6) };
         bindingRow.Controls.AddRange([addButton, editButton, removeButton, exportButton, importButton, enabledBox, languageLabel, languageBox]);
 
-        bindingsTab.Controls.Add(list);
-        bindingsTab.Controls.Add(bindingRow);
-        bindingsTab.Controls.Add(keyboardRow);
-        bindingsTab.Controls.Add(macroInfoLabel);
+        macroPanel.Controls.Add(list);
+        macroPanel.Controls.Add(bindingRow);
+        macroPanel.Controls.Add(keyboardRow);
+        macroPanel.Controls.Add(macroInfoLabel);
 
-        tabs.Pages.Add(songTab);
-        tabs.Pages.Add(bindingsTab);
         Controls.Add(tabs);
         // Bottom bar: status text on the left, the keyboard size slider on the right (only on the song tab).
-        var keyboardSizeGroup = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false, Padding = new Padding(0, 0, 12, 0) };
+        keyboardSizeGroup = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false, Padding = new Padding(0, 0, 12, 0) };
         keyboardSizeGroup.Controls.AddRange([keyboardSizeLabel, keyboardSizeSlider]);
         var statusRow = new Panel { Dock = DockStyle.Bottom, Height = 32 };
         statusRow.Controls.Add(statusLabel);
@@ -395,7 +408,7 @@ sealed partial class MainForm : AntdUI.Window
         statusRow.Controls.Add(updateGroup);
         statusRow.Controls.Add(keyboardSizeGroup);
         updateButton.Click += (_, _) => _ = UpdateAsync();
-        tabs.SelectedIndexChanged += (_, _) => keyboardSizeGroup.Visible = tabs.SelectedTab == songTab;
+        tabs.SelectedIndexChanged += (_, _) => OnTabChanged();
         Controls.Add(statusRow);
 
         menuBar.Controls.AddRange([fileMenuButton, libraryMenuButton, practiceMenuButton, muzioMenuButton, editMenuButton, settingsMenuButton, helpMenuButton]);
@@ -439,6 +452,8 @@ sealed partial class MainForm : AntdUI.Window
             new AntdUI.ContextMenuStripItem(T("Historie cvičení...", "Practice history...")) { Enabled = currentScore != null, Tag = (Action)ShowPracticeHistory });
 
         editMenuButton.Click += (_, _) => ShowMenu(editMenuButton,
+            MenuItem(T("Makro klávesnice...", "Macro keyboard..."), ShowMacroKeyboard),
+            new AntdUI.ContextMenuStripItemDivider(),
             MenuItem(T("Přidat klávesu...", "Add key..."), ToggleCapture),
             MenuItem(T("Změnit akci...", "Change action..."), EditSelected),
             MenuItem(T("Odebrat", "Remove"), RemoveSelected),
@@ -560,6 +575,7 @@ sealed partial class MainForm : AntdUI.Window
     void SetViewScore(Score? score)
     {
         pianoRoll.SetScore(score);
+        fretboard.SetScore(score);
         sheet.FallbackBpm = config.CreateTempoBpm;
         sheet.SetScore(score);
     }
@@ -567,6 +583,7 @@ sealed partial class MainForm : AntdUI.Window
     void SetViewTime(double seconds)
     {
         pianoRoll.SetCurrentTime(seconds);
+        fretboard.SetCurrentTime(seconds);
         sheet.SetCurrentTime(seconds);
     }
 
@@ -697,7 +714,7 @@ sealed partial class MainForm : AntdUI.Window
                 Checked = config.BigNotices,
                 Tag = (Action)(() => { config.BigNotices = !config.BigNotices; config.Save(); }),
             },
-            new AntdUI.ContextMenuStripItem(T("Můj nástroj", "My instrument")) { Sub = BuildInstrumentItems() },
+            new AntdUI.ContextMenuStripItem(T("Moje nástroje...", "My instruments...")) { Tag = (Action)EditMyInstruments },
             new AntdUI.ContextMenuStripItem(T("MIDI výstup", "MIDI output")) { Sub = deviceItems.ToArray() },
             new AntdUI.ContextMenuStripItem(T("Vstup not", "Note input")) { Sub = BuildNoteInputItems() },
             new AntdUI.ContextMenuStripItem(T("Mikrofon a citlivost...", "Microphone and sensitivity...")) { Tag = (Action)ShowMicrophoneSetup },
@@ -751,6 +768,16 @@ sealed partial class MainForm : AntdUI.Window
             AboutForm.Open(MuzioUrl);
     }
 
+    /// <summary>Úpravy > Makro klávesnice: the macro keys in their own window (made once, then shown and hidden).</summary>
+    void ShowMacroKeyboard()
+    {
+        macroWindow ??= new MacroKeyboardForm(macroPanel);
+        if (macroWindow.Visible)
+            macroWindow.Activate();
+        else
+            macroWindow.Show(this);
+    }
+
     void ConnectToMuzio() =>
         ShowModal(this, T("Propojit s Muzio účtem", "Connect a Muzio account"),
             T("Propojení s Muziem zatím není hotové - přijde v některé z příštích aktualizací.\n\nNoty z Muzia už teď otevřeš tlačítkem „Otevřít v Keyboard Utils“ u úkolu.",
@@ -781,20 +808,18 @@ sealed partial class MainForm : AntdUI.Window
         editMenuButton.Text = T("Úpravy", "Edit");
         settingsMenuButton.Text = T("Nastavení", "Settings");
         helpMenuButton.Text = T("Nápověda", "Help");
-        songTab.Text = T("Skladba", "Song");
-        bindingsTab.Text = T("Makro klávesnice", "Macro keyboard");
+        foreach (var (page, tabInstrument) in instrumentPages)
+            page.Text = tabInstrument.Name;
+        tunerButton.Text = T("Ladička", "Tuner");
+        if (macroWindow != null)
+            macroWindow.Text = T("Makro klávesnice", "Macro keyboard");
         openSongButton.Text = T("Otevřít skladbu ▾", "Open song ▾");
         importStemsButton.Text = T("Importovat stopy...", "Import stems...");
         removeSongButton.Text = T("Odebrat skladbu", "Remove song");
         loadGroupLabel.Text = T("Načíst", "Load");
         playingGroupLabel.Text = T("Nahrávání", "Recording");
         keyboardSizeLabel.Text = T("Velikost klávesnice", "Keyboard size");
-        string[] viewNames = [T("Klávesy", "Keyboard"), T("Noty", "Sheet"), T("Noty + klávesy", "Sheet + keyboard")];
-        for (int i = 0; i < viewSwitch.Items.Count && i < viewNames.Length; i++)
-            viewSwitch.Items[i].Text = viewNames[i];
-        // As wide as its items: extra width stays empty after the last one, so the switch wouldn't reach the right
-        // edge. (AntdUI's AutoSize shrinks it to nothing.)
-        viewSwitch.Width = viewNames.Sum(name => TextRenderer.MeasureText(name, viewSwitch.Font).Width + LogicalToDeviceUnits(12));
+        ApplyViewNames();
         viewSwitch.Invalidate();
         UpdateSpeedLabel();
         listenButton.Text = noteSource != null ? T("Přestat poslouchat", "Stop listening") : T("Poslouchat", "Listen");

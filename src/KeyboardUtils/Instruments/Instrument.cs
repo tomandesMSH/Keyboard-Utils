@@ -24,7 +24,7 @@ sealed record Instrument(string Id, string Czech, string English, Clef Clef, int
 
     public const string PianoId = "piano";
 
-    public static readonly Instrument Piano = new(PianoId, "Klavír", "Piano", Clef.Treble, 0, 21, 108, 0, false, []);
+    public static readonly Instrument Piano = new(PianoId, "Piano", "Piano", Clef.Treble, 0, 21, 108, 0, false, []);
 
     /// <summary>Every instrument offered, piano first. Double bass is missing on purpose: its low notes are below what
     /// the microphone recognises (about F1).</summary>

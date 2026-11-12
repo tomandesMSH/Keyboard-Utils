@@ -95,7 +95,7 @@ sealed partial class MainForm
             countInLeadIn ? CountInSeconds(from) : null);
         if (countInLeadIn)
             StartCountIn(from, speed, () => { });
-        session.WrongKey += pitch => pianoRoll.FlashKey(pitch, 300, PianoRollControl.WrongColor);
+        session.WrongKey += pitch => FlashNote(pitch, 300, PianoRollControl.WrongColor);
         session.Finished += () => BeginInvoke(() =>
         {
             if (learning != session)
@@ -121,6 +121,7 @@ sealed partial class MainForm
         if (!nextPass)
             SetStatus(T("Režim učení", "Learning mode") + (config.LearningMode == LearningMode.InTempo ? T(" - v tempu", " - in tempo") : ""));
         pianoRoll.Learning = session;
+        fretboard.Learning = session;
         sheet.Learning = session;
         sheet.NotesChanged();
         partsPanel.Enabled = false;
@@ -180,6 +181,7 @@ sealed partial class MainForm
         var result = session.Stop();
         learning = null;
         pianoRoll.Learning = null;
+        fretboard.Learning = null;
         sheet.Learning = null;
         sheet.NotesChanged();
         if (noteSource is IExpectedNotesListener listener)

@@ -378,7 +378,7 @@ sealed partial class MainForm
                 if (binding.Pitch is { } pitch)
                 {
                     playbackEngine.PlayNote(pitch);
-                    pianoRoll.FlashKey(pitch);
+                    FlashNote(pitch);
                     SetStatus(binding.Describe());
                 }
                 break;

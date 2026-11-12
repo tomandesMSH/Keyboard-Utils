@@ -53,7 +53,7 @@ sealed partial class MainForm
         if (!TypingInto(ActiveControl))
             foreach (var shortcut in Shortcuts)
             {
-                if (shortcut.Keys != keyData || (shortcut.SongTabOnly && tabs.SelectedTab != songTab))
+                if (shortcut.Keys != keyData)
                     continue;
                 // A button clicked before keeps the focus, and a button "clicks" again when Space (or Enter) is let
                 // go: Space would pause and the button play straight away again. Take the focus off it first.

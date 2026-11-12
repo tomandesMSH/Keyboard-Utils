@@ -96,7 +96,7 @@ Se stopami jde rychlost jen 100 % (originální nahrávka zpomalit nejde).
 
 ### Klávesové zkratky
 
-Na kartě Skladba (seznam ukáže **F1** nebo **Nastavení > Klávesové zkratky...**):
+V hlavním okně (seznam ukáže **F1** nebo **Nastavení > Klávesové zkratky...**):
 
 | Klávesa | Akce |
 | --- | --- |
@@ -191,8 +191,15 @@ a série správných odpovědí. Noty, ve kterých chybuješ, chodí častěji (
 
 ### Jiné nástroje než klavír
 
-**Nastavení > Můj nástroj**: klavír, kytara, housle, viola, violoncello, příčná flétna, zobcová flétna (sopránová),
-klarinet in B, trubka in B, altový saxofon in Es. Pro jiný nástroj než klavír:
+**Nahoře jsou záložky s tvými nástroji** (třeba Piano | Kytara | Housle); **+** přidá další, **Nastavení > Moje
+nástroje...** je umí i odebrat. Na výběr: piano, kytara, housle, viola, violoncello, příčná flétna, zobcová flétna
+(sopránová), klarinet in B, trubka in B, altový saxofon in Es. Přepnutím záložky přepneš nástroj; skladba zůstane
+otevřená. Pro jiný nástroj než piano:
+
+- **hmatník místo klaviatury** u kytary (6 strun, pražce 0–12) a houslí, violy a violoncella (4 struny, prsty pro
+  1. polohu, 0 = prázdná struna): svítí, kde se hraje – při přehrávání barvou části, v režimu učení modře co hrát,
+  oranžově co appka slyší, červeně chyba; kroužky ukazují noty, které přijdou;
+- tlačítko **Ladička** přímo vedle Poslouchat / Režim učení;
 
 - **noty na jedné osnově v klíči nástroje** (houslový, kytarový s osmičkou, altový, basový) a u transponujících
   nástrojů tak, jak je hráč čte – klarinet a trubka o tón výš, saxofon o sextu, i s předznamenáním;
@@ -251,7 +258,7 @@ Balíček doplňku sestavíš skriptem `tools\pack-basic-pitch-module.ps1` (výs
 Druhou klávesnici (SayoDevice, starou klávesnici, numerický blok...) můžeš používat jako ovladač appky.
 Klávesy z ní se nedostanou do Windows, hlavní klávesnice funguje normálně.
 
-1. Karta **Makro klávesnice > Nastavit makro klávesnici...** Napoprvé appka stáhne malý doplňkový modul (pár desítek KB).
+1. **Úpravy > Makro klávesnice... > Nastavit makro klávesnici...** Napoprvé appka stáhne malý doplňkový modul (pár desítek KB).
    Když chybí driver Interception, nabídne **instalaci ovladače** (potvrdíš v UAC) a pak restart počítače.
    Ruční odinstalace: `install-interception.exe /uninstall` jako administrátor a restart.
 2. Stiskni klávesu na klávesnici, kterou chceš používat, a potvrď **Použít tuto klávesnici**.

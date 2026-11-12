@@ -235,6 +235,9 @@ sealed class AppConfig
     /// <summary>The player's instrument (<see cref="KeyboardUtils.Instrument.Id"/>): its clef, transposition, range and sound.</summary>
     public string Instrument { get; set; } = KeyboardUtils.Instrument.PianoId;
 
+    /// <summary>The instruments I play, one tab each (ids); null in configs from before 1.7.0 = just <see cref="Instrument"/>.</summary>
+    public List<string>? MyInstruments { get; set; }
+
     /// <summary>The tuner's reference: A4 in Hz.</summary>
     public double TunerA4 { get; set; } = 440;
 

@@ -25,7 +25,7 @@ sealed partial class MainForm
         {
             if (noteSource != source)
                 return;
-            pianoRoll.SetKeyHeld(note, true);
+            ShowKeyHeld(note, true);
             if (noteTrainer != null)
                 noteTrainer.OnNoteOn(note);
             else if (learning != null)
@@ -42,7 +42,7 @@ sealed partial class MainForm
         {
             if (noteSource != source)
                 return;
-            pianoRoll.SetKeyHeld(note, false);
+            ShowKeyHeld(note, false);
             recorder?.OnNoteOff(note);
             takeRecorder?.OnNoteOff(note);
         });
@@ -68,6 +68,7 @@ sealed partial class MainForm
         noteSource?.Dispose();
         noteSource = null;
         pianoRoll.ClearHeldKeys();
+        fretboard.ClearHeldKeys();
         listenButton.Text = T("Poslouchat", "Listen");
     }
 
