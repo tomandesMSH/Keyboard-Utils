@@ -456,13 +456,38 @@ nav a[aria-current="page"] { color: var(--text); }
 /* Categories: a small heading over each group of sections, a quiet line down the left of the group. */
 .doc-toc-group { margin: 0 0 14px; }
 .doc-toc-cat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
   margin: 0 0 4px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  font: inherit;
   font-size: .78rem;
   font-weight: 600;
   letter-spacing: .04em;
+  text-align: left;
   color: var(--muted);
+  cursor: pointer;
   transition: color .15s;
 }
+.doc-toc-cat:hover { color: var(--text); }
+/* An arrow: pointing down when open, right when collapsed. */
+.doc-toc-cat::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg) translate(-2px, -1px);
+  transition: transform .15s;
+  flex: none;
+}
+.doc-toc-group.collapsed .doc-toc-cat::before { transform: rotate(-45deg); }
+.doc-toc-group.collapsed ol { display: none; }
+.doc-toc-group.collapsed { margin-bottom: 6px; }
 .doc-toc ol { list-style: none; padding: 0; margin: 0; border-left: 3px solid var(--line); }
 .doc-toc li { margin: 0; }
 .doc-toc a {
