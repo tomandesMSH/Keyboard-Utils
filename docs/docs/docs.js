@@ -73,4 +73,6 @@
   }, { passive: true });
   window.addEventListener('resize', mark);
   mark();
+  // From now on opening / closing animates (not the setup above, on load).
+  requestAnimationFrame(() => requestAnimationFrame(() => toc.classList.add('ready')));
 })();

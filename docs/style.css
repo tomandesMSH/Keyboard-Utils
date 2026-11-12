@@ -454,7 +454,21 @@ nav a[aria-current="page"] { color: var(--text); }
   margin: 0 0 10px;
 }
 /* Categories: a small heading over each group of sections, a quiet line down the left of the group. */
-.doc-toc-group { margin: 0 0 14px; }
+/* A category opens by its list growing from nothing (grid rows 0fr -> 1fr) and fading in. */
+.doc-toc-group {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  margin: 0 0 14px;
+}
+.doc-toc-group ol { min-height: 0; overflow: hidden; }
+.doc-toc-group.collapsed { grid-template-rows: auto 0fr; margin-bottom: 6px; }
+.doc-toc-group.collapsed ol { opacity: 0; visibility: hidden; }
+/* Animated only after the page has set itself up (not on load), and not for readers who asked for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .doc-toc.ready .doc-toc-group { transition: grid-template-rows .28s ease, margin-bottom .28s ease; }
+  .doc-toc.ready .doc-toc-group ol { transition: opacity .22s ease .06s, visibility 0s linear 0s; }
+  .doc-toc.ready .doc-toc-group.collapsed ol { transition: opacity .16s ease, visibility 0s linear .28s; }
+}
 .doc-toc-cat {
   display: flex;
   align-items: center;
@@ -486,13 +500,10 @@ nav a[aria-current="page"] { color: var(--text); }
   flex: none;
 }
 .doc-toc-group.collapsed .doc-toc-cat::before { transform: rotate(-45deg); }
-.doc-toc-group.collapsed ol { display: none; }
-.doc-toc-group.collapsed { margin-bottom: 6px; }
-.doc-toc ol { list-style: none; padding: 0; margin: 0; border-left: 3px solid var(--line); }
+.doc-toc ol { list-style: none; padding: 0; margin: 0; box-shadow: inset 3px 0 0 var(--line); }
 .doc-toc li { margin: 0; }
 .doc-toc a {
   display: block;
-  margin-left: -3px;
   padding: 3px 8px 3px 13px;
   border-left: 3px solid transparent;
   border-radius: 0 6px 6px 0;
