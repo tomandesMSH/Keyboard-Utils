@@ -347,6 +347,8 @@ sealed class WindChartControl : Control, IThemed
         {
             "recorder" => DrawRecorder(g, chart, looks, stage, scale, outOfRange),
             "flute" => DrawFlute(g, chart, looks, stage, scale, outOfRange),
+            "clarinet" => DrawClarinet(g, chart, looks, stage, scale, outOfRange),
+            "altosax" => DrawSaxophone(g, chart, looks, stage, scale, outOfRange),
             _ => DrawTrumpet(g, chart, looks, stage, scale, outOfRange),
         };
         DrawLanes(g, chart, stage, hitY, scale, outOfRange);
@@ -384,8 +386,11 @@ sealed class WindChartControl : Control, IThemed
         foreach (var (i, x) in lanes)
         {
             var key = chart.Keys[i];
-            string text = key.Kind == KeyKind.Thumb ? T("palec", "thumb")
-                : key.Kind == KeyKind.Lever ? key.Label.Replace("#", "♯").Replace("b", "♭")
+            // Levers close together are named under the instrument instead (no room up here).
+            if (key.Kind == KeyKind.Lever && gap < 30 * scale)
+                continue;
+            string text = key.Kind == KeyKind.Thumb ? KeyName(key)
+                : key.Kind == KeyKind.Lever ? KeyName(key)
                 : key.Kind == KeyKind.Valve ? key.Label
                 : instrument.Id == "recorder" ? key.Finger[1..] : key.Finger.Replace("P", T("P", "R"));
             g.DrawString(text, small, key.Kind is KeyKind.Thumb or KeyKind.Lever ? dim : label, new RectangleF(x - 30, labelY, 60, small.Height), center);
@@ -703,6 +708,212 @@ sealed class WindChartControl : Control, IThemed
             keyHits.Add((hit, i));
         }
         return cy - cup * 1.05f - 3;
+    }
+
+    /// <summary>A key's short name for its label: the note it's for (Czech Gis, Es, H...), or what it is.</summary>
+    static string KeyName(WindKey key) => key.Label switch
+    {
+        "T" => T("palec", "thumb"),
+        "O" => T("okt.", "oct."),
+        "R" => T("reg.", "reg."),
+        "S4" => "4",
+        "G#" or "LG#" or "RG#" => T("Gis", "G♯"),
+        "LF#" => T("Fis", "F♯"),
+        "LC#" or "C#" => T("Cis", "C♯"),
+        "PEb" or "REb" or "Eb" => T("Es", "E♭"),
+        "LB" => T("H", "B"),
+        "LBb" or "SBb" => T("B", "B♭"),
+        "PD" => "D",
+        "PF" or "RF" => "F",
+        "LE" or "SE" => "E",
+        "RC" => "C",
+        _ => key.Label.Replace("#", "♯").Replace("b", "♭"),
+    };
+
+    /// <summary>
+    /// A key under the instrument (thumb / register / octave key, side and little-finger keys): a touch piece on an
+    /// arm, its name under it - every second one lower, so neighbours' names don't overlap.
+    /// </summary>
+    RectangleF DrawTouch(Graphics g, WindKey key, int order, KeyLook look, float x, float bottomOfBody, float size,
+        Color metal, Color metalDark, Font font, Brush text, float room)
+    {
+        // As wide as there's room between neighbours (keys close together get narrow touches, not overlapping ones).
+        float ly = bottomOfBody + size * 1.15f, w = Math.Min(size * 1.24f, room * 0.86f);
+        var touch = new RectangleF(x - w / 2, ly - size * 0.42f, w, size * 0.84f);
+        using (var arm = new Pen(metalDark, Math.Max(1.4f, size * 0.12f)))
+            g.DrawLine(arm, x, bottomOfBody - 1, x, touch.Top);
+        using (var path = Rounded(touch, touch.Height / 2))
+        {
+            using var fill = new SolidBrush(look.State != KeyState.Open ? look.Fill : metal);
+            g.FillPath(fill, path);
+            using var outline = new Pen(look.Point ? HintColor : metalDark, look.Point ? 3f : 1.1f);
+            g.DrawPath(outline, path);
+        }
+        string name = KeyName(key);
+        var size2 = g.MeasureString(name, font);
+        float ny = touch.Bottom + 1 + (order % 2 == 1 ? font.Height * 0.85f : 0);
+        g.DrawString(name, font, text, x - size2.Width / 2, ny);
+        return touch;
+    }
+
+    // --- The clarinet (lying: mouthpiece left, bell right) ------------------------------------------------------
+
+    /// <returns>Where the lanes end (just above the clarinet).</returns>
+    float DrawClarinet(Graphics g, WindChart chart, KeyLook[] looks, RectangleF stage, float scale, bool outOfRange)
+    {
+        float left = stage.Left + 6, right = stage.Right - 10;
+        float length = right - left;
+        float d = Math.Min(stage.Height * 0.12f, length * 0.042f); // the tube
+        float touchSize = Math.Clamp(d * 0.7f, 7, 18);
+        float cy = stage.Bottom - (d * 0.5f + touchSize * 1.6f + 2 * 10 * scale + 6);
+        float X(float along) => left + along * length;
+        var ebony = Color.FromArgb(34, 32, 34);
+        var ebonyLight = Color.FromArgb(78, 74, 76);
+
+        // Mouthpiece (tapering to its tip), barrel, the two joints, the bell flaring out.
+        using var body = new GraphicsPath();
+        body.AddLine(X(0), cy - d * 0.2f, X(0.07f), cy - d * 0.42f);
+        body.AddLine(X(0.07f), cy - d * 0.5f, X(0.86f), cy - d * 0.5f);
+        body.AddBezier(X(0.86f), cy - d * 0.5f, X(0.94f), cy - d * 0.55f, X(0.98f), cy - d * 0.9f, X(1), cy - d * 1.05f);
+        body.AddLine(X(1), cy - d * 1.05f, X(1), cy + d * 1.05f);
+        body.AddBezier(X(1), cy + d * 1.05f, X(0.98f), cy + d * 0.9f, X(0.94f), cy + d * 0.55f, X(0.86f), cy + d * 0.5f);
+        body.AddLine(X(0.86f), cy + d * 0.5f, X(0.07f), cy + d * 0.5f);
+        body.AddLine(X(0.07f), cy + d * 0.42f, X(0), cy + d * 0.05f);
+        body.CloseFigure();
+        using (var wood = new LinearGradientBrush(new RectangleF(left, cy - d * 1.1f, length, d * 2.2f), ebonyLight, ebony, LinearGradientMode.Vertical))
+        {
+            wood.SetBlendTriangularShape(0.42f, 0.85f);
+            g.FillPath(wood, body);
+        }
+        // Silver: the ligature on the mouthpiece and the rings where the parts join.
+        using (var ring = new SolidBrush(Silver))
+        {
+            g.FillRectangle(ring, X(0.045f), cy - d * 0.47f, length * 0.018f, d * 0.94f);
+            foreach (float joint in new[] { 0.09f, 0.165f, 0.565f, 0.86f })
+                g.FillRectangle(ring, X(joint) - 2, cy - d * 0.53f, 4, d * 1.06f);
+        }
+
+        float r = Math.Clamp(d * 0.3f, 4, 14);
+        using var font = new Font("Segoe UI", 7.5f * scale);
+        using var dim = new SolidBrush(Dim);
+        int order = 0;
+        for (int i = 0; i < chart.Keys.Count; i++)
+        {
+            var key = chart.Keys[i];
+            var look = outOfRange ? new KeyLook(KeyState.Open, Dim, false) : looks[i];
+            float x = X(key.X);
+            laneX[i] = x;
+            RectangleF hit;
+            if (key.Kind == KeyKind.Hole)
+            {
+                // A tone hole with its silver ring.
+                using (var rim = new Pen(Silver, Math.Max(1.5f, r * 0.28f)))
+                    g.DrawEllipse(rim, x - r * 1.3f, cy - r * 1.3f, r * 2.6f, r * 2.6f);
+                DrawHole(g, x, cy, r, look);
+                keyShapes[i] = new RectangleF(x - r, cy - r, 2 * r, 2 * r);
+                hit = RectangleF.Inflate(keyShapes[i], r * 0.6f, r * 0.6f);
+            }
+            else if (key.Kind == KeyKind.Thumb)
+            {
+                // The thumb hole is at the back: under the clarinet, dashed.
+                float ty = cy + d * 0.5f + touchSize * 1.15f;
+                using (var joint = new Pen(Dim, 1) { DashStyle = DashStyle.Dot })
+                    g.DrawLine(joint, x, cy + d * 0.5f, x, ty - r);
+                float tr = Math.Min(r, length * 0.025f * 0.43f);
+                DrawHole(g, x, ty, tr, look, dashed: true);
+                keyShapes[i] = new RectangleF(x - tr, ty - tr, 2 * tr, 2 * tr);
+                hit = RectangleF.Inflate(keyShapes[i], tr * 0.4f, tr * 0.6f);
+                var name = KeyName(key);
+                g.DrawString(name, font, dim, x - g.MeasureString(name, font).Width / 2, ty + r + 1 + (order++ % 2 == 1 ? font.Height * 0.85f : 0));
+            }
+            else
+            {
+                var touch = DrawTouch(g, key, order++, look, x, cy + d * 0.5f, touchSize, Silver, SilverDark, font, dim, length * 0.025f);
+                keyShapes[i] = touch;
+                hit = RectangleF.Inflate(touch, 4, 6);
+            }
+            keyHits.Add((hit, i));
+        }
+        return cy - Math.Max(d * 0.5f, r * 1.3f) - 3;
+    }
+
+    // --- The saxophone (lying: neck and mouthpiece left, bell right) --------------------------------------------
+
+    static readonly Color Brass = Color.FromArgb(222, 180, 92);
+    static readonly Color BrassLight = Color.FromArgb(250, 226, 150);
+    static readonly Color BrassDark = Color.FromArgb(150, 108, 40);
+
+    /// <returns>Where the lanes end (just above the key cups).</returns>
+    float DrawSaxophone(Graphics g, WindChart chart, KeyLook[] looks, RectangleF stage, float scale, bool outOfRange)
+    {
+        float left = stage.Left + 6, right = stage.Right - 10;
+        float length = right - left;
+        float d = Math.Min(stage.Height * 0.13f, length * 0.045f); // the body where it's widest
+        float touchSize = Math.Clamp(d * 0.62f, 7, 18);
+        float cy = stage.Bottom - (d * 0.6f + touchSize * 1.6f + 2 * 10 * scale + 6);
+        float X(float along) => left + along * length;
+
+        // Black mouthpiece, the thin neck, the body widening towards the bell, the bell flaring.
+        using (var mouthpiece = new SolidBrush(Color.FromArgb(30, 30, 32)))
+        using (var tip = new GraphicsPath())
+        {
+            tip.AddPolygon(new[] { new PointF(X(0), cy - d * 0.1f), new PointF(X(0.06f), cy - d * 0.25f), new PointF(X(0.06f), cy + d * 0.25f), new PointF(X(0), cy + d * 0.12f) });
+            g.FillPath(mouthpiece, tip);
+        }
+        using var body = new GraphicsPath();
+        body.AddLine(X(0.06f), cy - d * 0.18f, X(0.2f), cy - d * 0.24f);
+        body.AddLine(X(0.2f), cy - d * 0.3f, X(0.86f), cy - d * 0.6f);
+        body.AddBezier(X(0.86f), cy - d * 0.6f, X(0.93f), cy - d * 0.66f, X(0.97f), cy - d * 1.1f, X(1), cy - d * 1.4f);
+        body.AddLine(X(1), cy - d * 1.4f, X(1), cy + d * 1.1f);
+        body.AddBezier(X(1), cy + d * 1.1f, X(0.97f), cy + d * 0.9f, X(0.93f), cy + d * 0.62f, X(0.86f), cy + d * 0.58f);
+        body.AddLine(X(0.86f), cy + d * 0.58f, X(0.2f), cy + d * 0.3f);
+        body.AddLine(X(0.2f), cy + d * 0.24f, X(0.06f), cy + d * 0.18f);
+        body.CloseFigure();
+        using (var brass = new LinearGradientBrush(new RectangleF(left, cy - d * 1.5f, length, d * 3f), BrassLight, BrassDark, LinearGradientMode.Vertical))
+        {
+            brass.SetBlendTriangularShape(0.38f, 0.9f);
+            g.FillPath(brass, body);
+        }
+        using (var edge = new Pen(BrassDark, 1.2f))
+        {
+            g.DrawPath(edge, body);
+            g.DrawLine(edge, X(0.2f), cy - d * 0.3f, X(0.2f), cy + d * 0.3f); // where the neck meets the body
+        }
+
+        float r = Math.Clamp(d * 0.36f, 5, 16);
+        using var font = new Font("Segoe UI", 7.5f * scale);
+        using var dim = new SolidBrush(Dim);
+        int order = 0;
+        for (int i = 0; i < chart.Keys.Count; i++)
+        {
+            var key = chart.Keys[i];
+            var look = outOfRange ? new KeyLook(KeyState.Open, Dim, false) : looks[i];
+            float x = X(key.X);
+            laneX[i] = x;
+            RectangleF hit;
+            if (key.Kind == KeyKind.Key)
+            {
+                // A key cup with a pearl touch; covered = the pearl coloured.
+                var cup = new RectangleF(x - r * 1.25f, cy - r * 1.25f, r * 2.5f, r * 2.5f);
+                using (var shade = new LinearGradientBrush(cup, BrassLight, BrassDark, LinearGradientMode.ForwardDiagonal))
+                    g.FillEllipse(shade, cup);
+                var pearl = new RectangleF(x - r * 0.8f, cy - r * 0.8f, r * 1.6f, r * 1.6f);
+                using (var fill = new SolidBrush(look.State != KeyState.Open ? look.Fill : Color.FromArgb(240, 236, 226)))
+                    g.FillEllipse(fill, pearl);
+                using (var rim = new Pen(look.Point ? HintColor : BrassDark, look.Point ? 3f : 1.2f))
+                    g.DrawEllipse(rim, cup);
+                keyShapes[i] = cup;
+                hit = RectangleF.Inflate(cup, 3, 3);
+            }
+            else
+            {
+                var touch = DrawTouch(g, key, order++, look, x, cy + d * 0.5f, touchSize, Brass, BrassDark, font, dim, length * 0.025f);
+                keyShapes[i] = touch;
+                hit = RectangleF.Inflate(touch, 4, 6);
+            }
+            keyHits.Add((hit, i));
+        }
+        return cy - r * 1.25f - 3;
     }
 
     // --- The trumpet ---------------------------------------------------------------------------------------

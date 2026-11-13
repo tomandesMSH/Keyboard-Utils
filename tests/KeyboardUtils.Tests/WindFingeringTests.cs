@@ -21,6 +21,8 @@ public class WindFingeringTests
     [InlineData("recorder")]
     [InlineData("trumpet")]
     [InlineData("flute")]
+    [InlineData("clarinet")]
+    [InlineData("altosax")]
     public void Every_note_of_the_chart_has_a_fingering_with_one_state_per_key(string id)
     {
         var instrument = Instrument.ById(id);
@@ -48,7 +50,7 @@ public class WindFingeringTests
     [Fact]
     public void Instruments_without_a_chart_have_none()
     {
-        foreach (var id in new[] { "piano", "guitar", "violin", "clarinet", "altosax" })
+        foreach (var id in new[] { "piano", "guitar", "violin", "cello" })
         {
             Assert.Null(WindFingerings.ChartFor(Instrument.ById(id)));
             Assert.Null(WindFingerings.For(Instrument.ById(id), 72));
@@ -165,5 +167,62 @@ public class WindFingeringTests
         Assert.Equal(new[] { 60, 67, 72, 76, 79, 84 }.Select(Trumpet.Sounding), WindFingerings.NotesFor(Trumpet, open));
         // Not a fingering at all.
         Assert.Empty(WindFingerings.NotesFor(recorder, [KeyState.Open, KeyState.Closed, KeyState.Open, KeyState.Closed, KeyState.Open, KeyState.Closed, KeyState.Open, KeyState.Closed]));
+    }
+
+    static string Keys(string id, int written)
+    {
+        var instrument = Instrument.ById(id);
+        var chart = WindFingerings.ChartFor(instrument)!;
+        var fingering = WindFingerings.For(instrument, instrument.Sounding(written))!;
+        return string.Join(" ", chart.Keys.Where((k, i) => fingering.Keys[i] == KeyState.Closed).Select(k => k.Label));
+    }
+
+    [Theory]
+    [InlineData(52, "T L1 L2 L3 LE R1 R2 R3")]   // e: everything and the left little finger's E key
+    [InlineData(53, "T L1 L2 L3 R1 R2 R3 RF")]   // f
+    [InlineData(58, "T L1 L2 L3 R1")]            // b (B♭3)
+    [InlineData(59, "T L1 L2 L3 R2")]            // h: forked
+    [InlineData(63, "T L1 L2 S4")]               // dis1: side key 4
+    [InlineData(67, "")]                         // g1: open
+    [InlineData(69, "A")]                        // a1: the A key
+    [InlineData(70, "R A")]                      // b1: register + A
+    [InlineData(71, "R T L1 L2 L3 LE R1 R2 R3")] // h1: the clarion begins
+    [InlineData(84, "R T")]                      // c3
+    public void Clarinet_keys_by_written_note(int written, string keys) => Assert.Equal(keys, Keys("clarinet", written));
+
+    [Fact]
+    public void Clarinet_clarion_is_the_register_key_a_twelfth_up()
+    {
+        for (int written = 71; written <= 84; written++)
+            Assert.Equal(("R " + Keys("clarinet", written - 19)).Trim(), Keys("clarinet", written));
+    }
+
+    [Theory]
+    [InlineData(58, "L1 L2 L3 LBb R1 R2 R3 RC")] // b (B♭3): the lowest
+    [InlineData(60, "L1 L2 L3 R1 R2 R3 RC")]     // c1
+    [InlineData(62, "L1 L2 L3 R1 R2 R3")]        // d1
+    [InlineData(70, "L1 L2 SBb")]                // b1: side B♭
+    [InlineData(72, "L2")]                       // c2
+    [InlineData(73, "")]                         // cis2: open
+    [InlineData(74, "O L1 L2 L3 R1 R2 R3")]      // d2: octave key
+    [InlineData(85, "O")]                        // cis3
+    [InlineData(86, "O PD")]                     // d3: palm keys
+    [InlineData(89, "O PD PEb PF SE")]           // f3
+    public void Saxophone_keys_by_written_note(int written, string keys) => Assert.Equal(keys, Keys("altosax", written));
+
+    [Fact]
+    public void Saxophone_second_octave_is_the_octave_key_on_the_first()
+    {
+        for (int written = 74; written <= 85; written++)
+            Assert.Equal(("O " + Keys("altosax", written - 12)).Trim(), Keys("altosax", written));
+    }
+
+    [Fact]
+    public void Clarinet_and_saxophone_sound_below_what_they_read()
+    {
+        // Written c1 sounds B♭3 on the clarinet, E♭3 on the alto saxophone.
+        Assert.Equal(60, WindFingerings.For(Instrument.ById("clarinet"), 58)!.WrittenPitch);
+        Assert.Equal(60, WindFingerings.For(Instrument.ById("altosax"), 51)!.WrittenPitch);
+        Assert.Null(WindFingerings.For(Instrument.ById("clarinet"), Instrument.ById("clarinet").Sounding(85)));
     }
 }

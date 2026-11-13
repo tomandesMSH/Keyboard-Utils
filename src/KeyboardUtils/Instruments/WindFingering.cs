@@ -23,7 +23,7 @@ sealed record WindFingering(int WrittenPitch, IReadOnlyList<KeyState> Keys, stri
 
 /// <summary>
 /// Fingering charts of the wind instruments, by the note as written: the soprano recorder (baroque and German
-/// fingering), the flute and the B♭ trumpet. Clarinet and saxophone come when there are charts to copy from.
+/// fingering), the flute, the B♭ clarinet, the alto saxophone and the B♭ trumpet.
 /// </summary>
 static class WindFingerings
 {
@@ -55,6 +55,88 @@ static class WindFingerings
         new("C#", KeyKind.Lever, 0.905f, 1f, "P4"),
         new("C", KeyKind.Lever, 0.95f, 1f, "P4"),
     ]);
+
+    // X: along the clarinet from the mouthpiece (0) to the bell (1); Y: 0 on the tube, 1 below it (thumb hole at the
+    // back, register key, side and little-finger keys).
+    static readonly WindChart Clarinet = new("clarinet",
+    [
+        new("R", KeyKind.Lever, 0.225f, 1f, "L0"),
+        new("T", KeyKind.Thumb, 0.26f, 1f, "L0"),
+        new("A", KeyKind.Lever, 0.295f, 1f, "L1"),
+        new("G#", KeyKind.Lever, 0.325f, 1f, "L1"),
+        new("L1", KeyKind.Hole, 0.37f, 0f, "L1"),
+        new("L2", KeyKind.Hole, 0.43f, 0f, "L2"),
+        new("L3", KeyKind.Hole, 0.49f, 0f, "L3"),
+        new("LE", KeyKind.Lever, 0.53f, 1f, "L4"),
+        new("LF#", KeyKind.Lever, 0.555f, 1f, "L4"),
+        new("LC#", KeyKind.Lever, 0.58f, 1f, "L4"),
+        new("R1", KeyKind.Hole, 0.635f, 0f, "P1"),
+        new("R2", KeyKind.Hole, 0.695f, 0f, "P2"),
+        new("R3", KeyKind.Hole, 0.755f, 0f, "P3"),
+        new("S4", KeyKind.Lever, 0.795f, 1f, "P1"),
+        new("RF", KeyKind.Lever, 0.83f, 1f, "P4"),
+        new("RG#", KeyKind.Lever, 0.86f, 1f, "P4"),
+    ]);
+
+    /// <summary>
+    /// B♭ clarinet (Boehm), written e (52) to c3 (84): the keys pressed, from the Woodwind Fingering Guide's basic chart
+    /// (wfg.woodwind.org, clarinet). From written b1 up (the clarion) it's the register key and the fingering a
+    /// twelfth lower.
+    /// </summary>
+    static readonly string[] ClarinetChalumeau =
+    [
+        "T L1 L2 L3 LE R1 R2 R3", "T L1 L2 L3 R1 R2 R3 RF", "T L1 L2 L3 LF# R1 R2 R3", "T L1 L2 L3 R1 R2 R3",  // e .. g
+        "T L1 L2 L3 R1 R2 R3 RG#", "T L1 L2 L3 R1 R2", "T L1 L2 L3 R1", "T L1 L2 L3 R2",                      // gis .. h
+        "T L1 L2 L3", "T L1 L2 L3 LC#", "T L1 L2", "T L1 L2 S4", "T L1", "T", "L1", "",                        // c1 .. g1
+        "G#", "A", "R A",                                                                                      // gis1, a1, b1
+    ];
+
+    const int ClarinetLowest = 52, ClarinetClarion = 71, Twelfth = 19;
+
+    // X: along the saxophone from the mouthpiece (0) to the bell (1); Y: 0 on the body (the key cups), 1 below it
+    // (octave key, palm keys, little-finger and side keys).
+    static readonly WindChart Saxophone = new("altosax",
+    [
+        new("O", KeyKind.Thumb, 0.235f, 1f, "L0"),
+        new("PD", KeyKind.Lever, 0.27f, 1f, "L1"),
+        new("PEb", KeyKind.Lever, 0.295f, 1f, "L2"),
+        new("PF", KeyKind.Lever, 0.32f, 1f, "L3"),
+        new("L1", KeyKind.Key, 0.37f, 0f, "L1"),
+        new("L2", KeyKind.Key, 0.43f, 0f, "L2"),
+        new("L3", KeyKind.Key, 0.49f, 0f, "L3"),
+        new("LG#", KeyKind.Lever, 0.53f, 1f, "L4"),
+        new("LC#", KeyKind.Lever, 0.555f, 1f, "L4"),
+        new("LB", KeyKind.Lever, 0.58f, 1f, "L4"),
+        new("LBb", KeyKind.Lever, 0.605f, 1f, "L4"),
+        new("R1", KeyKind.Key, 0.655f, 0f, "P1"),
+        new("R2", KeyKind.Key, 0.715f, 0f, "P2"),
+        new("R3", KeyKind.Key, 0.775f, 0f, "P3"),
+        new("SBb", KeyKind.Lever, 0.81f, 1f, "P1"),
+        new("SE", KeyKind.Lever, 0.835f, 1f, "P1"),
+        new("REb", KeyKind.Lever, 0.865f, 1f, "P4"),
+        new("RC", KeyKind.Lever, 0.89f, 1f, "P4"),
+    ]);
+
+    /// <summary>
+    /// Alto saxophone, written b (58) to f3 (89): the keys pressed, from the Woodwind Fingering Guide's basic chart
+    /// (wfg.woodwind.org, saxophone). d2 to cis3 are the octave key and the fingering an octave lower.
+    /// </summary>
+    static readonly string[] SaxophoneLow =
+    [
+        "L1 L2 L3 LBb R1 R2 R3 RC", "L1 L2 L3 LB R1 R2 R3 RC", "L1 L2 L3 R1 R2 R3 RC", "L1 L2 L3 LC# R1 R2 R3 RC", // b .. cis1
+        "L1 L2 L3 R1 R2 R3", "L1 L2 L3 R1 R2 R3 REb", "L1 L2 L3 R1 R2", "L1 L2 L3 R1", "L1 L2 L3 R2",             // d1 .. fis1
+        "L1 L2 L3", "L1 L2 L3 LG#", "L1 L2", "L1 L2 SBb", "L1", "L2", "",                                        // g1 .. cis2
+    ];
+
+    static readonly string[] SaxophonePalm = ["O PD", "O PEb PD", "O PEb PD SE", "O PEb PD PF SE"]; // d3 .. f3
+
+    const int SaxophoneLowest = 58, SaxophoneOctave = 74, SaxophonePalmLowest = 86;
+
+    static WindFingering Pressed(WindChart chart, int written, string keys, string? hint = null)
+    {
+        var pressed = keys.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
+        return new WindFingering(written, chart.Keys.Select(k => pressed.Contains(k.Label) ? KeyState.Closed : KeyState.Open).ToArray(), hint);
+    }
 
     /// <summary>
     /// Flute (Boehm), written = sounding, c1 (60) to a3 (93): the keys pressed. The basic fingerings of the Woodwind
@@ -121,6 +203,8 @@ static class WindFingerings
         "recorder" => Recorder,
         "trumpet" => Trumpet,
         "flute" => Flute,
+        "clarinet" => Clarinet,
+        "altosax" => Saxophone,
         _ => null,
     };
 
@@ -159,6 +243,25 @@ static class WindFingerings
                 string? hint = i is >= 16 and <= 25 ? T("silněji (přefouknout)", "blow harder (overblow)") : null;
                 return new WindFingering(written, Flute.Keys.Select(k => pressed.Contains(k.Label) ? KeyState.Closed : KeyState.Open).ToArray(), hint);
             }
+            case "clarinet":
+            {
+                if (written < ClarinetLowest || written > ClarinetClarion + 13)
+                    return null;
+                return written < ClarinetClarion
+                    ? Pressed(Clarinet, written, ClarinetChalumeau[written - ClarinetLowest])
+                    : Pressed(Clarinet, written, "R " + ClarinetChalumeau[written - Twelfth - ClarinetLowest],
+                        T("registr: o duodecimu výš", "register key: a twelfth up"));
+            }
+            case "altosax":
+            {
+                if (written < SaxophoneLowest || written > SaxophonePalmLowest + SaxophonePalm.Length - 1)
+                    return null;
+                if (written >= SaxophonePalmLowest)
+                    return Pressed(Saxophone, written, SaxophonePalm[written - SaxophonePalmLowest], T("klapky pod dlaní", "palm keys"));
+                return written < SaxophoneOctave
+                    ? Pressed(Saxophone, written, SaxophoneLow[written - SaxophoneLowest])
+                    : Pressed(Saxophone, written, "O " + SaxophoneLow[written - 12 - SaxophoneLowest], T("oktávová klapka", "octave key"));
+            }
             default:
                 return null;
         }
@@ -170,6 +273,8 @@ static class WindFingerings
         "recorder" => (RecorderLowest, RecorderLowest + RecorderBaroque.Length - 1),
         "trumpet" => (TrumpetLowest, TrumpetLowest + TrumpetValves.Length - 1),
         "flute" => (FluteLowest, FluteLowest + FluteKeys.Length - 1),
+        "clarinet" => (ClarinetLowest, ClarinetClarion + 13),
+        "altosax" => (SaxophoneLowest, SaxophonePalmLowest + SaxophonePalm.Length - 1),
         _ => null,
     };
 

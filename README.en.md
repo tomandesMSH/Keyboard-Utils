@@ -240,7 +240,7 @@ don't need. Packs live in `%APPDATA%\KeyboardUtils\instruments` and are hosted i
 - **Practice > Chord library (guitar)...**: the chords a guitarist learns first (C, D, E, F, G, A, Dm, Em, Am, Bm,
   sevenths, maj7, sus) as songbook boxes – finger numbers, × not played, ○ open string. Click one to hear it; with
   the guitar it's pressed and strummed on the fingerboard;
-- **fingering charts instead of the keyboard** for the recorder, the flute and the trumpet – drawn like the
+- **fingering charts instead of the keyboard** for the recorder, the flute, the clarinet, the alto saxophone and the trumpet – drawn like the
   instrument (the recorder with its head, window, double holes and the thumb hole at the back, the flute with its keys
   and levers, the trumpet's valves), with hands and fingers labelled: the fingering of the note you play (in learning
   mode, the one to play); above each hole / key is its lane and the song falls down the lanes like the falling
@@ -248,8 +248,8 @@ don't need. Packs live in `%APPDATA%\KeyboardUtils\instruments` and are hosted i
   to hold, and the names of the notes coming are on the left. **Play them with the mouse:** click to cover holes / press keys (your fingers orange, green where they match
   the note) and hold **Blow** to hear the fingering's note – in learning mode it counts as played; **Harder**
   overblows the flute an octave up and takes the trumpet's next partial. The recorder has baroque and German fingering
-  (**Settings > Recorder fingering**); the flute uses the basic fingerings of the Woodwind Fingering Guide (C4–A6).
-  Clarinet and saxophone keep the keyboard for now;
+  (**Settings > Recorder fingering**); the flute (C4–A6), the clarinet (written E3–C6, the register key above) and
+  the saxophone (written B♭3–F6, the octave and palm keys above) use the basic fingerings of the Woodwind Fingering Guide;
 - a **Tuner** button right next to Listen / Learning mode;
 - **music on a single staff in the instrument's clef** (treble, guitar treble with an 8, alto, bass) and, for
   transposing instruments, as the player reads it – clarinet and trumpet a tone higher, saxophone a sixth, with the key

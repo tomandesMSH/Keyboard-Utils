@@ -231,7 +231,7 @@ jsou v `%APPDATA%\KeyboardUtils\instruments` a hostuje je repozitář
 - **Cvičení > Knihovna akordů (kytara)...**: hmaty akordů, které se kytarista učí první (C, D, E, F, G, A, Dm, Em, Am,
   Hm, septakordy, maj7, sus), jako ve zpěvníku – čísla prstů, × nehraje, ○ prázdná struna. Kliknutím akord zazní
   a s kytarou se zmáčkne a brnkne na hmatníku;
-- **hmaty místo klaviatury** u zobcové flétny, příčné flétny a trubky – nakreslené jako nástroj (zobcová flétna
+- **hmaty místo klaviatury** u zobcové flétny, příčné flétny, klarinetu, altového saxofonu a trubky – nakreslené jako nástroj (zobcová flétna
   s hlavicí, okénkem, dvojitými dírkami a palcem vzadu, příčná flétna s klapkami a pákami, trubka s ventily), s
   popisem rukou a prstů: hmat noty, kterou hraješ (v režimu učení kterou máš zahrát); nad každou dírkou / klapkou je její dráha a skladba
   do nich padá jako padající noty na klaviaturu: když pruh dopadne na dírku, zakryj ji, když skončí, zvedni prst;
@@ -239,7 +239,8 @@ jsou v `%APPDATA%\KeyboardUtils\instruments` a hostuje je repozitář
   zmáčkneš klapky (tvoje prsty oranžově, kde sedí s notou zeleně) a držením **Fouknout** zazní tón podle hmatu –
   v režimu učení se počítá jako zahraný; **Silněji** u příčné flétny přefoukne o oktávu, u trubky vezme vyšší
   alikvótu. Zobcová flétna má barokní i německý prstoklad (**Nastavení > Zobcová flétna: prstoklad**); hmaty příčné
-  flétny jsou základní hmaty Woodwind Fingering Guide (c1–a3). Klarinet a saxofon zatím mají klaviaturu;
+  flétny, klarinetu (psané e – c3, nahoře registr) a saxofonu (psané b – f3, nahoře oktávová a dlaňové klapky)
+  jsou základní hmaty Woodwind Fingering Guide;
 - tlačítko **Ladička** přímo vedle Poslouchat / Režim učení;
 
 - **noty na jedné osnově v klíči nástroje** (houslový, kytarový s osmičkou, altový, basový) a u transponujících
