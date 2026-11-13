@@ -454,19 +454,17 @@ nav a[aria-current="page"] { color: var(--text); }
   margin: 0 0 10px;
 }
 /* Categories: a small heading over each group of sections, a quiet line down the left of the group. */
-/* A category opens by its list growing from nothing (grid rows 0fr -> 1fr) and fading in. */
-.doc-toc-group {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  margin: 0 0 14px;
-}
-.doc-toc-group ol { min-height: 0; overflow: hidden; }
-.doc-toc-group.collapsed { grid-template-rows: auto 0fr; }
+/* A category opens by its list growing from nothing (grid row 0fr -> 1fr) and fading in. Only the list's wrapper
+   animates - the heading above keeps its size (it used to stretch for a moment and its name jumped). */
+.doc-toc-group { margin: 0 0 8px; }
+.doc-toc-list { display: grid; grid-template-rows: 1fr; }
+.doc-toc-list ol { min-height: 0; overflow: hidden; }
+.doc-toc-group.collapsed .doc-toc-list { grid-template-rows: 0fr; }
 .doc-toc-group.collapsed ol { opacity: 0; visibility: hidden; }
 /* Animated only after the page has set itself up (not on load), and not for readers who asked for less motion. */
 @media (prefers-reduced-motion: no-preference) {
-  .doc-toc.ready .doc-toc-group { transition: grid-template-rows .28s ease; }
-  .doc-toc.ready .doc-toc-group ol { transition: opacity .22s ease .06s, visibility 0s linear 0s; }
+  .doc-toc.ready .doc-toc-list { transition: grid-template-rows .28s ease; }
+  .doc-toc.ready .doc-toc-list ol { transition: opacity .22s ease .06s, visibility 0s linear 0s; }
   .doc-toc.ready .doc-toc-group.collapsed ol { transition: opacity .16s ease, visibility 0s linear .28s; }
 }
 .doc-toc-cat {
