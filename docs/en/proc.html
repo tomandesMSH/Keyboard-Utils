@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>About Windows SmartScreen</title>
+  <meta name="description" content="Why Windows shows &quot;Windows protected your PC&quot; the first time you run Keyboard Utils, why that's fine, and how to check you have the real app.">
+  <link rel="alternate" hreflang="cs" href="https://tomandesmsh.github.io/Keyboard-Utils/proc.html">
+  <link rel="alternate" hreflang="en" href="https://tomandesmsh.github.io/Keyboard-Utils/en/proc.html">
+  <link rel="alternate" hreflang="x-default" href="https://tomandesmsh.github.io/Keyboard-Utils/proc.html">
+  <link rel="icon" type="image/png" href="../img/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- The light / dark pick, set before the page is drawn (no flash of the wrong one). See theme.js. -->
+  <script>try { const t = localStorage.getItem('theme'); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t } catch (e) {}</script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="index.html">
+    <img src="../img/logo.png" alt="" width="36" height="36">
+    <span>Keyboard Utils</span>
+  </a>
+  <div class="header-end">
+    <nav>
+      <a href="index.html#features">Features</a>
+      <a href="index.html#start">Getting started</a>
+      <a href="index.html#muzio">Muzio</a>
+      <a href="docs/index.html">Documentation</a>
+      <a href="https://github.com/tomandesMSH/Keyboard-Utils">GitHub</a>
+    </nav>
+    <div class="lang-switch" aria-label="Language">
+      <a href="../proc.html" hreflang="cs" lang="cs" title="Česky">CS</a>
+      <a href="proc.html" hreflang="en" aria-current="true" title="English">EN</a>
+    </div>
+    <button class="theme-toggle" type="button" aria-label="Dark mode" aria-pressed="false">
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="page">
+  <a class="back" href="index.html#start">← Back to Getting started</a>
+
+  <h1>Why does Windows <br> "protect your PC" <br> from Keyboard Utils?</h1>
+  <p class="lead">
+    In short: Keyboard Utils isn't signed with a paid certificate, and not enough people have downloaded it yet for
+    Windows to "know" it. It's not that Windows found anything dangerous in it.
+  </p>
+
+  <figure class="smartscreen" aria-label="What the message looks like">
+    <div class="ss-title">Windows protected your PC</div>
+    <p>Microsoft Defender SmartScreen prevented an unrecognized app from starting. …</p>
+    <p class="ss-small">App: KeyboardUtils.exe<br>Publisher: Unknown publisher</p>
+    <div class="ss-buttons"><span class="ss-btn ss-primary">Run anyway</span><span class="ss-btn">Don't run</span></div>
+    <figcaption>The <b>Run anyway</b> button appears only after you click <b>More info</b>.</figcaption>
+  </figure>
+  <br>
+  <p>The longer version:</p>
+  <h2>What Windows SmartScreen is</h2>
+  <p>
+    The message comes from <b>Microsoft Defender SmartScreen</b>, a protection built into Windows. When you run a
+    program downloaded from the internet, SmartScreen looks at two things:
+  </p>
+  <ul>
+    <li><b>The signature.</b> Is the program digitally signed by a publisher someone has verified?</li>
+    <li><b>The reputation.</b> How many people have already downloaded and run the same file without trouble?</li>
+  </ul>
+  <p>
+    When both are missing, Windows would rather stop and ask you. So the message doesn't mean "this is a virus" but
+    "I don't know this program". It does the same for lots of small programs by individuals, schools...
+  </p>
+
+  <h2>Why the app isn't signed</h2>
+  <p>
+    A code-signing certificate costs a few hundred euros a year and is issued after an identity check. Keyboard Utils
+    is free – I'd like it to stay free – and one person works on it in their spare time, which is why it isn't
+    signed. SmartScreen's reputation also starts from zero with every new version, so the message may pop up for later
+    updates too, until Windows gets "used to" the app.
+  </p>
+
+  <h2>How to check you have the real app</h2>
+  <ul>
+    <li>
+      Download only with the button on this site or from the
+      <a href="https://github.com/tomandesMSH/Keyboard-Utils/releases">GitHub page</a>. Both lead to the same file
+      from the official repository (the online folder that holds the app's source code).
+    </li>
+    <li>
+      The source code is all public on
+      <a href="https://github.com/tomandesMSH/Keyboard-Utils">GitHub</a>. Anyone can read what the app does.
+    </li>
+    <li>
+      For complete peace of mind, upload the downloaded file to <a href="https://www.virustotal.com/">VirusTotal</a>.
+      It checks it with dozens of antivirus programs at once.
+    </li>
+  </ul>
+
+  <h2>What the app does on your computer</h2>
+  <ul>
+    <li><b>It installs nothing.</b> It's one file that runs straight away; delete it and it's gone.</li>
+    <li>
+      <b>Settings and practice history</b> are saved in <code>%APPDATA%\KeyboardUtils</code>.
+    </li>
+    <li>
+      <b>On the internet</b> it only talks to GitHub – to check for new versions (once a day, can be turned off) and
+      to download optional add-ons and instrument packs. When you search for free sheet music it connects to the Mutopia
+      Project. No information about you is collected.
+    </li>
+    <li>
+      <b>Administrator rights</b> are asked for only once, when you set up a macro keyboard yourself and install its
+      driver. Without a macro keyboard it never needs them.
+    </li>
+  </ul>
+
+  <h2>How to run it</h2>
+  <ol>
+    <li>Run the downloaded <code>KeyboardUtils.exe</code>.</li>
+    <li>In the "Windows protected your PC" window, click <b>More info</b>.</li>
+    <li>Check that <i>App</i> says <code>KeyboardUtils.exe</code> and click <b>Run anyway</b>.</li>
+  </ol>
+  <p>Windows remembers this and won't ask next time.</p>
+
+  <p class="page-actions">
+    <a class="btn btn-dark" href="https://github.com/tomandesMSH/Keyboard-Utils/releases/latest/download/KeyboardUtils.exe" download>Download for Windows</a>
+    <a class="btn btn-light" href="index.html">Back to the main page</a>
+    <a class="btn btn-dark" href="https://github.com/tomandesMSH/Keyboard-Utils">The app's source code</a>
+  </p>
+</main>
+
+<footer>
+  <div class="keys keys-small" aria-hidden="true"></div>
+  <p>
+    Keyboard Utils · <a href="https://tomandes.eu/">tomandesMSH</a> ·
+    <a href="https://github.com/tomandesMSH/Keyboard-Utils">GitHub</a> ·
+    <a href="https://github.com/tomandesMSH/Keyboard-Utils/releases">All versions</a>
+  </p>
+</footer>
+<script src="../theme.js"></script>
+<script src="../piano.js"></script>
+</body>
+</html>

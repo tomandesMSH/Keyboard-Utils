@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keyboard Utils</title>
+  <meta name="description" content="Keyboard Utils plays a song as falling notes and as sheet music and, in learning mode, listens to what you play – piano, guitar, strings, flutes, clarinet, saxophone and trumpet. Free for Windows.">
+  <meta property="og:title" content="Keyboard Utils">
+  <meta property="og:description" content="Practice on Windows – piano, guitar, violin, flutes, clarinet, saxophone, trumpet: falling notes, sheet music, fingerboard and fingering charts, learning mode with a score, a report for the teacher.">
+  <meta property="og:image" content="https://tomandesmsh.github.io/Keyboard-Utils/img/app-light-en.png">
+  <meta property="og:url" content="https://tomandesmsh.github.io/Keyboard-Utils/en/">
+  <link rel="alternate" hreflang="cs" href="https://tomandesmsh.github.io/Keyboard-Utils/">
+  <link rel="alternate" hreflang="en" href="https://tomandesmsh.github.io/Keyboard-Utils/en/">
+  <link rel="alternate" hreflang="x-default" href="https://tomandesmsh.github.io/Keyboard-Utils/">
+  <link rel="icon" type="image/png" href="../img/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- The light / dark pick, set before the page is drawn (no flash of the wrong one). See theme.js. -->
+  <script>try { const t = localStorage.getItem('theme'); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t } catch (e) {}</script>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="#">
+    <img src="../img/logo.png" alt="" width="36" height="36">
+    <span>Keyboard Utils</span>
+  </a>
+  <div class="header-end">
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#start">Getting started</a>
+      <a href="#muzio">Muzio</a>
+      <a href="docs/index.html">Documentation</a>
+      <a href="https://github.com/tomandesMSH/Keyboard-Utils">GitHub</a>
+    </nav>
+    <div class="lang-switch" aria-label="Language">
+      <a href="../index.html" hreflang="cs" lang="cs" title="Česky">CS</a>
+      <a href="index.html" hreflang="en" aria-current="true" title="English">EN</a>
+    </div>
+    <button class="theme-toggle" type="button" aria-label="Dark mode" aria-pressed="false">
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+
+  <section class="hero">
+    <div class="hero-text">
+      <p class="eyebrow">Windows app · free</p>
+      <h1>Practise more than piano, with music that listens to you.</h1>
+      <p class="lead">
+        Keyboard Utils plays a song as falling notes and as sheet music – for piano, guitar, violin, viola, cello,
+        flutes, clarinet, trumpet and saxophone. <br>
+        In learning mode it listens to what you play and shows where you hit the note and where you didn't. <br>
+        It works with MIDI keys, with a microphone for an acoustic instrument, or with just a mouse.
+      </p>
+      <div class="actions">
+        <!-- Straight to the file of the latest release (GitHub's /releases/latest/download/<name>), no GitHub page in between. -->
+        <a class="btn btn-dark" id="download" href="https://github.com/tomandesMSH/Keyboard-Utils/releases/latest/download/KeyboardUtils.exe" download>Download for Windows</a>
+        <a class="btn btn-light" href="https://github.com/tomandesMSH/Keyboard-Utils">Source code</a>
+      </div>
+      <p class="fine">KeyboardUtils.exe, 7&nbsp;MB · Windows 10 and 11 · needs the <a href="https://dotnet.microsoft.com/download/dotnet/10.0">.NET 10 Desktop Runtime</a></p>
+    </div>
+  </section>
+
+  <div class="keys" aria-hidden="true"></div>
+
+  <section class="shots">
+    <div class="shot-switch" role="tablist" aria-label="Look">
+      <button role="tab" aria-selected="true" data-shot="light">Light mode</button>
+      <button role="tab" aria-selected="false" data-shot="dark">Dark mode</button>
+    </div>
+    <figure class="shot">
+      <img id="shot" src="../img/app-light-en.png" width="1344" height="781"
+           alt="Keyboard Utils: Ode to Joy as falling notes on the keyboard on the left and as sheet music on the right, with the playback controls above.">
+      <figcaption>Falling notes and sheet music side by side – the current bar is highlighted, sounding notes take their hand's colour.</figcaption>
+    </figure>
+  </section>
+
+  <section class="features" id="features">
+    <h2>What it does</h2>
+    <div class="grid">
+      <article>
+        <h3>Keyboard and sheet music</h3>
+        <p>Falling notes, sheet music on the grand staff with the key signature, or both side by side. Click a bar to jump there.</p>
+      </article>
+      <article>
+        <h3>Learning mode</h3>
+        <p>The song waits until you play the right note, or keeps going in tempo. A score at the end, last time's result and a progress chart for every song.</p>
+      </article>
+      <article>
+        <h3>Loop, speed, metronome</h3>
+        <p>Repeat a hard passage, slow down to 25&nbsp;%, turn on the metronome with a count-in – or just the metronome without a song, with a time signature and a tapped tempo.</p>
+      </article>
+      <article>
+        <h3>Writing down notes</h3>
+        <p>Play a melody and the app writes it down. Listen back and save it as MIDI or MusicXML for MuseScore.</p>
+      </article>
+      <article>
+        <h3>Songs from anywhere</h3>
+        <p>MIDI and MusicXML from a file or a folder, over 2000 free pieces from the Mutopia Project, stems from FL Studio and audio turned into notes.</p>
+      </article>
+      <article>
+        <h3>Not just piano</h3>
+        <p>Guitar and strings on a fingerboard; flutes, clarinet, saxophone and trumpet with fingering charts the song falls into. Tablature, chords, a tuner and each instrument's real sound.</p>
+      </article>
+      <article>
+        <h3>For teachers</h3>
+        <p>The history of every attempt, hard spots and a daily goal. A practice report for a week or a month as a PDF – email it to the teacher or print it.</p>
+      </article>
+      <article>
+        <h3>No mouse needed</h3>
+        <p>Keyboard shortcuts and control of the whole app from a second (macro) keyboard, knob included – your hands stay at the instrument.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="steps" id="start">
+    <h2>Getting started</h2>
+    <ol>
+      <li>
+        <span class="num">1</span>
+        <h3>Download and run</h3>
+        <p>
+          The <a href="https://github.com/tomandesMSH/Keyboard-Utils/releases/latest/download/KeyboardUtils.exe" download>Download for Windows</a> button gets you <code>KeyboardUtils.exe</code>;
+          just run it. Windows may say it "protected your PC": click <br><b>More info</b> and <b>Run anyway</b>.
+          <a class="why" href="proc.html">Why?</a>
+        </p>
+      </li>
+      <li>
+        <span class="num">2</span>
+        <h3>Open a song</h3>
+        <p>Your own MIDI or MusicXML, or search for free sheet music right in the app.</p>
+      </li>
+      <li>
+        <span class="num">3</span>
+        <h3>Play</h3>
+        <p>Pick your instrument at the top, plug in MIDI keys or let the app listen through a microphone, and start learning mode.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section class="muzio" id="muzio">
+    <div class="muzio-card">
+      <img src="../img/muzio.svg" alt="" width="72" height="72">
+      <div>
+        <h2>Part of Muzio</h2>
+        <p>
+          Muzio (Keyboard Hero) is the web app for the students of ZUŠ Moravský Krumlov: you record your practice right
+          in the browser, collect stars, keep up a practice streak, and your teacher listens to your recordings and
+          grades them. Keyboard Utils is its partner for practising at the computer.
+        </p>
+        <a class="btn btn-red" href="https://keyboardheromuzio.vercel.app/">Open Muzio</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="keys keys-small" aria-hidden="true"></div>
+  <p>
+    Keyboard Utils · <a href="https://tomandes.eu/">tomandesMSH</a> ·
+    <a href="https://github.com/tomandesMSH/Keyboard-Utils">GitHub</a> ·
+    <a href="https://github.com/tomandesMSH/Keyboard-Utils/releases">All versions</a>
+  </p>
+</footer>
+
+<script>
+  // Light / dark screenshot: picked with its switch, and following the page's own light / dark mode.
+  const shot = document.getElementById('shot');
+  const shotButtons = document.querySelectorAll('.shot-switch button');
+  function showShot(name) {
+    shotButtons.forEach(b => b.setAttribute('aria-selected', String(b.dataset.shot === name)));
+    shot.src = `../img/app-${name}-en.png`;
+  }
+  shotButtons.forEach(button => button.addEventListener('click', () => showShot(button.dataset.shot)));
+  document.addEventListener('themechange', e => showShot(e.detail.dark ? 'dark' : 'light'));
+
+  // The download starts as usual; meanwhile the page glides down to "Getting started", which says what to do with
+  // the file (and about the "Windows protected your PC" message).
+  document.getElementById('download').addEventListener('click', () => {
+    const steps = document.getElementById('start');
+    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    setTimeout(() => {
+      let flashed = false;
+      const flash = () => {
+        if (flashed) return;
+        flashed = true;
+        const heading = steps.querySelector('h2');
+        heading.classList.remove('flash');
+        void heading.offsetWidth; // restart the animation on a second click
+        heading.classList.add('flash');
+      };
+      window.addEventListener('scrollend', flash, { once: true });
+      setTimeout(flash, smooth ? 1200 : 50);
+      steps.scrollIntoView({ behavior: smooth ? 'smooth' : 'instant', block: 'start' });
+    }, 150);
+    history.replaceState(null, '', '#start');
+  });
+</script>
+<script src="../theme.js"></script>
+<script src="../piano.js"></script>
+</body>
+</html>

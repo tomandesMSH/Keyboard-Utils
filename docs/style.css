@@ -131,6 +131,23 @@ nav a:hover { color: var(--text); }
 .theme-toggle[aria-pressed="true"] .sun { display: block; }
 .theme-toggle[aria-pressed="true"] .moon { display: none; }
 
+/* Language switch: CS | EN, the current language bold. */
+.lang-switch {
+  display: inline-flex;
+  border: 2px solid var(--edge);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: 0 2px 0 var(--line);
+  overflow: hidden;
+  font-size: .85rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+.lang-switch a { padding: 6px 11px; color: var(--muted); text-decoration: none; line-height: 1; }
+.lang-switch a + a { border-left: 2px solid var(--edge); }
+.lang-switch a:hover { color: var(--text); }
+.lang-switch a[aria-current] { color: var(--text); background: var(--line); }
+
 /* --- Hero --------------------------------------------------------------------------------- */
 
 .hero {
@@ -561,6 +578,7 @@ kbd {
   .hero { padding: 32px 16px 36px; }
   .top { padding: 14px 16px; }
   .header-end { gap: 14px; }
+  .lang-switch a { padding: 6px 9px; }
   nav { gap: 14px; font-size: .95rem; }
   .features, .steps { padding: 52px 16px 16px; }
   .muzio { padding: 48px 16px 60px; }

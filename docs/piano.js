@@ -99,7 +99,9 @@
   strips.forEach((strip, index) => {
     if (strip.dataset.lowest == null) strip.dataset.lowest = strip.classList.contains('keys-small') ? '60' : '48';
     strip.classList.add('playable');
-    strip.title = 'Zahraj si! (myší, prstem nebo klávesami A W S E D F T G Z H U J K)';
+    strip.title = (document.documentElement.lang || '').startsWith('en')
+      ? 'Play it! (with the mouse, a finger or the keys A W S E D F T G Y H U J K)'
+      : 'Zahraj si! (myší, prstem nebo klávesami A W S E D F T G Z H U J K)';
     strip.addEventListener('pointerdown', (e) => {
       const key = keyAt(strip, e.clientX, e.clientY);
       if (!key) return;

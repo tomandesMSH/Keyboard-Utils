@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Documentation – Keyboard Utils</title>
+  <meta name="description" content="Keyboard Utils documentation: songs, playback, learning mode, a report for the teacher, instruments (guitar, strings, flutes, clarinet, saxophone, trumpet), fingerboard, tablature and chords, tuner, writing down notes, macro keyboard and keyboard shortcuts.">
+  <link rel="alternate" hreflang="cs" href="https://tomandesmsh.github.io/Keyboard-Utils/docs/">
+  <link rel="alternate" hreflang="en" href="https://tomandesmsh.github.io/Keyboard-Utils/en/docs/">
+  <link rel="alternate" hreflang="x-default" href="https://tomandesmsh.github.io/Keyboard-Utils/docs/">
+  <link rel="icon" type="image/png" href="../../img/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- The light / dark pick, set before the page is drawn (no flash of the wrong one). See theme.js. -->
+  <script>try { const t = localStorage.getItem('theme'); if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t } catch (e) {}</script>
+  <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="../index.html">
+    <img src="../../img/logo.png" alt="" width="36" height="36">
+    <span>Keyboard Utils</span>
+  </a>
+  <div class="header-end">
+    <nav>
+      <a href="../index.html">Home</a>
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#start">Getting started</a>
+      <a href="index.html" aria-current="page">Documentation</a>
+      <a href="https://github.com/tomandesMSH/Keyboard-Utils">GitHub</a>
+    </nav>
+    <div class="lang-switch" aria-label="Language">
+      <a href="../../docs/index.html" hreflang="cs" lang="cs" title="Česky" data-keep-hash>CS</a>
+      <a href="index.html" hreflang="en" aria-current="true" title="English">EN</a>
+    </div>
+    <button class="theme-toggle" type="button" aria-label="Dark mode" aria-pressed="false">
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="doc">
+  <aside class="doc-toc" aria-label="Contents">
+    <p class="doc-toc-title">Contents</p>
+    <div class="doc-toc-group">
+      <button type="button" class="doc-toc-cat" aria-expanded="true">Getting started</button>
+      <div class="doc-toc-list">
+        <ol>
+          <li><a href="#instalace">Installation</a></li>
+          <li><a href="#skladby">Songs</a></li>
+          <li><a href="#zobrazeni">Views</a></li>
+          <li><a href="#prehravani">Playback</a></li>
+        </ol>
+      </div>
+    </div>
+    <div class="doc-toc-group">
+      <button type="button" class="doc-toc-cat" aria-expanded="true">Practising</button>
+      <div class="doc-toc-list">
+        <ol>
+          <li><a href="#smycka">Loop</a></li>
+          <li><a href="#metronom">Metronome</a></li>
+          <li><a href="#casti">Parts and volume</a></li>
+          <li><a href="#vstup">Note input</a></li>
+          <li><a href="#uceni">Learning mode</a></li>
+          <li><a href="#historie">History and the teacher's report</a></li>
+          <li><a href="#stupnice">Scales and warm-ups</a></li>
+          <li><a href="#cteni">Note-reading trainer</a></li>
+        </ol>
+      </div>
+    </div>
+    <div class="doc-toc-group">
+      <button type="button" class="doc-toc-cat" aria-expanded="true">Instruments</button>
+      <div class="doc-toc-list">
+        <ol>
+          <li><a href="#nastroje">Instruments and packs</a></li>
+          <li><a href="#hmatnik">Fingerboard: guitar and strings</a></li>
+          <li><a href="#kytara">Guitar: tablature and chords</a></li>
+          <li><a href="#dechy">Wind instruments</a></li>
+          <li><a href="#ladicka">Tuner</a></li>
+        </ol>
+      </div>
+    </div>
+    <div class="doc-toc-group">
+      <button type="button" class="doc-toc-cat" aria-expanded="true">Recording and converting</button>
+      <div class="doc-toc-list">
+        <ol>
+          <li><a href="#zapisovani">Writing down notes</a></li>
+          <li><a href="#stopy">Stems and audio to notes</a></li>
+        </ol>
+      </div>
+    </div>
+    <div class="doc-toc-group">
+      <button type="button" class="doc-toc-cat" aria-expanded="true">Controls</button>
+      <div class="doc-toc-list">
+        <ol>
+          <li><a href="#zkratky">Keyboard shortcuts</a></li>
+          <li><a href="#makro">Macro keyboard</a></li>
+        </ol>
+      </div>
+    </div>
+    <div class="doc-toc-group">
+      <button type="button" class="doc-toc-cat" aria-expanded="true">More</button>
+      <div class="doc-toc-list">
+        <ol>
+          <li><a href="#muzio">Sheet music from Muzio</a></li>
+          <li><a href="#nastaveni">Settings and data</a></li>
+          <li><a href="#problemy">Troubleshooting</a></li>
+        </ol>
+      </div>
+    </div>
+  </aside>
+
+  <main class="page doc-body">
+    <h1>Documentation</h1>
+    <p class="lead">
+      Everything Keyboard Utils does and how to use it – for piano, and for guitar, violin, viola, cello, flutes,
+      clarinet, trumpet and saxophone. The first steps are on the <a href="../index.html#start">main page</a>.
+      The app speaks English too: pick it on first start or in <b>Settings &gt; Language</b>.
+    </p>
+
+    <section id="instalace">
+      <h2>Installation</h2>
+      <p>
+        Download <a href="https://github.com/tomandesMSH/Keyboard-Utils/releases/latest/download/KeyboardUtils.exe" download>KeyboardUtils.exe</a>
+        and run it. It's a single file – nothing is installed or unpacked. It needs the
+        <a href="https://dotnet.microsoft.com/download/dotnet/10.0">.NET 10 Desktop Runtime (x64)</a> and Windows 10 or 11;
+        if .NET is missing, the app offers a download link on first start.
+      </p>
+      <p>
+        On first start it asks for the language (čeština / English); change it later in <b>Settings &gt; Language</b>.
+        If Windows says "Windows protected your PC", click <b>More info</b> and <b>Run anyway</b>
+        (<a href="../proc.html">why?</a>).
+      </p>
+      <p>
+        <b>Updates:</b> on start, at most once a day, the app asks GitHub for a new version. <br> When there is one, a
+        <b>New version … – update</b> button appears at the bottom right: it downloads it, checks that it really is the file
+        from GitHub (SHA-256 checksum), swaps the exe and restarts the app. If you have an unsaved recording, it asks first.
+        After the restart it shows a <b>What's new</b> window (any time also via <b>Help &gt; What's new…</b>).
+        If the app sits in a folder it can't write to (such as Program Files), the button just opens the download page. <br>
+        Turn the check off in <b>Settings &gt; Check for updates</b>; check by hand with
+        <b>Settings &gt; Check for updates now</b>.
+      </p>
+    </section>
+
+    <section id="skladby">
+      <h2>Songs</h2>
+      <ul>
+        <li>
+          <b>Open song ▾ &gt; From a file</b> loads <code>.mid</code> or <code>.musicxml</code>, <code>.mxl</code> files, <br>
+          for example an export from MuseScore. You can pick several files at once and switch between them <br>
+          (<b>Library &gt; Previous / Next song</b>) or with <kbd>Page Up</kbd> / <kbd>Page Down</kbd>.
+        </li>
+        <li>
+          From File Explorer: right-click a <code>.mid</code> / <code>.midi</code> / <code>.musicxml</code> / <code>.mxl</code>
+          &gt; <b>Open with &gt; Keyboard Utils</b> (the app adds itself there on first start). <br>
+          To open sheet music in Keyboard Utils with a double-click, choose <b>Choose another app</b>,
+          Keyboard Utils and <b>Always</b>. If the app is already running, the file opens in it.
+        </li>
+        <li>
+          <b>Find free sheet music…</b> searches the <a href="https://www.mutopiaproject.org/">Mutopia Project</a>: over 2000 pieces,
+          mostly classical, in the public domain or under Creative Commons licences. The chosen piece is downloaded and opened.
+        </li>
+        <li>
+          <b>My songs folder</b> (<b>Library &gt; My songs folder…</b>: choose it there): every MIDI and MusicXML in it, subfolders
+          included, is a playlist. The <b>Play the songs</b> button loads it.
+        </li>
+        <li><b>File &gt; Recent songs</b> shows the last 10 opened.</li>
+        <li>
+          <b>Library</b>: add the open song to your <b>favorites</b> or give it <b>tags</b> (separated by commas, e.g.
+          <i>jazz, hard, concert</i>). The Library then has <b>Favorite songs</b> and a list of songs for each tag; they open
+          as a playlist.
+        </li>
+        <li>
+          <b>File &gt; Save song as…</b> saves the song as MIDI or MusicXML. A song from a file keeps its tempo (and its
+          changes), time signature and key signature.
+        </li>
+        <li><b>Remove song</b> closes it. The file on disk stays.</li>
+      </ul>
+    </section>
+
+    <section id="zobrazeni">
+      <h2>Views</h2>
+      <p>The switch at the right above the song picks what's shown:</p>
+      <ul>
+        <li><b>Keyboard</b>: falling notes on a keyboard. A key lights up in its part's colour when a note lands.</li>
+        <li>
+          <b>Sheet</b>: sheet music on the piano's grand staff with the key signature. The current bar moves along in blue,
+          sounding notes take their part's colour. Click a bar to move the song there; <kbd>Ctrl</kbd> + mouse wheel zooms.
+        </li>
+        <li><b>Sheet + keyboard</b>: both side by side; the divider can be dragged.</li>
+      </ul>
+      <p>
+        Other instruments have their own view in place of the keyboard, and the switch is named after it: <b>Fingerboard</b>
+        for guitar and strings (see <a href="#hmatnik">Fingerboard</a>), <b>Fingerings</b> for the wind instruments (see
+        <a href="#dechy">Wind instruments</a>).
+      </p>
+      <ul>
+        <li><b>Keyboard size</b> (bottom right) changes the key width; a bigger window shows more octaves.</li>
+        <li><b>Key labels</b> write the note name on every white key (otherwise only on C).</li>
+        <li>In the falling notes, drag up / down to move through the song; click a key to play it.</li>
+        <li><b>Settings &gt; Dark mode</b> (<kbd>Ctrl</kbd> + <kbd>D</kbd>) switches the whole app to dark colours.</li>
+        <li><b>Settings &gt; Note names</b>: <b>school</b> (c1, f♯2, C, B1 – as taught in Czech music schools; the default) or
+          <b>scientific</b> (C4, F♯5). It applies everywhere: key labels, tuner, fingerings, note-reading trainer.</li>
+      </ul>
+      <p class="note">
+        The key signature comes from the file; when the file has none, the app guesses it from the notes. Notes are aligned
+        to sixteenths with one voice per staff, so triplets and fast ornaments look simplified.
+      </p>
+    </section>
+
+    <section id="prehravani">
+      <h2>Playback</h2>
+      <ul>
+        <li><b>Play / pause</b> (<kbd>Space</kbd>) and <b>Stop</b> (<kbd>Home</kbd>, back to the start).</li>
+        <li>
+          <b>RW / FF</b> wind while you hold them, faster the longer you hold (2× to 16×). FF during playback really
+          speeds the song up, so you hear it. The <kbd>←</kbd> / <kbd>→</kbd> arrows jump 5&nbsp;s, with <kbd>Shift</kbd> 1&nbsp;s.
+        </li>
+        <li>
+          <b>Playback speed</b> 25–200&nbsp;%: the slider, the exact value in the box, the arrows next to it,
+          or <kbd>↑</kbd> / <kbd>↓</kbd> by 5&nbsp;%. The round arrow (<kbd>R</kbd>) goes back to 100&nbsp;%.
+        </li>
+        <li>Sound goes to the MIDI output chosen in <b>Settings &gt; MIDI output</b> (the default is the Windows synthesizer).
+          <b>Keyboard Utils piano</b> sounds better: a recording of a real upright piano (FreePats, free to share), downloaded once,
+          about 45&nbsp;MB. Remove it in the same menu. Other instruments use their own pack (see <a href="#nastroje">Instruments and packs</a>).</li>
+      </ul>
+    </section>
+
+    <section id="smycka">
+      <h2>Loop</h2>
+      <p>Repeating a passage, such as a hard spot.</p>
+      <ol>
+        <li>Mark the passage by <b>dragging across bars in the sheet music</b>, or during playback with <b>A</b> (start = now) and <b>B</b> (end = now).</li>
+        <li>The <b>Loop</b> button (<kbd>L</kbd>) turns it on / off.</li>
+      </ol>
+      <p>
+        Playback jumps back to the start at the end of the passage. The passage is shaded in the sheet music and outlined
+        with dashes in the falling notes. In <a href="#uceni">learning mode</a> you practise just that passage, round after round.
+      </p>
+      <h3>Speeding up step by step</h3>
+      <p>
+        Get a hard spot up to tempo on its own: in the <b>Learning mode…</b> window tick <b>Speed up the loop gradually</b>
+        (only with the loop on). Start at, say, 50&nbsp;%. Each round played at <b>90&nbsp;%</b> or better makes the next one
+        <b>5&nbsp;%</b> faster, up to full tempo; the status line says "sped up to 60&nbsp;%". The speed reached stays set for
+        the next practice too.
+      </p>
+    </section>
+
+    <section id="metronom">
+      <h2>Metronome</h2>
+      <p>
+        The <b>Metronome</b> checkbox (<kbd>M</kbd>) adds a click on every beat, following the song's tempo and time signature,
+        through tempo changes, slowing down and the loop. The first beat of the bar is accented. Before playback it counts in
+        one bar; in learning mode in tempo that's the lead-in, so you come in on time.
+      </p>
+      <h3>Without a song</h3>
+      <p>
+        Under the metronome, tick <b>Without a song</b>: Play then starts just the metronome, even with no song open.
+      </p>
+      <ul>
+        <li><b>BPM</b>: the tempo, 20–300. <kbd>↑</kbd> / <kbd>↓</kbd> change it by 5.</li>
+        <li><b>Detect</b> (<kbd>T</kbd>): click in time and the app works out the tempo. Two taps are enough; it averages the last four.</li>
+        <li><b>Time signature</b>: 2/4, 3/4, 4/4, 5/4 or 6/8. In 6/8 it clicks eighths and the BPM is the dotted quarter.</li>
+        <li>The arrow next to Metronome hides the options; the metronome stays on.</li>
+      </ul>
+      <p class="note">With stems the metronome only plays without a song (stems are audio recordings; the metronome plays through MIDI).</p>
+    </section>
+
+    <section id="casti">
+      <h2>Parts and volume</h2>
+      <p>
+        The <b>Parts / instruments</b> panel on the right: a checkbox turns a part off (say, the hand you'll play yourself),
+        the slider changes its volume.
+      </p>
+    </section>
+
+    <section id="vstup">
+      <h2>Note input</h2>
+      <p>In <b>Settings &gt; Note input</b> choose where the app gets what you play:</p>
+      <ul>
+        <li>
+          <b>MIDI</b>: a digital piano or MIDI keys over USB. The most precise; it hears chords too.
+        </li>
+        <li>
+          <b>Microphone (acoustic instrument)</b>: recognises the pitch from the sound – piano and other instruments (see
+          <a href="#nastroje">Instruments</a>). Before first use open <b>Settings &gt; Microphone and sensitivity…</b>, stay quiet
+          for a moment, click <b>Measure noise</b> and play a few notes. If the app reacts to noise, move the threshold to the right.
+        </li>
+        <li><b>Computer sound</b>: listens to what the computer plays (YouTube, Spotify…), without the app's own sound.</li>
+        <li><b>Clicking the on-screen keyboard</b>: a clicked key counts as played. For trying it out without an instrument.</li>
+      </ul>
+      <p>The <b>Listen</b> button (<kbd>F7</kbd>) turns listening on: sounding keys light up orange.</p>
+      <p class="note">
+        From sound the app hears one note at a time (except chord checking in learning mode) and can't recognise the lowest
+        notes below F1.
+      </p>
+    </section>
+
+    <section id="uceni">
+      <h2>Learning mode</h2>
+      <p><b>Learning mode…</b> (<kbd>F5</kbd>): choose what you play (say, just the right hand), the mode and the speed.</p>
+      <ul>
+        <li><b>Wait for note</b>: the song stops at the next note until you play it right.</li>
+        <li><b>In tempo</b>: the song keeps going; a note counts when you play it on time (±0.25&nbsp;s). The other parts can play as accompaniment.</li>
+      </ul>
+      <p>
+        The keys to play light up light blue; a note played right turns green, a mistake red – in the falling notes and in the
+        sheet music.
+      </p>
+      <p>
+        With the microphone or computer sound, <b>Check every note of a chord</b> is on: a chord counts once all of it sounds.
+        If the app doesn't hear some note, turn the option off and one right note is then enough for a chord.
+      </p>
+      <p>
+        At the end (or after <b>End learning</b> / <b>Stop</b>) you get a score: the percentage of right notes, wrong keys,
+        missed notes, the time, last time's result, the best result and a chart of recent attempts. <b>Try again</b> (<kbd>Enter</kbd>)
+        starts another attempt with the same settings.
+      </p>
+      <h3>Record my playing</h3>
+      <p>
+        In the Learning mode window tick <b>Record my playing</b>. With the microphone the sound is recorded, with MIDI keys or
+        clicking the notes played (a loop is recorded whole, every round). The score then has <b>▶ Listen back</b> and
+        <b>Save the recording</b> (MP3, or WAV, or MIDI to <code>Documents\Keyboard Utils\Nahrávky</code>). An audio recording
+        trims the silence at the start and end by itself, and is boosted when you played quietly. Computer sound isn't recorded
+        (it would include the accompaniment). A recording is at most 30&nbsp;minutes.
+      </p>
+    </section>
+
+    <section id="historie">
+      <h2>Practice history and the teacher's report</h2>
+      <p>
+        Every attempt in learning mode (and every round of a loop) is saved with the song. <b>Practice &gt; Practice history…</b>
+        shows a chart and a list of all attempts: date, percentage, speed, mode, parts and passage.
+      </p>
+      <h3>Hard spots</h3>
+      <p>
+        For each attempt the app remembers which bars had mistakes. From the last five attempts (newer ones count more) it
+        picks the worst spots and joins neighbouring bars with mistakes, at most 4 bars:
+      </p>
+      <ul>
+        <li>the score after learning and the history show a line <b>Most mistakes: bars 12–13, 27</b>;</li>
+        <li>in the sheet music those bars get a red circle with the number of mistakes;</li>
+        <li>the <b>Practise bars 12–13</b> button in the score (or the <kbd>H</kbd> key, or the macro action
+          <b>Practise the hard spot</b>) sets a loop on them and starts learning.</li>
+      </ul>
+      <p>Older mistakes count less and less; after five attempts without a mistake there, the mark goes away.</p>
+      <h3>Report for the teacher</h3>
+      <p>
+        <b>Practice &gt; Report for the teacher (PDF)…</b> turns the history into an overview of this week, the last 7 or 30 days,
+        this month or any period: minutes and days practised, daily goals met, a chart of minutes per day and a table of songs
+        (attempts, minutes, best and last result, speed, hard bars). At the bottom there's room for the teacher's note and
+        signature. It's saved as a PDF – email it or print it.
+      </p>
+      <h3>Daily goal and streak</h3>
+      <p>
+        The bottom right shows how many minutes you've practised today in learning mode (e.g. <b>Today 12 / 20 min · 🔥 3</b>)
+        and your streak of days in a row with the goal met. Hover over it for the last 7 days. Click the indicator to change
+        the goal (default 20&nbsp;min); 0 turns it off. Only time in learning mode counts (without pauses), free playback
+        doesn't. The streak doesn't vanish in the morning: until today's goal is met, it counts up to yesterday.
+      </p>
+    </section>
+
+    <section id="stupnice">
+      <h2>Scales and warm-ups</h2>
+      <p>
+        <b>Open song ▾ &gt; Scales and warm-ups…</b> (or in the Practice menu) creates an exercise as a song:
+      </p>
+      <ul>
+        <li>a <b>scale</b> up and down; for minor keys choose harmonic, melodic or natural,</li>
+        <li>a <b>broken chord</b> (arpeggio) of the tonic,</li>
+        <li>a <b>chromatic scale</b> (in semitones),</li>
+        <li>a <b>T–S–D–T cadence</b> (chords in the right hand, bass notes in the left),</li>
+        <li><b>chord inversions</b> (root position, 1st and 2nd inversion and back),</li>
+        <li><b>Hanon No. 1</b>: a finger warm-up up the degrees of the key.</li>
+      </ul>
+      <p>
+        Choose the key (12 major, 10 minor), the range of 1 or 2 octaves, the hand (right, left, both), the tempo and quarter
+        or eighth notes. The exercise has bars and a key signature, so everything works on it as on a song:
+        <a href="#uceni">learning mode</a>, the <a href="#smycka">loop</a> and speeding up, the metronome and the history.
+        Save it with <b>File &gt; Save song as…</b>.
+      </p>
+    </section>
+
+    <section id="cteni">
+      <h2>Note-reading trainer</h2>
+      <p>
+        <b>Practice &gt; Note-reading trainer…</b> shows a note on the staff and you click its name or press the letter on the
+        keyboard (C D E F G A B; H works too). With <b>Microphone</b> ticked (off by default; following your note input it may
+        also say MIDI or Computer sound) you can also play it on your instrument – then the exact pitch and octave must match;
+        the buttons judge only the name. After a wrong answer the right note is shown and played.
+      </p>
+      <ul>
+        <li><b>Levels:</b> treble clef (c1–g2), bass clef (F–c1), both clefs, advanced (ledger lines, sharps and flats)
+          and <b>intervals</b> – two notes above each other, answer with a button or the digits 2–8 (2 = second … 8 = octave).</li>
+        <li>A <b>time limit</b> of 5, 3 or 2&nbsp;s per note (or none); when it runs out, it counts as a mistake.</li>
+        <li>A round has 20 notes; at the end you see how many were right, the average time per note, the longest run and the best result for the level.</li>
+        <li>Notes you get wrong come up more often – in later rounds too; at the end of the round you see which they were.</li>
+      </ul>
+    </section>
+
+    <section id="nastroje">
+      <h2>Instruments and packs</h2>
+      <p>
+        Your <b>instruments are tabs at the top</b>, like in a browser (e.g. Piano | Guitar | Violin). <b>+</b> adds another,
+        <b>×</b> (or the middle mouse button) closes a tab, and you reorder them by dragging. To choose from: piano, guitar,
+        violin, viola, cello, flute, soprano recorder, clarinet in B♭, trumpet in B♭ and alto saxophone in E♭. Switching the
+        tab switches the instrument; the open song stays.
+      </p>
+      <p>
+        <b>The piano is always in the app; the other instruments are downloadable packs</b> (3–14&nbsp;MB) with the
+        instrument's real sound – recordings from <a href="https://freepats.zenvoid.org">FreePats</a> and
+        <a href="https://versilian-studios.com/vsco-community/">VSCO 2 Community Edition</a> (Versilian Studios), both in the
+        public domain (CC0). A pack is downloaded when you first add the instrument (a tab that still needs it has ⤓ before
+        its name). <b>Settings &gt; Instruments (download, remove)…</b> downloads several at once or deletes ones you don't
+        need. For an instrument other than the piano:
+      </p>
+      <ul>
+        <li>instead of the keyboard there's a <a href="#hmatnik">fingerboard</a> (guitar, violin, viola, cello) or
+          <a href="#dechy">fingering charts</a> (recorder, flute, clarinet, saxophone, trumpet);</li>
+        <li><b>music on a single staff in the instrument's clef</b>: treble, guitar (with the 8 under the clef), alto, bass.
+          Transposing instruments see the music as they read it: clarinet and trumpet a tone higher, alto saxophone a sixth –
+          key signature included (a song in F major is in G major for the clarinet);</li>
+        <li><b>the instrument's sound</b> in playback and when you play the fingerboard or the fingering chart – from its
+          pack (violin, viola and cello also have pizzicato);</li>
+        <li><b>the microphone</b> allows for the bow and the breath: notes follow without a new attack (legato) and vibrato
+          stays one note. Notes outside the instrument's range are ignored;</li>
+        <li>the <b>note-reading trainer</b> has levels for your instrument (the beginning without accidentals and the full
+          range with sharps and flats) plus the alto and tenor clefs. A played note is judged by how it sounds – on the
+          clarinet you play a written D and it's right;</li>
+        <li><b>scales and warm-ups</b>: scale, chromatic scale, broken chord and scale in thirds, single-line from the
+          instrument's lowest tonic. Choose the key as you read it; when two octaves don't fit the range, it's one;</li>
+        <li><b>Save song as</b> MusicXML writes the instrument's part with its clef and transposition. And the other way round:
+          MusicXML with a transposition (a clarinet or trumpet part from MuseScore) loads at the right pitch;</li>
+        <li>a <b>Tuner</b> button right next to Listen and Learning mode.</li>
+      </ul>
+    </section>
+
+    <section id="hmatnik">
+      <h2>Fingerboard: guitar and strings</h2>
+      <p>
+        The guitar (6 strings, frets 0–12) and the violin, viola and cello (4 strings, fingers for 1st position, 0 = open
+        string) have a fingerboard instead of the keyboard. It lights up where to play: in the part's colour during playback,
+        in learning mode blue for what to play, orange for what the app hears and red for a mistake. Rings show the notes
+        coming up.
+      </p>
+      <ul>
+        <li><b>Left hand:</b> click a fret (finger place) to "press" a string; click again to let go; <b>×</b> releases them all.</li>
+        <li><b>Guitar:</b> on the right you <b>strum</b> by dragging the mouse across the sound hole (a click = one string, a faster
+          drag = louder), so you can play chords too.</li>
+        <li><b>Violin, viola, cello:</b> on the right you <b>bow</b> along a string – the note sounds as long as you drag; a short click is pizzicato.</li>
+        <li><b>While a song plays</b> the strings move with it: the guitar's are plucked from the fret where the note is played, and
+          a bowed string moves for as long as each note lasts.</li>
+      </ul>
+    </section>
+
+    <section id="kytara">
+      <h2>Guitar: tablature and chords</h2>
+      <ul>
+        <li><b>Tablature (TAB) under the notes</b>: fret numbers on six lines, showing which string each note is played on (top
+          line = the thinnest string). Chord notes go on different strings and the hand stays in its position; strings written in
+          MusicXML are kept, and saved MusicXML includes them. The fingerboard shows the notes in the same places. Turn it off in
+          <b>Settings &gt; Guitar: tablature under the notes</b>.</li>
+        <li><b>Chord symbols above the notes</b> (C, Am, G7, F/C…): from MusicXML for any instrument, and for the guitar also
+          guessed from the notes when the file has none (clear chords only; a melody on its own gets none). The chord sounding
+          now is highlighted. Click a symbol to see the chord's shape and hear it. Turn it off in
+          <b>Settings &gt; Chord symbols above the notes</b>.</li>
+        <li><b>Practice &gt; Chord library (guitar)…</b>: the first chords a guitarist learns (C, D, E, F, G, A, Dm, Em, Am, Bm,
+          sevenths, maj7, sus) as songbook boxes – finger numbers, × not played, ○ open string. Click one to hear it; with the
+          guitar it's pressed and strummed on the fingerboard.</li>
+      </ul>
+    </section>
+
+    <section id="dechy">
+      <h2>Wind instruments</h2>
+      <p>
+        The recorder, flute, clarinet, alto saxophone and trumpet have the instrument drawn across the whole panel instead of
+        the keyboard: the recorder with its head, window and double holes (the thumb hole is at the back, so it's drawn under
+        it), the flute with its keys, levers and foot joint, the black clarinet with silver rings, the brass saxophone with key
+        cups and pearl touches, the trumpet with its valves. The small keys (thumb, register, octave, palm, little-finger and
+        side keys) are under the instrument with their names. On the left is the name of the note you play (in learning mode,
+        the one to play), big, and its fingering lights up on the instrument. Click the name to hear the note.
+      </p>
+      <h3>Falling bars</h3>
+      <p>
+        Above each hole and key is its lane (the thumb and the levers have theirs too), and the song falls down the lanes like
+        the falling notes onto the keyboard:
+      </p>
+      <ul>
+        <li><b>a bar lands on the line above the instrument = cover the hole</b> (press the key, the valve),</li>
+        <li><b>the bar ends = lift the finger</b>; the bar's length = how long to hold,</li>
+        <li>when a finger stays down over several notes, the bar continues; a repeated note has a small gap,</li>
+        <li>a half-covered hole (pinched thumb, one of the double holes) has a half-width bar,</li>
+        <li>left of the lanes are the names of the notes coming; you see 3&nbsp;s ahead, so you see the tempo too.</li>
+      </ul>
+      <h3>Play with the mouse</h3>
+      <ul>
+        <li>A click covers a hole / presses a key or valve. On the recorder the thumb and the double holes go
+          covered → half → open.</li>
+        <li>Your fingers light up orange, green where they match the note; a blue ring = cover this hole too.</li>
+        <li>Hold <b>Blow</b> to hear the fingering's note – in learning mode it counts as played. <b>Harder</b>: the flute an
+          octave up (overblowing), the trumpet's next partial. A fingering that isn't in the chart is reported.</li>
+        <li><b>× release fingers</b> goes back to showing the note's fingering.</li>
+      </ul>
+      <h3>Fingerings</h3>
+      <ul>
+        <li><b>Recorder (soprano)</b>: written c1–d3 (sounds an octave higher), <b>baroque</b> (default) or <b>German</b>
+          fingering – <b>Settings &gt; Recorder fingering</b>. They differ on F, F♯, G♯ and B♭.</li>
+        <li><b>Flute</b>: the basic fingerings of the Boehm flute, c1–a3; the same fingering an octave up is overblown.</li>
+        <li><b>Trumpet in B♭</b>: valves for written f♯ – c3; the same valves play several notes, the embouchure picks (Blow / Harder).</li>
+        <li><b>Clarinet in B♭</b>: written e – c3; from b1 up, the register key (thumb) and the fingering a twelfth lower.</li>
+        <li><b>Alto saxophone in E♭</b>: written b♭ – f3; from d2 the octave key and the fingering an octave lower, at the top the palm keys.</li>
+        <li>The flute, clarinet and saxophone fingerings are the basic fingerings of the <a href="http://www.wfg.woodwind.org/">Woodwind Fingering Guide</a>.</li>
+      </ul>
+    </section>
+
+    <section id="ladicka">
+      <h2>Tuner</h2>
+      <p>
+        <b>Practice &gt; Tuner…</b> (or the <b>Tuner</b> button, the <b>Tuner</b> macro action) listens to the microphone and shows
+        the note, a needle from −50 to +50 cents (green when in tune – within ±5 cents), the frequency and, for transposing
+        instruments, the written note. For the guitar, violin, viola and cello it shows the strings and lights up the one you're
+        tuning (even when it's far off), with the advice <i>tighten / loosen</i>. Click a string to hear it. The a1 reference can be
+        set to 430–446&nbsp;Hz (orchestras often use 442). The tuner sits beside the window, so you can tune and play straight away.
+      </p>
+    </section>
+
+    <section id="zapisovani">
+      <h2>Writing down notes</h2>
+      <p>
+        <b>Write notes</b> (<kbd>F6</kbd>): play and the app writes down what it hears. After <b>Stop recording</b> the recording
+        opens as a song. Play it back, and if you like it, save it with the <b>Save</b> button (next to Write notes) as:
+      </p>
+      <ul>
+        <li><b>MIDI</b>: exactly what you played,</li>
+        <li>
+          <b>MusicXML</b> for MuseScore: notes aligned to sixteenths on the grand staff. The app asks for the tempo of the
+          notation; set it to roughly what you played at.
+        </li>
+      </ul>
+      <p><kbd>Ctrl</kbd> + <kbd>R</kbd> saves the recording straight away as MIDI to <code>Documents\Keyboard Utils\Nahrávky</code>, without a dialog.</p>
+      <h3>Editing a recording</h3>
+      <p>
+        Before you save a recording you can fix wrong notes in the falling notes – no need to play it again:
+      </p>
+      <ul>
+        <li><b>Select:</b> a click selects a note, <kbd>Shift</kbd> + click adds / removes another, dragging across empty space selects several.</li>
+        <li><b>Move:</b> drag the selected notes with the mouse, or move them with <kbd>←</kbd> / <kbd>→</kbd> (by 20&nbsp;ms).</li>
+        <li><b>Pitch:</b> <kbd>↑</kbd> / <kbd>↓</kbd> by a semitone.</li>
+        <li><b>Delete:</b> <kbd>Delete</kbd>.</li>
+        <li><b>Exactly:</b> a double-click on a note opens its pitch, start and length in milliseconds.</li>
+        <li><b>Undo / redo:</b> <kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Ctrl</kbd> + <kbd>Y</kbd>.</li>
+      </ul>
+      <p class="note">Only a fresh, unsaved recording can be edited. Saving it or opening another song ends the editing.</p>
+    </section>
+
+    <section id="stopy">
+      <h2>Stems and turning audio into notes</h2>
+      <p><b>Import stems…</b> offers two options:</p>
+      <ul>
+        <li>
+          <b>As accompaniment</b>: choose a folder of stems (<code>.wav</code>) and the original recording plays; each stem can be
+          turned off or down. The <b>Notes</b> button on a stem detects its notes and shows them alongside the recording. Then
+          turn the stem off and play it yourself with the original, in learning mode too.
+        </li>
+        <li><b>Detect notes from music</b>: turns an audio file (WAV, MP3, FLAC, AIFF) into notes as a new song.</li>
+      </ul>
+      <p>
+        Stems from FL Studio: <b>Export &gt; WAV File &gt; Miscellaneous &gt; "Split mixer tracks"</b>. Links to stems of finished
+        songs are right in the dialog.
+      </p>
+      <h3>Add-on: chord detection</h3>
+      <p>
+        Without the add-on, the conversion hears one note at a time. An optional add-on, the
+        <a href="https://github.com/spotify/basic-pitch">Basic Pitch</a> neural network from Spotify (about 5&nbsp;MB), recognises
+        chords too. The app offers it on the first conversion; download or remove it any time in
+        <b>Settings &gt; Chord detection (add-on)…</b>.
+      </p>
+      <p class="note">With stems, playback and learning in tempo run at 100&nbsp;% only: the original recording can't be slowed down.</p>
+    </section>
+
+    <section id="zkratky">
+      <h2>Keyboard shortcuts</h2>
+      <p>They work in the main window; the app lists them too with <kbd>F1</kbd>.</p>
+      <table class="doc-table">
+        <thead><tr><th>Key</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td><kbd>Space</kbd></td><td>play / pause</td></tr>
+          <tr><td><kbd>Home</kbd></td><td>stop (back to the start)</td></tr>
+          <tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>5&nbsp;s back / forward (1&nbsp;s with <kbd>Shift</kbd>)</td></tr>
+          <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>speed +5&nbsp;% / −5&nbsp;% (metronome without a song: tempo ±5)</td></tr>
+          <tr><td><kbd>R</kbd></td><td>speed back to 100&nbsp;%</td></tr>
+          <tr><td><kbd>L</kbd></td><td>loop on / off</td></tr>
+          <tr><td><kbd>A</kbd> / <kbd>B</kbd></td><td>loop start / end at the current position</td></tr>
+          <tr><td><kbd>M</kbd></td><td>metronome</td></tr>
+          <tr><td><kbd>T</kbd></td><td>metronome without a song: tempo detection</td></tr>
+          <tr><td><kbd>H</kbd></td><td>practise the hard spot (loop + learning)</td></tr>
+          <tr><td><kbd>K</kbd></td><td>key labels</td></tr>
+          <tr><td><kbd>V</kbd></td><td>switch the view (keyboard / sheet / both)</td></tr>
+          <tr><td><kbd>+</kbd> / <kbd>−</kbd></td><td>notes bigger / smaller</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Ctrl</kbd> + <kbd>Y</kbd></td><td>undo / redo when editing a recording</td></tr>
+          <tr><td><kbd>F5</kbd> / <kbd>F6</kbd> / <kbd>F7</kbd></td><td>learning mode / write notes / listen</td></tr>
+          <tr><td><kbd>Page Up</kbd> / <kbd>Page Down</kbd></td><td>previous / next song</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>O</kbd> / <kbd>S</kbd></td><td>open / save a song</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>R</kbd></td><td>save the recording as MIDI without a dialog</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>D</kbd></td><td>dark / light mode</td></tr>
+          <tr><td><kbd>F1</kbd></td><td>list of shortcuts</td></tr>
+        </tbody>
+      </table>
+      <p class="note">While you type in the speed box, keys go to the box.</p>
+    </section>
+
+    <section id="makro">
+      <h2>Macro keyboard</h2>
+      <p>
+        A second keyboard (a programmable one such as SayoDevice, an old keyboard, a numeric keypad…) can control the app, so
+        you can run all of it without the computer keyboard and mouse – your hands stay at the instrument. Its keys don't reach
+        Windows; the main keyboard types normally.
+      </p>
+      <h3>Setting it up</h3>
+      <ol>
+        <li>
+          <b>Edit &gt; Macro keyboard… &gt; Set up macro keyboard…</b> The first time, the app downloads a small module. If the
+          <b>Interception</b> driver is missing, it offers to install it (administrator rights) and restart the computer.
+        </li>
+        <li>Press a key on the keyboard you want to use and confirm with <b>Use this keyboard</b>.</li>
+        <li><b>Add key…</b>, press a key on the macro keyboard and pick an action.</li>
+      </ol>
+      <h3>Actions</h3>
+      <ul>
+        <li><b>Playback</b>: play / pause, stop, move by 5 or 1&nbsp;s, volume of all parts.</li>
+        <li><b>Metronome</b>: on / off, without a song, tempo detection, next time signature.</li>
+        <li><b>Loop and speed</b>: loop, start, end, slower / faster / 100&nbsp;%.</li>
+        <li><b>Songs</b>: next / previous, my songs folder, recent songs, open song.</li>
+        <li>
+          <b>Learning and recording</b>: learning mode and its settings without the dialog (wait / in tempo, what you play, speed),
+          practice history, write notes, save the recording, listen, note input.
+        </li>
+        <li><b>View</b>: switch the view, note and keyboard size, key labels, dark mode, window to the front / minimise.</li>
+        <li>
+          <b>Dialogs and windows</b>: <kbd>Enter</kbd>, <kbd>Esc</kbd>, <kbd>Tab</kbd>, arrows and Space, so you can answer every
+          dialog in the app (e.g. the score: Enter = try again, Esc = close).
+        </li>
+        <li><b>Parts of the song</b>: turn each part off / on and its volume ±10&nbsp;%.</li>
+        <li><b>Note</b>: play a chosen note.</li>
+      </ul>
+      <h3>Knob</h3>
+      <p>
+        A rotary knob on a macro keyboard sends one key over and over as it turns. Pick a stepping action (move, speed, volume,
+        note size, next song, arrows…) and leave <b>Knob: turn it the other way to set the opposite direction</b> ticked; then
+        just turn the knob the other way. Fast turning adds up into one step (5 clicks = a 25&nbsp;s move); when moving through
+        songs, only the one you stop on is loaded.
+      </p>
+      <p>
+        <b>Big messages:</b> what a macro key or shortcut did shows for a moment in big letters in the middle of the window,
+        readable from the instrument. Turn them off in <b>Settings &gt; Big messages</b>.
+      </p>
+      <p>
+        Save the key assignments with <b>Export…</b> and load them with <b>Import…</b>. <b>Controls on</b> temporarily turns
+        capturing off; the macro keyboard then types normally.
+      </p>
+      <p class="note">
+        Interception is a kernel-level driver; anti-cheats such as Vanguard (Valorant) or FACEIT may block it. Uninstall it by hand
+        with <code>install-interception.exe /uninstall</code> (as administrator) and a restart.
+      </p>
+    </section>
+
+    <section id="muzio">
+      <h2>Sheet music from Muzio</h2>
+      <p>
+        A teacher can attach a piece's sheet music (MIDI or MusicXML) to an assignment in
+        <a href="https://keyboardheromuzio.vercel.app/">Muzio</a>. Click <b>Open in Keyboard Utils</b> on the assignment: the app
+        starts (or comes to the front if it's running) with that piece. The first time, the browser asks whether it may open
+        Keyboard Utils &ndash; allow it. Practise the piece, slowed down, in a loop or in learning mode. Once you can play it,
+        record the assignment in Muzio as usual.
+      </p>
+      <p>
+        If nothing happens after the click, you don't have Keyboard Utils 1.1 or newer (or haven't run it yet &ndash; it
+        registers the links on first start). Then download the file by clicking its name and open it with
+        <b>Open song ▾ &gt; From a file</b>. Sheet music from Muzio is saved to <code>%LOCALAPPDATA%\KeyboardUtils\Muzio</code>;
+        the app downloads only MIDI and MusicXML from Muzio's storage, at most 5&nbsp;MB.
+      </p>
+      <p>
+        The <b>Muzio</b> menu in the app: <b>Muzio…</b> says what Muzio is and opens it in the browser. If you don't use Muzio,
+        hide the menu with <b>Hide the Muzio menu</b>; <b>Settings &gt; Show the Muzio menu</b> brings it back.
+      </p>
+    </section>
+
+    <section id="nastaveni">
+      <h2>Settings and data</h2>
+      <ul>
+        <li>Settings: <code>%APPDATA%\KeyboardUtils\config.json</code></li>
+        <li>Practice history: <code>%APPDATA%\KeyboardUtils\history.json</code></li>
+        <li>Add-ons (macro keyboard, chords, piano sound): <code>%APPDATA%\KeyboardUtils\modules</code></li>
+        <li>Instrument packs: <code>%APPDATA%\KeyboardUtils\instruments</code></li>
+        <li>Recordings saved without a dialog: <code>Documents\Keyboard Utils\Nahrávky</code></li>
+      </ul>
+      <p>
+        The app only goes online to GitHub (updates, add-ons, instrument packs), to the Mutopia Project when you search for
+        sheet music, and to Muzio when you open sheet music from it. It sends nothing about you.
+      </p>
+    </section>
+
+    <section id="problemy">
+      <h2>Troubleshooting</h2>
+      <ul>
+        <li><b>Windows won't run the app</b>: see <a href="../proc.html">Why Windows says it "protected your PC"</a>.</li>
+        <li><b>No sound</b>: check <b>Settings &gt; MIDI output</b> and the parts' volume in the panel on the right.</li>
+        <li><b>The microphone doesn't react, or reacts to noise</b>: <b>Settings &gt; Microphone and sensitivity…</b>, measure the noise and move the threshold.</li>
+        <li><b>The new version doesn't show</b>: close all Keyboard Utils windows and start it again.</li>
+        <li><b>An instrument won't download</b>: check your internet connection and try again by clicking its tab or in
+          <b>Settings &gt; Instruments (download, remove)…</b>. The app checks a downloaded pack; a damaged one isn't used.</li>
+        <li>
+          <b>The macro keyboard stopped working after re-plugging USB</b>: Interception has 10 keyboard slots; after many
+          unplugs a computer restart helps.
+        </li>
+      </ul>
+      <p>
+        Found a bug or missing something? <a href="https://github.com/tomandesMSH/Keyboard-Utils/issues/new">Write it on GitHub</a>, or,
+        if you don't have GitHub, send it <a href="https://tomandes.eu/report/?app=keyboard-utils">here</a> (in the app:
+        <b>Help &gt; Report a bug…</b>).
+      </p>
+    </section>
+  </main>
+</div>
+
+<footer>
+  <div class="keys keys-small" aria-hidden="true"></div>
+  <p>
+    Keyboard Utils · <a href="https://tomandes.eu/">tomandesMSH</a> ·
+    <a href="https://github.com/tomandesMSH/Keyboard-Utils">GitHub</a> ·
+    <a href="https://github.com/tomandesMSH/Keyboard-Utils/releases">All versions</a>
+  </p>
+</footer>
+<script src="../../theme.js"></script>
+<script src="../../docs/docs.js"></script>
+</body>
+</html>
