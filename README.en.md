@@ -184,7 +184,7 @@ streak of days in a row with the goal met (hover for the last 7 days). Click the
 
 ### Sheet music from Muzio
 
-A task with attached sheet music in [Muzio](https://keyboardheromuzio.vercel.app/) has an **Open in Keyboard
+A task with attached sheet music in [Muzio](https://kh.tomandes.eu/login) has an **Open in Keyboard
 Utils** button. On start the app registers `keyboardutils://` links (just for you, without admin rights); the link
 carries a short-lived signed link to the file. The app downloads only MIDI / MusicXML from Muzio's storage
 (`*.supabase.co`, https, at most 5 MB) to `%LOCALAPPDATA%\KeyboardUtils\Muzio` and opens it. If it's already running,

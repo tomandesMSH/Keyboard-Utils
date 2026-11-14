@@ -821,7 +821,7 @@ sealed partial class MainForm : AntdUI.Window
     }
 
     /// <summary>Linking the app to a Muzio account isn't there yet - says so.</summary>
-    const string MuzioUrl = "https://keyboardheromuzio.vercel.app/";
+    const string MuzioUrl = "https://kh.tomandes.eu/login";
 
     /// <summary>Muzio > Muzio...: what Muzio is, and a way there.</summary>
     void ShowAboutMuzio()

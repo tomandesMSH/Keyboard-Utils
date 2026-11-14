@@ -177,7 +177,7 @@ se splněným cílem (najetím myší posledních 7 dní). Cíl (výchozí 20 mi
 
 ### Noty z Muzia
 
-U úkolu s přiloženými notami v [Muziu](https://keyboardheromuzio.vercel.app/) je tlačítko **Otevřít v Keyboard
+U úkolu s přiloženými notami v [Muziu](https://kh.tomandes.eu/login) je tlačítko **Otevřít v Keyboard
 Utils**. Appka si při spuštění zaregistruje odkazy `keyboardutils://` (jen pro tebe, bez práv správce); odkaz nese
 krátce platný podepsaný odkaz na soubor. Appka stáhne jen MIDI / MusicXML z úložiště Muzia (`*.supabase.co`, https,
 nejvýš 5 MB) do `%LOCALAPPDATA%\KeyboardUtils\Muzio` a otevře ho. Když už běží, předá jí ho nově spuštěná kopie
