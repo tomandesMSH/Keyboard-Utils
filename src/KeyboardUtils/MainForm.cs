@@ -821,7 +821,7 @@ sealed partial class MainForm : AntdUI.Window
     }
 
     /// <summary>Linking the app to a Muzio account isn't there yet - says so.</summary>
-    const string MuzioUrl = "https://kh.tomandes.eu/login";
+    const string MuzioUrl = "http://muzio.tomandes.eu/";
 
     /// <summary>Muzio > Muzio...: what Muzio is, and a way there.</summary>
     void ShowAboutMuzio()
