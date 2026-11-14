@@ -17,7 +17,7 @@ played as MIDI / MusicXML and turns an audio track into notes. Optionally it can
 **Ready-made app:** download [KeyboardUtils.exe](https://github.com/tomandesMSH/Keyboard-Utils/releases/latest/download/KeyboardUtils.exe)
 from the latest release and run it – it's a single file, nothing is installed or unpacked. It needs the .NET 10
 Desktop Runtime (x64); if it's missing, the app offers a download link on first start. Website:
-[tomandesmsh.github.io/Keyboard-Utils](https://tomandesmsh.github.io/Keyboard-Utils/).
+[tomandes.eu/Keyboard-Utils](https://tomandes.eu/Keyboard-Utils/).
 
 From source:
 
@@ -348,7 +348,7 @@ add to them). The keyboard choice isn't exported; it applies only to that comput
 Settings are saved to `%APPDATA%\KeyboardUtils\config.json`.
 
 **Help > About** shows the version and links to the source code, the website and the
-[documentation](https://tomandesmsh.github.io/Keyboard-Utils/docs/); **Help > Report a bug...** opens
+[documentation](https://tomandes.eu/Keyboard-Utils/docs/); **Help > Report a bug...** opens
 [a form on tomandes.eu](https://tomandes.eu/report/?app=keyboard-utils) with the version filled in – no GitHub account
 needed; the report shows up among the [issues](https://github.com/tomandesMSH/Keyboard-Utils/issues).
 

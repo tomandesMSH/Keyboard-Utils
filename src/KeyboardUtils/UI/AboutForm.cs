@@ -12,8 +12,8 @@ sealed class AboutForm : AntdUI.Window
     /// </summary>
     public static string IssuesUrl => $"https://tomandes.eu/report/?app=keyboard-utils&version={UpdateChecker.CurrentVersion.ToString(3)}";
     const string AuthorUrl = "https://tomandes.eu";
-    const string WebUrl = "https://tomandesmsh.github.io/Keyboard-Utils/";
-    const string DocsUrl = "https://tomandesmsh.github.io/Keyboard-Utils/docs/";
+    const string WebUrl = "https://tomandes.eu/Keyboard-Utils/";
+    const string DocsUrl = "https://tomandes.eu/Keyboard-Utils/docs/";
 
     public AboutForm()
     {

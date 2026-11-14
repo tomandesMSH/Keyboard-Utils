@@ -15,7 +15,7 @@ a převod zvukové stopy na noty. Volitelně se dá ovládat druhou klávesnicí
 
 **Hotová appka:** stáhni [KeyboardUtils.exe](https://github.com/tomandesMSH/Keyboard-Utils/releases/latest/download/KeyboardUtils.exe)
 z poslední verze a spusť ho – je to jeden soubor, nic se neinstaluje ani nerozbaluje. Potřebuje .NET 10 Desktop
-Runtime (x64); když chybí, appka napoprvé nabídne odkaz ke stažení. Web: [tomandesmsh.github.io/Keyboard-Utils](https://tomandesmsh.github.io/Keyboard-Utils/).
+Runtime (x64); když chybí, appka napoprvé nabídne odkaz ke stažení. Web: [tomandes.eu/Keyboard-Utils](https://tomandes.eu/Keyboard-Utils/).
 
 Ze zdrojáků:
 
@@ -335,7 +335,7 @@ Přiřazení kláves uložíš do souboru tlačítkem **Exportovat...** a načte
 
 Nastavení se ukládá do `%APPDATA%\KeyboardUtils\config.json`.
 
-**Nápověda > O aplikaci** ukáže verzi a odkazy na zdrojový kód, web a [dokumentaci](https://tomandesmsh.github.io/Keyboard-Utils/docs/);
+**Nápověda > O aplikaci** ukáže verzi a odkazy na zdrojový kód, web a [dokumentaci](https://tomandes.eu/Keyboard-Utils/docs/);
 **Nápověda > Nahlásit chybu...** otevře [formulář na tomandes.eu](https://tomandes.eu/report/?app=keyboard-utils)
 s vyplněnou verzí – GitHub účet není potřeba, hlášení se objeví mezi [issues](https://github.com/tomandesMSH/Keyboard-Utils/issues).
 
