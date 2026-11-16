@@ -14,6 +14,7 @@ static class Program
         if (!isFirstInstance)
         {
             // Already running: it opens the link (or just comes to the front) instead.
+            WindowFront.LetOthersComeToFront();
             ProtocolHandler.SendToRunningInstance(request ?? "");
             return;
         }

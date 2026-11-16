@@ -361,6 +361,8 @@ sealed partial class MainForm
             if (recorder != null)
                 StopCreateMode();
             SelfUpdater.Swap(exe, newExe);
+            // The new version opens the song again where it was.
+            SaveResumeState();
             try
             {
                 SelfUpdater.StartNew(exe);

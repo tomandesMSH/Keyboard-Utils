@@ -934,7 +934,7 @@ sealed partial class MainForm : AntdUI.Window
         if (WindowState == FormWindowState.Minimized)
             WindowState = FormWindowState.Normal;
         Show();
-        Activate();
+        ComeToFront();
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)

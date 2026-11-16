@@ -18,8 +18,12 @@ sealed partial class MainForm
     {
         Shown += (_, _) =>
         {
+            ComeToFront();
             if (JustUpdated)
             {
+                // A link the update was started with wins; otherwise the song from before the update.
+                if (ResumeState.Take() is { } resume && string.IsNullOrWhiteSpace(StartupRequest))
+                    Resume(resume);
                 SetStatus(T($"Aktualizováno na verzi {UpdateChecker.CurrentVersion.ToString(3)}.", $"Updated to version {UpdateChecker.CurrentVersion.ToString(3)}."));
                 // What the update brought (quietly skipped when offline).
                 _ = WhatsNewForm.ShowAsync(this, onlyWithNotes: true);
@@ -74,6 +78,56 @@ sealed partial class MainForm
         }
         if (!IsDisposed)
             OpenSongPath(path);
+    }
+
+    /// <summary>For the update's restart: the open song, where it is in it and the loop (<see cref="ResumeState"/>).</summary>
+    void SaveResumeState()
+    {
+        if (CurrentSongPath is not { } path)
+            return;
+        int index = playlist.IndexOf(path);
+        new ResumeState
+        {
+            Playlist = index >= 0 ? [.. playlist] : [path],
+            PlaylistIndex = Math.Max(0, index),
+            Seconds = PlaybackSeconds,
+            LoopStart = loopStart,
+            LoopEnd = loopEnd,
+            LoopOn = loopOn,
+        }.Save();
+    }
+
+    void Resume(ResumeState state)
+    {
+        playlist = [.. state.Playlist];
+        playlistIndex = state.PlaylistIndex;
+        LoadCurrentSong();
+        if (CurrentSongPath != state.SongPath || currentScore == null)
+            return;
+        double at = Math.Clamp(state.Seconds, 0, currentScore.DurationSeconds);
+        PlaybackSeek(at);
+        SetViewTime(at);
+        loopStart = state.LoopStart;
+        loopEnd = state.LoopEnd;
+        loopOn = state.LoopOn;
+        ApplyLoop();
+    }
+
+    /// <summary>
+    /// Started from Muzio (or after the language was picked on the first start), the window can open behind the
+    /// browser: Windows doesn't let a window that comes up a moment later take the front. Put it on top once - the
+    /// TopMost flip raises it even when Windows refuses to activate it - and flash the taskbar button if it still
+    /// isn't the active one.
+    /// </summary>
+    void ComeToFront()
+    {
+        if (WindowState == FormWindowState.Minimized)
+            WindowState = FormWindowState.Normal;
+        TopMost = true;
+        TopMost = false;
+        Activate();
+        if (Handle != WindowFront.Foreground)
+            WindowFront.Flash(Handle);
     }
 
     void OpenSongPath(string path)
