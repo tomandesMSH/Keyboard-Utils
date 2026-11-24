@@ -21,10 +21,10 @@ sealed class MuzioInfoForm : AntdUI.Window
             Dock = DockStyle.Fill,
             Padding = new Padding(24, 12, 24, 8),
             TextAlign = ContentAlignment.TopLeft,
-            Text = T("Muzio je webová aplikace ZUŠ Moravský Krumlov pro žáky a učitele: učitel zadává úkoly a noty, žák cvičí, "
+            Text = T("Muzio je webová aplikace pro žáky ZUŠ a učitele: učitel zadává úkoly a noty, žák cvičí, "
                      + "nahrává se a sbírá body a odznaky za každodenní cvičení.\n\n"
                      + "Noty z úkolu v Muziu otevřeš v Keyboard Utils tlačítkem „Otevřít v Keyboard Utils“.",
-                     "Muzio is the web app of ZUŠ Moravský Krumlov for students and teachers: teachers set assignments and scores, students "
+                     "Muzio is the web app for music school students and teachers: teachers set assignments and scores, students "
                      + "practise, record themselves and earn points and badges for practising every day.\n\n"
                      + "Open an assignment's score in Keyboard Utils with its \"Open in Keyboard Utils\" button."),
         };
