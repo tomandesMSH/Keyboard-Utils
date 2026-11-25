@@ -175,14 +175,14 @@ a podpis učitele. Uloží se jako PDF – pošleš ho e-mailem nebo vytiskneš.
 **Denní cíl a série:** vpravo dole je vidět, kolik minut jsi dnes cvičil(a) v režimu učení, a 🔥 série dní v řadě
 se splněným cílem (najetím myší posledních 7 dní). Cíl (výchozí 20 min, 0 = vypnuto) změníš kliknutím na ukazatel. Počítá se jen režim učení, z `history.json`.
 
-### Noty z Muzia
+### Noty z JáMuzikanta
 
-U úkolu s přiloženými notami v [Muziu](https://muzio.tomandes.eu/) je tlačítko **Otevřít v Keyboard
+U úkolu s přiloženými notami v [JáMuzikantu](https://jamuzikant.tomandes.eu/login) je tlačítko **Otevřít v Keyboard
 Utils**. Appka si při spuštění zaregistruje odkazy `keyboardutils://` (jen pro tebe, bez práv správce); odkaz nese
-krátce platný podepsaný odkaz na soubor. Appka stáhne jen MIDI / MusicXML z úložiště Muzia (`*.supabase.co`, https,
-nejvýš 5 MB) do `%LOCALAPPDATA%\KeyboardUtils\Muzio` a otevře ho. Když už běží, předá jí ho nově spuštěná kopie
-(pojmenovaná roura) a sama skončí. Kdo Muzio nepoužívá, schová jeho menu tlačítkem **Skrýt menu Muzio** v okně
-**Muzio > Muzio...** (zpátky ho zapne **Nastavení > Zobrazit menu Muzio**).
+krátce platný podepsaný odkaz na soubor. Appka stáhne jen MIDI / MusicXML z úložiště JáMuzikanta (`*.supabase.co`, https,
+nejvýš 5 MB) do `%LOCALAPPDATA%\KeyboardUtils\JaMuzikant` a otevře ho. Když už běží, předá jí ho nově spuštěná kopie
+(pojmenovaná roura) a sama skončí. Kdo JáMuzikant nepoužívá, schová jeho menu tlačítkem **Skrýt menu JáMuzikant** v okně
+**JáMuzikant > JáMuzikant...** (zpátky ho zapne **Nastavení > Zobrazit menu JáMuzikant**).
 
 ### Stupnice a rozcvičky
 

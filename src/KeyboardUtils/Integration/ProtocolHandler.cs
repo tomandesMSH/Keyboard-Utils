@@ -6,7 +6,7 @@ namespace KeyboardUtils;
 /// <summary>
 /// Ties the app into Windows, per user in HKCU\Software\Classes (no admin rights needed):
 /// <list type="bullet">
-/// <item><c>keyboardutils://</c> links (Muzio's "Open in Keyboard Utils") start it;</item>
+/// <item><c>keyboardutils://</c> links (JáMuzikant's "Open in Keyboard Utils") start it;</item>
 /// <item>MIDI and MusicXML files list it under "Open with" - without taking over the default app, which stays the
 /// user's choice.</item>
 /// </list>
@@ -74,7 +74,7 @@ static class ProtocolHandler
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or IOException)
         {
-            // Links from Muzio and "Open with" just won't offer the app; everything else works.
+            // Links from JáMuzikant and "Open with" just won't offer the app; everything else works.
         }
     }
 

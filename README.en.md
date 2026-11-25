@@ -182,14 +182,14 @@ room for the teacher's note and signature. It's saved as a PDF to email or print
 streak of days in a row with the goal met (hover for the last 7 days). Click the indicator to change the goal
 (default 20 min, 0 = off). Only learning mode counts, taken from `history.json`.
 
-### Sheet music from Muzio
+### Sheet music from JáMuzikant
 
-A task with attached sheet music in [Muzio](https://muzio.tomandes.eu/) has an **Open in Keyboard
+A task with attached sheet music in [JáMuzikant](https://jamuzikant.tomandes.eu/login) has an **Open in Keyboard
 Utils** button. On start the app registers `keyboardutils://` links (just for you, without admin rights); the link
-carries a short-lived signed link to the file. The app downloads only MIDI / MusicXML from Muzio's storage
-(`*.supabase.co`, https, at most 5 MB) to `%LOCALAPPDATA%\KeyboardUtils\Muzio` and opens it. If it's already running,
-a newly started copy hands the file over (a named pipe) and exits. If you don't use Muzio, hide its menu with **Hide the Muzio menu**
-in the **Muzio > Muzio...** window (**Settings > Show the Muzio menu** brings it back).
+carries a short-lived signed link to the file. The app downloads only MIDI / MusicXML from JáMuzikant's storage
+(`*.supabase.co`, https, at most 5 MB) to `%LOCALAPPDATA%\KeyboardUtils\JaMuzikant` and opens it. If it's already running,
+a newly started copy hands the file over (a named pipe) and exits. If you don't use JáMuzikant, hide its menu with **Hide the JáMuzikant menu**
+in the **JáMuzikant > JáMuzikant...** window (**Settings > Show the JáMuzikant menu** brings it back).
 
 ### Scales and warm-ups
 

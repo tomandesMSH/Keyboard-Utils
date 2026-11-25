@@ -5,7 +5,7 @@ static class Program
     [STAThread]
     static void Main(string[] args)
     {
-        // A keyboardutils:// link (Muzio's "Open in Keyboard Utils") or a song file to open.
+        // A keyboardutils:// link (JáMuzikant's "Open in Keyboard Utils") or a song file to open.
         string? request = args.FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal) && !int.TryParse(a, out _));
         // Started by the previous version at the end of an update: let it quit first (it holds the mutex).
         bool justUpdated = SelfUpdater.WaitForPreviousInstance(args);
@@ -49,7 +49,7 @@ static class Program
         NoteNames.Naming = config.NoteNaming;
         AppTheme.SetDark(config.DarkMode);
 
-        // Muzio's links and "Open with" for MIDI / MusicXML files (after the language: the file type has a name).
+        // JáMuzikant's links and "Open with" for MIDI / MusicXML files (after the language: the file type has a name).
         if (Environment.ProcessPath is { } appExe)
             ProtocolHandler.Register(appExe, isPublished: IsSingleFile);
 

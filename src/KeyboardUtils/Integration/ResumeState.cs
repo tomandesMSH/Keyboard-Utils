@@ -5,7 +5,7 @@ namespace KeyboardUtils;
 /// <summary>
 /// Where the user was when an update restarted the app: the open song (and the playlist it came from), the
 /// position in it and the loop. Written by the old version just before it hands over (<see cref="SelfUpdater"/>),
-/// read once - and deleted - by the new one, so the update doesn't lose the song (a score opened from Muzio
+/// read once - and deleted - by the new one, so the update doesn't lose the song (a score opened from JáMuzikant
 /// included: it's a downloaded file like any other).
 /// </summary>
 sealed record ResumeState

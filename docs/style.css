@@ -14,7 +14,7 @@
   --accent: #121212;        /* the strong colour: black keys, step numbers, the main button */
   --on-accent: #ffffff;
   --accent-shadow: #000000;
-  --band: #121212;          /* the dark sections: screenshots, Muzio */
+  --band: #121212;          /* the dark sections: screenshots, JáMuzikant */
   --band-text: #f7f4ec;
   --band-muted: #bdb8ad;
   --band-line: #333333;
@@ -23,7 +23,7 @@
   --key-white: #ffffff;
   --key-black: #121212;
   --key-gap: #d8d2c4;
-  --muzio: #e14432;
+  --jamuzikant: #e14432;
   --radius: 14px;
   --max: 1080px;
 }
@@ -185,7 +185,7 @@ nav a:hover { color: var(--text); }
 /* Black key and white key. */
 .btn-dark { background: var(--accent); color: var(--on-accent); box-shadow: 0 3px 0 var(--accent-shadow); }
 .btn-light { background: var(--surface); color: var(--text); border: 2px solid var(--edge); box-shadow: 0 3px 0 var(--line); }
-.btn-red { background: var(--muzio); color: #ffffff; box-shadow: 0 3px 0 #b8331f; }
+.btn-red { background: var(--jamuzikant); color: #ffffff; box-shadow: 0 3px 0 #b8331f; }
 
 .fine { margin: 18px 0 0; font-size: .88rem; color: var(--muted); }
 
@@ -358,15 +358,15 @@ nav a:hover { color: var(--text); }
   margin-bottom: 10px;
 }
 
-/* --- Muzio -------------------------------------------------------------------------------- */
+/* --- JáMuzikant -------------------------------------------------------------------------------- */
 
-.muzio {
+.jamuzikant {
   max-width: var(--max);
   margin: 0 auto;
   padding: 64px 20px 80px;
 }
 
-.muzio-card {
+.jamuzikant-card {
   display: flex;
   gap: 24px;
   align-items: flex-start;
@@ -377,8 +377,8 @@ nav a:hover { color: var(--text); }
   padding: 32px;
 }
 
-.muzio-card img { flex: none; border-radius: 14px; }
-.muzio-card p { color: var(--band-muted); margin: 0 0 22px; max-width: 640px; }
+.jamuzikant-card img { flex: none; border-radius: 14px; }
+.jamuzikant-card p { color: var(--band-muted); margin: 0 0 22px; max-width: 640px; }
 
 /* --- Footer ------------------------------------------------------------------------------- */
 
@@ -581,8 +581,8 @@ kbd {
   .lang-switch a { padding: 6px 9px; }
   nav { gap: 14px; font-size: .95rem; }
   .features, .steps { padding: 52px 16px 16px; }
-  .muzio { padding: 48px 16px 60px; }
-  .muzio-card { flex-direction: column; padding: 24px; }
+  .jamuzikant { padding: 48px 16px 60px; }
+  .jamuzikant-card { flex-direction: column; padding: 24px; }
   .shots { padding: 36px 16px 44px; }
   .keys { --w: 30px; height: 64px; }
 }

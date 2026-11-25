@@ -1,6 +1,6 @@
 namespace KeyboardUtils;
 
-/// <summary>Opening songs from outside: <c>keyboardutils://</c> links from Muzio and files given on the command line.</summary>
+/// <summary>Opening songs from outside: <c>keyboardutils://</c> links from JáMuzikant and files given on the command line.</summary>
 sealed partial class MainForm
 {
     readonly CancellationTokenSource openListener = new();
@@ -35,7 +35,7 @@ sealed partial class MainForm
         FormClosed += (_, _) => openListener.Cancel();
     }
 
-    /// <summary>A link from Muzio, a song file, or "" (the app was started again: just come to the front).</summary>
+    /// <summary>A link from JáMuzikant, a song file, or "" (the app was started again: just come to the front).</summary>
     async Task OpenRequestAsync(string argument)
     {
         RestoreWindow();
@@ -58,7 +58,7 @@ sealed partial class MainForm
             ShowModal(this, Text, error!, AntdUI.TType.Error);
             return;
         }
-        SetStatus(T($"Stahuji noty z Muzia: {link.FileName}...", $"Downloading the score from Muzio: {link.FileName}..."));
+        SetStatus(T($"Stahuji noty z JáMuzikanta: {link.FileName}...", $"Downloading the score from JáMuzikant: {link.FileName}..."));
         string path;
         try
         {
@@ -70,8 +70,8 @@ sealed partial class MainForm
                 return;
             SetStatus("");
             ShowModal(this, Text,
-                T("Noty se nepodařilo stáhnout. Odkaz platí jen pár minut - v Muziu klikni na „Otevřít v Keyboard Utils“ znovu, nebo zkontroluj připojení k internetu.",
-                    "Couldn't download the score. The link only works for a few minutes - click \"Open in Keyboard Utils\" in Muzio again, or check your internet connection.")
+                T("Noty se nepodařilo stáhnout. Odkaz platí jen pár minut - v JáMuzikantu klikni na „Otevřít v Keyboard Utils“ znovu, nebo zkontroluj připojení k internetu.",
+                    "Couldn't download the score. The link only works for a few minutes - click \"Open in Keyboard Utils\" in JáMuzikant again, or check your internet connection.")
                 + (ex is HttpRequestException { StatusCode: null } && ex.Message.Length < 80 ? "\n\n" + ex.Message : ""),
                 AntdUI.TType.Error);
             return;
@@ -114,7 +114,7 @@ sealed partial class MainForm
     }
 
     /// <summary>
-    /// Started from Muzio (or after the language was picked on the first start), the window can open behind the
+    /// Started from JáMuzikant (or after the language was picked on the first start), the window can open behind the
     /// browser: Windows doesn't let a window that comes up a moment later take the front. Put it on top once - the
     /// TopMost flip raises it even when Windows refuses to activate it - and flash the taskbar button if it still
     /// isn't the active one.

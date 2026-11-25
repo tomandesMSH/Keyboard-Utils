@@ -39,7 +39,7 @@ static class WindowFront
     }
 
     /// <summary>
-    /// Called by a second start (from a Muzio link the user just clicked, so it may take the front) before it hands
+    /// Called by a second start (from a JáMuzikant link the user just clicked, so it may take the front) before it hands
     /// the link over: lets the running app bring its window to the front instead of only flashing.
     /// </summary>
     public static void LetOthersComeToFront() => AllowSetForegroundWindow(-1 /* ASFW_ANY */);

@@ -366,8 +366,8 @@ sealed class AppConfig
     /// <summary>What a macro key or a shortcut did, shown big over the song for a moment.</summary>
     public bool BigNotices { get; set; } = true;
 
-    /// <summary>The Muzio menu in the menu bar (it can be hidden for those who don't use Muzio).</summary>
-    public bool ShowMuzio { get; set; } = true;
+    /// <summary>The JáMuzikant menu in the menu bar (it can be hidden for those who don't use JáMuzikant).</summary>
+    public bool ShowJaMuzikant { get; set; } = true;
 
     /// <summary>The recorder's fingering chart: baroque (most recorders and schools) or German.</summary>
     public RecorderSystem RecorderFingering { get; set; }

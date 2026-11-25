@@ -11,7 +11,7 @@ public class IntegrationTests
         "keyboardutils://open?url=" + Uri.EscapeDataString(url) + (name == null ? "" : "&name=" + Uri.EscapeDataString(name));
 
     [Fact]
-    public void Parses_a_link_from_muzio()
+    public void Parses_a_link_from_jamuzikant()
     {
         var link = RemoteScore.Parse(Link(Signed, "Píseň o klavíru.mid"), out var error);
         Assert.Null(error);

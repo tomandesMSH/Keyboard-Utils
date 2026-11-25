@@ -1,11 +1,11 @@
 namespace KeyboardUtils;
 
-/// <summary>A score to download, from a <c>keyboardutils://open?url=...&amp;name=...</c> link (Muzio's "Open in Keyboard Utils").</summary>
+/// <summary>A score to download, from a <c>keyboardutils://open?url=...&amp;name=...</c> link (JáMuzikant's "Open in Keyboard Utils").</summary>
 sealed record RemoteScoreLink(Uri Download, string FileName);
 
 /// <summary>
-/// Opening a score straight from Muzio: the browser hands the app a <c>keyboardutils://</c> link with a short-lived
-/// signed download link. Anyone can make such a link, so only what Muzio sends is accepted: an https link to Supabase
+/// Opening a score straight from JáMuzikant: the browser hands the app a <c>keyboardutils://</c> link with a short-lived
+/// signed download link. Anyone can make such a link, so only what JáMuzikant sends is accepted: an https link to Supabase
 /// storage, a MIDI or MusicXML file, at most <see cref="MaxBytes"/>.
 /// </summary>
 static class RemoteScore
@@ -16,7 +16,7 @@ static class RemoteScore
 
     /// <summary>Where downloaded scores are kept (they stay openable from "recent songs").</summary>
     public static string Folder { get; } =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "KeyboardUtils", "Muzio");
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "KeyboardUtils", "JaMuzikant");
 
     public static bool IsLink(string argument) =>
         argument.StartsWith(Scheme + ":", StringComparison.OrdinalIgnoreCase);
@@ -37,7 +37,7 @@ static class RemoteScore
             || !IsAllowedHost(download.Host)
             || !string.IsNullOrEmpty(download.UserInfo))
         {
-            error = T("Noty jde otevřít jen z Muzia.", "Scores can only be opened from Muzio.");
+            error = T("Noty jde otevřít jen z JáMuzikanta.", "Scores can only be opened from JáMuzikant.");
             return null;
         }
         string name = SafeFileName(query.GetValueOrDefault("name") ?? Uri.UnescapeDataString(download.Segments[^1]));
@@ -50,7 +50,7 @@ static class RemoteScore
         return new RemoteScoreLink(download, name);
     }
 
-    /// <summary>Supabase storage (Muzio's attachments live there).</summary>
+    /// <summary>Supabase storage (JáMuzikant's attachments live there).</summary>
     public static bool IsAllowedHost(string host) =>
         host.EndsWith(".supabase.co", StringComparison.OrdinalIgnoreCase) && host.Length > ".supabase.co".Length;
 

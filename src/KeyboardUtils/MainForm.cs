@@ -206,7 +206,7 @@ sealed partial class MainForm : AntdUI.Window
     readonly MenuBarButton fileMenuButton = new();
     readonly MenuBarButton libraryMenuButton = new();
     readonly MenuBarButton practiceMenuButton = new();
-    readonly MenuBarButton muzioMenuButton = new();
+    readonly MenuBarButton jaMuzikantMenuButton = new();
     readonly MenuBarButton editMenuButton = new();
     readonly MenuBarButton settingsMenuButton = new();
     readonly MenuBarButton helpMenuButton = new();
@@ -442,8 +442,8 @@ sealed partial class MainForm : AntdUI.Window
         updateButton.Click += (_, _) => _ = UpdateAsync();
         Controls.Add(statusRow);
 
-        menuBar.Controls.AddRange([fileMenuButton, libraryMenuButton, practiceMenuButton, muzioMenuButton, editMenuButton, settingsMenuButton, helpMenuButton]);
-        muzioMenuButton.Visible = config.ShowMuzio;
+        menuBar.Controls.AddRange([fileMenuButton, libraryMenuButton, practiceMenuButton, jaMuzikantMenuButton, editMenuButton, settingsMenuButton, helpMenuButton]);
+        jaMuzikantMenuButton.Visible = config.ShowJaMuzikant;
         Controls.Add(menuBar);
 
         // Title bar must be added LAST (and never BringToFront - that resets its z-index to 0, which for
@@ -472,9 +472,9 @@ sealed partial class MainForm : AntdUI.Window
                 .. BuildLibraryMenuItems(),
             ]);
 
-        muzioMenuButton.Click += (_, _) => ShowMenu(muzioMenuButton,
-            MenuItem(T("Muzio...", "Muzio..."), ShowAboutMuzio),
-            MenuItem(T("Propojit s Muzio účtem...", "Connect a Muzio account..."), ConnectToMuzio));
+        jaMuzikantMenuButton.Click += (_, _) => ShowMenu(jaMuzikantMenuButton,
+            MenuItem(T("JáMuzikant...", "JáMuzikant..."), ShowAboutJaMuzikant),
+            MenuItem(T("Propojit s účtem JáMuzikant...", "Connect a JáMuzikant account..."), ConnectToJaMuzikant));
 
         practiceMenuButton.Click += (_, _) => ShowMenu(practiceMenuButton,
             MenuItem(T("Stupnice a rozcvičky...", "Scales and warm-ups..."), OpenExercise),
@@ -778,10 +778,10 @@ sealed partial class MainForm : AntdUI.Window
                     new AntdUI.ContextMenuStripItem(T("Německý", "German")) { Checked = config.RecorderFingering == RecorderSystem.German, Tag = (Action)(() => SetRecorderFingering(RecorderSystem.German)) },
                 ],
             },
-            new AntdUI.ContextMenuStripItem(T("Zobrazit menu Muzio", "Show the Muzio menu"))
+            new AntdUI.ContextMenuStripItem(T("Zobrazit menu JáMuzikant", "Show the JáMuzikant menu"))
             {
-                Checked = config.ShowMuzio,
-                Tag = (Action)(() => SetShowMuzio(!config.ShowMuzio)),
+                Checked = config.ShowJaMuzikant,
+                Tag = (Action)(() => SetShowJaMuzikant(!config.ShowJaMuzikant)),
             },
             new AntdUI.ContextMenuStripItem(T("Nástroje (stáhnout, odebrat)...", "Instruments (download, remove)...")) { Tag = (Action)ShowInstrumentPacks },
             new AntdUI.ContextMenuStripItem(T("MIDI výstup", "MIDI output")) { Sub = deviceItems.ToArray() },
@@ -820,29 +820,29 @@ sealed partial class MainForm : AntdUI.Window
         return items.ToArray();
     }
 
-    /// <summary>Linking the app to a Muzio account isn't there yet - says so.</summary>
-    const string MuzioUrl = "https://muzio.tomandes.eu/";
+    /// <summary>Linking the app to a JáMuzikant account isn't there yet - says so.</summary>
+    const string JaMuzikantUrl = "https://jamuzikant.tomandes.eu/login";
 
-    /// <summary>Muzio > Muzio...: what Muzio is, and a way there.</summary>
-    void ShowAboutMuzio()
+    /// <summary>JáMuzikant > JáMuzikant...: what JáMuzikant is, and a way there.</summary>
+    void ShowAboutJaMuzikant()
     {
-        using var form = new MuzioInfoForm();
+        using var form = new JaMuzikantInfoForm();
         form.ShowDialog(this);
-        if (form.Result == MuzioInfoForm.Choice.Hide)
-            SetShowMuzio(false);
-        else if (form.Result == MuzioInfoForm.Choice.Open)
-            AboutForm.Open(MuzioUrl);
+        if (form.Result == JaMuzikantInfoForm.Choice.Hide)
+            SetShowJaMuzikant(false);
+        else if (form.Result == JaMuzikantInfoForm.Choice.Open)
+            AboutForm.Open(JaMuzikantUrl);
     }
 
-    /// <summary>The Muzio menu shown or hidden (Settings > Show the Muzio menu, or "Hide" in Muzio > Muzio...).</summary>
-    void SetShowMuzio(bool show)
+    /// <summary>The JáMuzikant menu shown or hidden (Settings > Show the JáMuzikant menu, or "Hide" in JáMuzikant > JáMuzikant...).</summary>
+    void SetShowJaMuzikant(bool show)
     {
-        config.ShowMuzio = show;
+        config.ShowJaMuzikant = show;
         config.Save();
-        muzioMenuButton.Visible = show;
+        jaMuzikantMenuButton.Visible = show;
         if (!show)
-            SetStatus(T("Menu Muzio je skryté - zpátky ho zapneš v Nastavení > Zobrazit menu Muzio.",
-                "The Muzio menu is hidden - turn it back on in Settings > Show the Muzio menu."));
+            SetStatus(T("Menu JáMuzikant je skryté - zpátky ho zapneš v Nastavení > Zobrazit menu JáMuzikant.",
+                "The JáMuzikant menu is hidden - turn it back on in Settings > Show the JáMuzikant menu."));
     }
 
     /// <summary>Úpravy > Makro klávesnice: the macro keys in their own window (made once, then shown and hidden).</summary>
@@ -855,10 +855,10 @@ sealed partial class MainForm : AntdUI.Window
             macroWindow.Show(this);
     }
 
-    void ConnectToMuzio() =>
-        ShowModal(this, T("Propojit s Muzio účtem", "Connect a Muzio account"),
-            T("Propojení s Muziem zatím není hotové - přijde v některé z příštích aktualizací.\n\nNoty z Muzia už teď otevřeš tlačítkem „Otevřít v Keyboard Utils“ u úkolu.",
-              "Connecting to Muzio isn't ready yet - it will come in a future update.\n\nYou can already open scores from Muzio with the \"Open in Keyboard Utils\" button on an assignment."),
+    void ConnectToJaMuzikant() =>
+        ShowModal(this, T("Propojit s účtem JáMuzikant", "Connect a JáMuzikant account"),
+            T("Propojení s JáMuzikantem zatím není hotové - přijde v některé z příštích aktualizací.\n\nNoty z JáMuzikanta už teď otevřeš tlačítkem „Otevřít v Keyboard Utils“ u úkolu.",
+              "Connecting to JáMuzikant isn't ready yet - it will come in a future update.\n\nYou can already open scores from JáMuzikant with the \"Open in Keyboard Utils\" button on an assignment."),
             AntdUI.TType.Info);
 
     /// <param name="name">Null = the system default output.</param>
@@ -881,7 +881,7 @@ sealed partial class MainForm : AntdUI.Window
         fileMenuButton.Text = T("Soubor", "File");
         libraryMenuButton.Text = T("Knihovna", "Library");
         practiceMenuButton.Text = T("Cvičení", "Practice");
-        muzioMenuButton.Text = "Muzio";
+        jaMuzikantMenuButton.Text = "JáMuzikant";
         editMenuButton.Text = T("Úpravy", "Edit");
         settingsMenuButton.Text = T("Nastavení", "Settings");
         helpMenuButton.Text = T("Nápověda", "Help");
