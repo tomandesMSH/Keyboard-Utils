@@ -361,5 +361,5 @@ s vyplněnou verzí – GitHub účet není potřeba, hlášení se objeví mezi
   přiložené v balíčku doplňku.
 - Zvuk klavíru je SoundFont Upright Piano KW z projektu [FreePats](http://freepats.zenvoid.org) (CC0, public domain);
   přehrává ho knihovna [MeltySynth](https://github.com/sinshu/meltysynth) (MIT).
-- Zachytávání makro klávesnice je oddělené do knihovny `src/MacroKeyboard`, kterou sdílí i
+- Zachytávání makro klávesnice je oddělené do knihovny [MacroKeyboard](https://github.com/tomandesMSH/mk-pkg) (submodul `external/mk-pkg`), kterou sdílí i
   [Soundpad Translator](https://github.com/tomandesMSH/SoundpadTranslator).

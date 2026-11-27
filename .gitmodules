@@ -1,0 +1,3 @@
+[submodule "external/mk-pkg"]
+	path = external/mk-pkg
+	url = https://github.com/tomandesMSH/mk-pkg.git

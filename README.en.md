@@ -374,5 +374,5 @@ own licences (see below).
   included in the add-on package.
 - The piano sound is the Upright Piano KW SoundFont from [FreePats](http://freepats.zenvoid.org) (CC0, public domain);
   it's played by the [MeltySynth](https://github.com/sinshu/meltysynth) library (MIT).
-- Macro keyboard capturing is split into the `src/MacroKeyboard` library, which is shared with
+- Macro keyboard capturing is split into the [MacroKeyboard](https://github.com/tomandesMSH/mk-pkg) library (`external/mk-pkg` submodule), which is shared with
   [Soundpad Translator](https://github.com/tomandesMSH/SoundpadTranslator).
